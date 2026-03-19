@@ -1,0 +1,42 @@
+---
+description: Security best practices for code, data, and infrastructure
+alwaysApply: true
+---
+
+# Security Patterns
+
+## Input Validation
+- **Backend**: validate all inputs at API boundaries (Pydantic, Zod, JSON Schema)
+- **Frontend**: validate user inputs before sending to API
+- **Sanitization**: sanitize user inputs before LLM prompts (prevent prompt injection)
+- **Rate limiting**: rate limit public-facing API endpoints
+
+## Authentication & Authorization
+- **Authenticate all API requests**: JWT, OAuth, or API keys
+- **Store tokens securely**: httpOnly cookies preferred over localStorage
+- **Least privilege**: minimum permissions required for each operation
+- **Audit logs**: log access to sensitive resources
+
+## Data Protection
+- **Encryption at rest**: encrypt sensitive data in storage
+- **TLS/HTTPS**: enforce for all data in transit
+- **PII masking**: mask PII in logs and error messages
+- **Secrets management**: never store secrets in source code; use environment variables or vault
+
+## Data & Notebook Security
+- **No raw data in git**: add `data/` to `.gitignore`. Use DVC or cloud storage for large datasets.
+- **No PII in notebooks**: mask or anonymize sensitive fields before analysis
+- **No credentials in notebooks**: use environment variables or config files, never inline API keys or passwords
+- **Mask sensitive output**: redact PII from notebook outputs before sharing or committing
+- **`.env` files**: never commit. Add to `.gitignore`.
+
+## Frontend Security
+- **XSS prevention**: sanitize user-generated content before rendering
+- **CSRF protection**: use CSRF tokens for state-changing operations
+- **CSP**: implement Content Security Policy headers
+- **API keys**: never expose in frontend code (use backend proxy)
+
+## Dependency Security
+- **Vulnerability scanning**: `pip-audit`, `npm audit`, or Snyk in CI
+- **Regular updates**: keep dependencies current, review changelogs for security fixes
+- **Pin versions**: use lockfiles (`poetry.lock`, `package-lock.json`)
