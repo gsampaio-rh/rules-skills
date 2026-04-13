@@ -39,4 +39,22 @@ alwaysApply: true
 ## Dependency Security
 - **Vulnerability scanning**: `pip-audit`, `npm audit`, or Snyk in CI
 - **Regular updates**: keep dependencies current, review changelogs for security fixes
-- **Pin versions**: use lockfiles (`poetry.lock`, `package-lock.json`)
+- **Pin versions**: use lockfiles (`poetry.lock`, `package-lock.json`, `uv.lock`)
+
+## Supply Chain Defense
+- **Minimize dependencies**: before adding a package, evaluate if the functionality can be implemented directly. Fewer deps = smaller attack surface.
+- **Audit before installing**: inspect a package's dependencies, install scripts, and download stats before adding it. Use `npm-inspect`, `uv-inspect`, or check on socket.dev.
+- **npm: block install scripts**: global `ignore-scripts=true` in `~/.npmrc` prevents postinstall malware (e.g. axios/plain-crypto-js attack). Run `npm rebuild <pkg>` manually for legitimate native builds.
+- **npm: pin exact versions**: global `save-exact=true` in `~/.npmrc` prevents `^` ranges from pulling compromised newer versions.
+- **uv: exclude-newer cooldown**: global `exclude-newer = "3 days"` in `~/.config/uv/uv.toml` ignores packages published in the last 3 days — most supply chain attacks are caught within hours.
+- **pip: require virtualenvs**: global `require-virtualenv=true` in pip.conf prevents installing into the system Python.
+- **CI/CD: pin by hash, not tag**: GitHub Actions tags can be hijacked. Use `actions/checkout@<sha>` instead of `@v4`.
+- **CI/CD: use frozen installs**: `npm ci`, `uv sync --frozen`, `pip install --require-hashes` — never resolve fresh in production pipelines.
+- **Review lockfile diffs**: treat lockfile changes in PRs with the same scrutiny as code changes. New transitive dependencies are the primary attack vector.
+- **Block known-compromised versions**: use `constraint-dependencies` in `pyproject.toml` for Python. There is no npm equivalent — rely on `npm audit` + lockfile review.
+
+## Environment Isolation
+- **Develop in containers**: devcontainers or Docker isolate your credentials from malicious install scripts
+- **Limit credential exposure**: use secrets managers (`aws-vault`, `op run`), not env vars in shell profiles
+- **SSH keys with passphrase**: use `ssh-add -t 3600` for time-limited agent sessions
+- **Rotate credentials**: especially after any suspected compromise or package incident

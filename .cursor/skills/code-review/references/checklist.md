@@ -21,6 +21,15 @@ Detailed per-category checklists for thorough reviews.
 - [ ] CORS configured correctly
 - [ ] Dependencies checked for known vulnerabilities
 
+## Supply Chain
+- [ ] Lockfile is committed and diff is reviewed for unexpected new dependencies
+- [ ] No unfamiliar or typosquatted packages (e.g. `python3-dateutil` vs `python-dateutil`)
+- [ ] Dependencies use exact versions, not open ranges (`^`, `~`, `*`, `>=`)
+- [ ] CI uses frozen install (`npm ci`, `uv sync --frozen`, `pip install --require-hashes`)
+- [ ] GitHub Actions pinned by commit SHA, not tag
+- [ ] No unnecessary dependencies — functionality could be implemented directly
+- [ ] Packages with install scripts (`preinstall`, `postinstall`) are justified and reviewed
+
 ## Performance
 - [ ] No O(n²) where O(n) or O(n log n) is possible
 - [ ] Database queries: no N+1, indexes on filtered/joined columns

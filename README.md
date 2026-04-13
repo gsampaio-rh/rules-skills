@@ -11,7 +11,9 @@ Passive, always-on constraints that shape how the AI agent writes code and commu
 | Rule | Activation | What it does |
 |---|---|---|
 | `agent_behavior` | Always on | Communication style, change management, information handling |
+| `autonomous_execution` | Always on | Act without asking permission, fix errors autonomously, pause on destructive ops |
 | `code_standards` | Always on | Explicit > implicit, single responsibility, naming, DRY |
+| `critical_thinking` | Always on | Analyze requests, challenge assumptions, improve vague prompts |
 | `security` | Always on | Input validation, data protection, dependency scanning |
 | `architecture` | `*.py, *.ts, *.tsx` | SOLID, dependency direction, pattern selection with trade-off reasoning |
 | `python_ml` | `*.py, *.ipynb` | Type hints, pandas patterns, ML conventions, notebook standards |
@@ -30,8 +32,10 @@ Active, task-driven workflows the agent loads when relevant.
 | `commit` | Manual | Conventional commits with staging logic and pre-flight checks |
 | `experiment-workflow` | Auto | 6-phase experiment lifecycle from design to findings report |
 | `data-science-analysis` | Auto | Hypothesis generation, feature engineering, storytelling frameworks |
+| `spec-driven-dev` | Auto | Write specs before coding — design, approve, then implement |
 | `sprint-planning` | Manual | Agile project kickoff, sprint planning, review/retro |
 | `project-scaffolding` | Manual | Multi-mode project structure (ML, full-stack, API, library) |
+| `iac-templates` | Auto | Reuse, update, or create IaC templates from centralized repo |
 | `sus-deep-dive` | Auto | Brazilian public health (SUS/DATASUS) investigation workflow |
 
 ### Shared References (`.cursor/references/`)
@@ -67,9 +71,11 @@ Internal quality contracts at the repo root (not loaded by the agent):
 │       └── design-systems/
 ├── rules/
 │   ├── agent_behavior.mdc
+│   ├── autonomous_execution.mdc
 │   ├── architecture.mdc
 │   ├── causal_rigor.mdc
 │   ├── code_standards.mdc
+│   ├── critical_thinking.mdc
 │   ├── design_principles.mdc
 │   ├── python_ml.mdc
 │   ├── research_standards.mdc
@@ -80,7 +86,9 @@ Internal quality contracts at the repo root (not loaded by the agent):
     ├── commit/
     ├── data-science-analysis/
     ├── experiment-workflow/
+    ├── iac-templates/
     ├── project-scaffolding/
+    ├── spec-driven-dev/
     ├── sprint-planning/
     └── sus-deep-dive/
 ```

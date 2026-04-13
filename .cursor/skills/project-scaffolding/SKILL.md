@@ -139,6 +139,16 @@ project_root/
 └── LICENSE
 ```
 
+## Security Scaffolding
+
+Every new project should include these supply chain protections from day zero:
+
+- **`.gitignore`**: include `.env`, `data/`, credentials, and OS artifacts
+- **Lockfiles**: commit `package-lock.json`, `uv.lock`, or `poetry.lock` — never `*`-ignore them
+- **CI frozen installs**: use `npm ci` / `uv sync --frozen` / `pip install --require-hashes` in pipelines
+- **GitHub Actions by SHA**: pin actions to commit hash, not tag (tags can be hijacked)
+- **Dependency audit in CI**: add `npm audit` / `pip-audit` as a pipeline step
+
 ## Proactive Triggers
 
 - **No `.gitignore`** → risk of committing data, secrets, or build artifacts
@@ -146,6 +156,8 @@ project_root/
 - **Flat structure with >10 files** → time to organize into modules
 - **Business logic in API layer** → suggest moving to domain/application
 - **Data files in git** → suggest `.gitignore` + DVC or cloud storage
+- **No lockfile committed** → supply chain risk, add and commit lockfile
+- **Open dependency ranges** (`^`, `>=`, `*`) → pin exact versions
 
 ## Output Artifacts
 

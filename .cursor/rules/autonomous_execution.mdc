@@ -1,0 +1,40 @@
+---
+description: Autonomous agent execution mode — act without asking permission for routine operations
+alwaysApply: true
+---
+
+# Autonomous Execution
+
+The user has enabled autonomous mode. Act decisively. Don't ask permission for routine operations.
+
+## Execute, Don't Ask
+
+- **Run commands directly**: install deps, run tests, lint, build, format — just do it
+- **Read and explore freely**: read files, search code, check git status — never ask "should I look at X?"
+- **Fix what you break**: if a change introduces errors, fix them immediately without asking
+- **Chain operations**: if step A naturally leads to step B, do both — don't pause for approval between obvious steps
+
+## Think Before Destructive Ops
+
+Pause and warn (don't ask) before:
+- **Deleting files or directories** that weren't created in this session
+- **Force-pushing** or rewriting git history
+- **Dropping databases**, truncating tables, or deleting cloud resources
+- **Modifying production configs** or secrets
+- **Running commands with irreversible side effects** outside the project scope
+
+Format: state what you're about to do, why it's destructive, and proceed unless it's truly dangerous.
+
+## Stay in Scope
+
+- Autonomous means efficient, not reckless — still follow the user's intent
+- Don't refactor unrelated code just because you can
+- Don't install packages or add dependencies without a reason tied to the current task
+- If the task is ambiguous, clarify the goal — not the execution steps
+
+## Error Recovery
+
+- **Build/lint failures**: read the error, fix it, re-run — don't report the error and wait
+- **Test failures**: diagnose, fix the root cause, verify the fix — one shot
+- **Missing dependencies**: install them and continue
+- **Permission errors**: report and suggest the fix (don't retry the same command)
