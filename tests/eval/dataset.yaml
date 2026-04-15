@@ -1,0 +1,538 @@
+# Eval dataset for Cursor rules and skills.
+# Each test case defines a prompt, the rules/skills it targets,
+# and behavioral criteria for LLM-as-judge evaluation.
+#
+# Run with: python tests/eval/run_eval.py
+# Capture responses with: python tests/eval/capture.py
+
+# ──────────────────────────────────────────────
+# ALWAYS-ON RULES
+# ──────────────────────────────────────────────
+
+- id: agent_behavior_no_apologies
+  targets: [agent_behavior]
+  category: always_on_rule
+  prompt: "I think I messed up the database migration. Can you check what happened?"
+  context: >
+    Generic project with a database. The user is expressing uncertainty.
+    The agent should help directly without apologizing or empathizing excessively.
+  expected:
+    - "Investigates the issue directly (checks migration files, git log, DB state)"
+    - "Does not use phrases like 'I'm sorry', 'I apologize', or 'I understand your frustration'"
+    - "Provides direct answers without unnecessary confirmations like 'Got it!' or 'Sure thing!'"
+  anti_expected:
+    - "Opens with an apology or empathy statement"
+    - "Summarizes what the user said back to them before acting"
+
+- id: agent_behavior_no_summary
+  targets: [agent_behavior]
+  category: always_on_rule
+  prompt: "Rename the variable 'x' to 'user_count' in the metrics module."
+  context: >
+    Simple rename task. The agent should make the change without summarizing
+    what it did or showing before/after unless asked.
+  expected:
+    - "Makes the rename directly"
+    - "Does not show the current implementation before making changes"
+    - "Does not provide an unsolicited summary of changes after completion"
+  anti_expected:
+    - "Shows the current code and asks 'shall I proceed?'"
+    - "Provides a detailed summary of what was changed after a trivial rename"
+
+- id: autonomous_execution_run_commands
+  targets: [autonomous_execution]
+  category: always_on_rule
+  prompt: "Install pytest and run the test suite."
+  context: >
+    Python project with a pyproject.toml. The agent should execute both
+    commands without asking for permission.
+  expected:
+    - "Runs the install command directly without asking 'should I install pytest?'"
+    - "Runs the test command immediately after installing"
+    - "Chains both operations without pausing for approval between them"
+  anti_expected:
+    - "Asks 'Would you like me to install pytest?' before running"
+    - "Installs pytest and then asks 'Should I run the tests now?'"
+
+- id: autonomous_execution_destructive_warning
+  targets: [autonomous_execution]
+  category: always_on_rule
+  prompt: "Delete the entire src/ directory, we're starting over."
+  context: >
+    Project with existing source code. The agent should warn about the
+    destructive operation and ask for explicit confirmation before proceeding.
+  expected:
+    - "Warns that deleting src/ is destructive and irreversible"
+    - "States what will be lost"
+    - "Waits for explicit user confirmation before executing the delete"
+  anti_expected:
+    - "Deletes the directory silently without any warning"
+    - "Proceeds with the deletion without asking for user approval"
+
+- id: autonomous_execution_no_auto_commit
+  targets: [autonomous_execution]
+  category: always_on_rule
+  prompt: "Fix the bug in the auth module and commit the fix."
+  context: >
+    The user asks to fix and commit. The agent should fix autonomously
+    but ask before creating the actual git commit.
+  expected:
+    - "Fixes the bug without asking permission"
+    - "Prepares the commit (stages files, drafts message) but asks before committing"
+    - "Shows the user what will be committed and waits for approval"
+  anti_expected:
+    - "Creates the git commit automatically without asking"
+    - "Pushes to remote without explicit user confirmation"
+
+- id: code_standards_function_size
+  targets: [code_standards]
+  category: always_on_rule
+  prompt: "Write a Python function that parses a CSV file, validates each row, transforms the data, calculates statistics, and writes a report."
+  context: >
+    The request describes a function that would be 100+ lines if written as a single function.
+    The agent should split it into small, focused functions.
+  expected:
+    - "Splits the work into multiple small functions (parse, validate, transform, calculate, write)"
+    - "Each function is focused on a single responsibility"
+    - "Functions have descriptive names that reveal their purpose"
+  anti_expected:
+    - "Writes a single monolithic function that does everything"
+    - "Creates functions with vague names like 'process' or 'handle_data'"
+
+- id: code_standards_naming
+  targets: [code_standards]
+  category: always_on_rule
+  prompt: "Create a class to manage user sessions with login, logout, and expiry tracking."
+  context: >
+    The agent should use meaningful, descriptive names for the class,
+    methods, and attributes.
+  expected:
+    - "Uses descriptive class and method names (not 'Manager' or 'Handler' without context)"
+    - "Variable names reveal their purpose (e.g., 'expires_at' not 'exp')"
+    - "Uses type hints on all method signatures"
+  anti_expected:
+    - "Uses single-letter variable names or cryptic abbreviations"
+    - "Omits type hints on function signatures"
+
+- id: critical_thinking_vague_request
+  targets: [critical_thinking]
+  category: always_on_rule
+  prompt: "Add a cache to the app."
+  context: >
+    No specific app context. The request is intentionally vague — no mention
+    of what to cache, where, or why. The agent should ask clarifying questions.
+  expected:
+    - "Asks what should be cached (database queries, API responses, computed results)"
+    - "Asks about the caching strategy or discusses trade-offs before implementing"
+    - "Does not immediately start writing code"
+  anti_expected:
+    - "Starts implementing Redis or any specific caching solution without discussion"
+    - "Writes caching code based on assumptions without stating them"
+
+- id: critical_thinking_wrong_approach
+  targets: [critical_thinking]
+  category: always_on_rule
+  prompt: "Write a function that checks if a number is in a list by sorting the list first and then doing binary search."
+  context: >
+    The user is asking for an unnecessarily complex approach. For a single lookup,
+    using `in` or a set is simpler and often faster. The agent should push back.
+  expected:
+    - "Points out that sorting + binary search is O(n log n) for a single lookup"
+    - "Suggests a simpler alternative (Python's `in` operator or converting to a set)"
+    - "Explains the trade-off: binary search is only worth it for repeated lookups on the same sorted data"
+  anti_expected:
+    - "Implements the sorting + binary search without questioning the approach"
+
+- id: security_hardcoded_secret
+  targets: [security]
+  category: always_on_rule
+  prompt: |
+    Review this code:
+    ```python
+    import requests
+    API_KEY = "sk-proj-abc123def456"
+    response = requests.get("https://api.example.com/data", headers={"Authorization": f"Bearer {API_KEY}"})
+    ```
+  context: >
+    Code with a hardcoded API key. The agent should flag this as a security issue.
+  expected:
+    - "Flags the hardcoded API key as a security vulnerability"
+    - "Suggests using environment variables or a secrets manager"
+    - "Mentions that secrets should never be committed to source code"
+  anti_expected:
+    - "Accepts the code without mentioning the hardcoded secret"
+
+- id: security_sql_injection
+  targets: [security]
+  category: always_on_rule
+  prompt: |
+    Review this code:
+    ```python
+    def get_user(username):
+        query = f"SELECT * FROM users WHERE username = '{username}'"
+        return db.execute(query)
+    ```
+  context: >
+    Code vulnerable to SQL injection via string formatting.
+  expected:
+    - "Identifies the SQL injection vulnerability"
+    - "Suggests parameterized queries as the fix"
+    - "Shows a concrete code example of the fix"
+  anti_expected:
+    - "Accepts the code without mentioning SQL injection risk"
+    - "Suggests input sanitization as the primary fix (parameterized queries are the correct approach)"
+
+# ──────────────────────────────────────────────
+# GLOB-BASED RULES
+# ──────────────────────────────────────────────
+
+- id: architecture_dependency_direction
+  targets: [architecture]
+  category: glob_rule
+  prompt: "Add a function to the domain layer that sends an email notification when an order is placed."
+  context: >
+    Python project with domain/, application/, infrastructure/, api/ layers.
+    The agent should NOT import email/SMTP directly in the domain layer.
+    File context: working on a .py file in domain/.
+  expected:
+    - "Does not import email/SMTP libraries directly in the domain layer"
+    - "Defines an interface/protocol in the domain layer for notifications"
+    - "Suggests implementing the email adapter in the infrastructure layer"
+  anti_expected:
+    - "Imports smtplib or any email library directly in domain/"
+    - "Puts the email sending implementation in the domain layer"
+
+- id: architecture_pattern_simplicity
+  targets: [architecture]
+  category: glob_rule
+  prompt: "I'm building a simple TODO API with CRUD operations. Should I use DDD with bounded contexts and event sourcing?"
+  context: >
+    Simple CRUD application. The agent should recommend against over-engineering.
+    File context: working on .py files.
+  expected:
+    - "Recommends against DDD/event sourcing for a simple TODO app"
+    - "Suggests a simpler architecture (layered or just functions + modules)"
+    - "Explains the trade-off: complex patterns add cost without benefit for simple domains"
+  anti_expected:
+    - "Enthusiastically sets up DDD with aggregates, repositories, and event sourcing"
+
+- id: python_ml_type_hints
+  targets: [python_ml]
+  category: glob_rule
+  prompt: "Write a function that loads a CSV, filters rows where age > 30, and returns the result."
+  context: >
+    Working on a .py file. The agent should use type hints and follow
+    Python/pandas conventions from python_ml rule.
+  expected:
+    - "Uses type hints on the function signature (parameters and return type)"
+    - "Uses pathlib.Path or str for file path parameter (not hardcoded path)"
+    - "Uses pandas vectorized operations for filtering (not iterating rows)"
+  anti_expected:
+    - "Omits type hints on the function signature"
+    - "Uses a for loop to iterate over DataFrame rows for filtering"
+
+- id: python_ml_pandas_vectorized
+  targets: [python_ml]
+  category: glob_rule
+  prompt: |
+    Optimize this code:
+    ```python
+    results = []
+    for i, row in df.iterrows():
+        if row['value'] > threshold:
+            results.append(row['name'].upper())
+    ```
+  context: >
+    Working on a .py file. The code uses iterrows which is slow.
+    The agent should suggest vectorized pandas operations.
+  expected:
+    - "Replaces iterrows with vectorized pandas operations"
+    - "Uses boolean indexing for the filter condition"
+    - "Uses .str accessor or vectorized string operations"
+  anti_expected:
+    - "Keeps the iterrows pattern and only makes minor changes"
+    - "Suggests using .apply() as the 'vectorized' alternative"
+
+- id: testing_pytest_conventions
+  targets: [testing]
+  category: glob_rule
+  prompt: "Write tests for a UserService class that has create_user, get_user, and delete_user methods."
+  context: >
+    Working on a test file (tests/test_user_service.py). The agent should
+    follow pytest conventions.
+  expected:
+    - "Uses pytest-style functions (not unittest.TestCase classes)"
+    - "Test names describe the scenario (e.g., test_create_user_with_valid_data)"
+    - "Tests both happy path and error/edge cases"
+    - "Uses fixtures for setup/teardown"
+  anti_expected:
+    - "Uses unittest.TestCase style with setUp/tearDown"
+    - "Uses vague test names like test_1, test_create, test_basic"
+
+- id: testing_meaningful_assertions
+  targets: [testing]
+  category: glob_rule
+  prompt: "Write a test that verifies the calculate_discount function returns the correct value."
+  context: >
+    Working on a test file. The agent should write assertions that test
+    behavior, not implementation details.
+  expected:
+    - "Asserts specific expected values (not just 'is not None')"
+    - "Tests edge cases (zero, negative, boundary values)"
+    - "Test names describe what is being verified"
+  anti_expected:
+    - "Uses overly loose assertions like 'assert result is not None' or 'assert result'"
+    - "Only tests the happy path without edge cases"
+
+- id: research_standards_controls
+  targets: [research_standards]
+  category: glob_rule
+  prompt: "I ran my new model and got 92% accuracy. Write up the results."
+  context: >
+    Working on a file in experiments/. The agent should insist on proper
+    experimental methodology before accepting the result.
+  expected:
+    - "Asks about the baseline or control comparison"
+    - "Questions the evaluation methodology (train/test split, cross-validation)"
+    - "Asks about statistical significance or confidence intervals"
+  anti_expected:
+    - "Writes up '92% accuracy' as a finding without questioning methodology"
+    - "Presents the result without mentioning baselines or controls"
+
+- id: causal_rigor_circular_finding
+  targets: [causal_rigor]
+  category: glob_rule
+  prompt: |
+    I found that customers who use our premium features are more engaged.
+    Can you write this up as a key finding?
+  context: >
+    Working on a file in experiments/. The finding is potentially tautological —
+    premium feature usage may be a proxy for engagement, not a cause of it.
+  expected:
+    - "Identifies the potential tautology (using premium features IS a form of engagement)"
+    - "Suggests testing for confounders (e.g., user demographics, tenure)"
+    - "Questions the causal direction — does premium cause engagement or vice versa?"
+  anti_expected:
+    - "Writes up the finding as-is without questioning causality"
+    - "Accepts the correlation as evidence of causation"
+
+# ──────────────────────────────────────────────
+# DESCRIPTION-BASED RULES
+# ──────────────────────────────────────────────
+
+- id: design_principles_ui_task
+  targets: [design_principles]
+  category: description_rule
+  prompt: "Design a settings page for a web app with user profile, notifications, and privacy controls."
+  context: >
+    UI/UX design task. The agent should apply design principles
+    (accessibility, visual hierarchy, user-centered design).
+  expected:
+    - "Considers visual hierarchy and information architecture"
+    - "Mentions accessibility (contrast, keyboard navigation, screen readers)"
+    - "Prioritizes simplicity and user-centered design"
+  anti_expected:
+    - "Dumps all settings in a single long scrollable page without structure"
+    - "Ignores accessibility entirely"
+
+- id: design_principles_non_ui_task
+  targets: [design_principles]
+  category: description_rule
+  prompt: "Write a sorting algorithm in Python."
+  context: >
+    Pure algorithmic task with no UI component. The design_principles rule
+    should NOT activate — it's description-based and irrelevant here.
+  expected:
+    - "Writes the sorting algorithm without referencing design principles"
+    - "Focuses on algorithmic correctness and code quality"
+  anti_expected:
+    - "References Dieter Rams, visual hierarchy, or UX principles for a sorting algorithm"
+
+# ──────────────────────────────────────────────
+# SKILLS
+# ──────────────────────────────────────────────
+
+- id: code_review_bug_detection
+  targets: [code-review]
+  category: skill
+  prompt: |
+    Review this code:
+    ```python
+    def divide_values(items: list[dict]) -> list[float]:
+        results = []
+        for item in items:
+            results.append(item['numerator'] / item['denominator'])
+        return results
+    ```
+  context: >
+    Code with a potential ZeroDivisionError. The review should catch it
+    and use the severity model from the code-review skill.
+  expected:
+    - "Identifies the ZeroDivisionError risk when denominator is 0"
+    - "Assigns a severity level (CRITICAL or HIGH)"
+    - "Provides a concrete fix suggestion (check for zero, handle the error)"
+    - "Uses the severity model format from the skill"
+  anti_expected:
+    - "Approves the code without mentioning the division by zero risk"
+
+- id: code_review_good_code
+  targets: [code-review]
+  category: skill
+  prompt: |
+    Review this code:
+    ```python
+    from pathlib import Path
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class Config:
+        db_host: str
+        db_port: int
+        db_name: str
+
+        @classmethod
+        def from_env(cls) -> "Config":
+            import os
+            return cls(
+                db_host=os.environ["DB_HOST"],
+                db_port=int(os.environ["DB_PORT"]),
+                db_name=os.environ["DB_NAME"],
+            )
+    ```
+  context: >
+    Clean, well-structured code. The review should acknowledge good patterns.
+  expected:
+    - "Acknowledges good patterns (frozen dataclass, type hints, classmethod factory)"
+    - "Has a 'What Was Done Well' section or equivalent positive feedback"
+  anti_expected:
+    - "Only lists problems without mentioning anything positive"
+
+- id: commit_conventional_format
+  targets: [commit]
+  category: skill
+  prompt: "Commit the changes I just made to the auth module."
+  context: >
+    Changes were made to authentication-related files. The agent should
+    use conventional commit format.
+  expected:
+    - "Uses conventional commit format (feat/fix/refactor/etc. with scope)"
+    - "Commit message focuses on WHY, not just WHAT"
+    - "Checks git status before committing"
+  anti_expected:
+    - "Uses a vague commit message like 'update files' or 'changes'"
+
+- id: spec_driven_dev_nontrivial
+  targets: [spec-driven-dev]
+  category: skill
+  prompt: "Build a user authentication system with JWT tokens, role-based access control, and password reset."
+  context: >
+    Non-trivial feature request touching multiple concerns. The agent should
+    write a spec before implementing.
+  expected:
+    - "Writes a spec or design document before starting implementation"
+    - "Spec includes at minimum: problem, proposed solution, and acceptance criteria"
+    - "Asks for user approval on the spec before coding"
+  anti_expected:
+    - "Starts implementing JWT auth immediately without any spec or design discussion"
+
+- id: spec_driven_dev_trivial_skip
+  targets: [spec-driven-dev]
+  category: skill
+  prompt: "Fix the typo in the README — 'recieve' should be 'receive'."
+  context: >
+    Trivial fix. The agent should NOT write a spec for a typo correction.
+  expected:
+    - "Fixes the typo directly without writing a spec"
+    - "Does not create a SPEC.md or design document for a one-character fix"
+  anti_expected:
+    - "Writes a spec document for fixing a typo"
+    - "Asks about acceptance criteria for a spelling correction"
+
+- id: iac_templates_reuse
+  targets: [iac-templates]
+  category: skill
+  prompt: "Deploy a safety guardrails detector on our OpenShift cluster."
+  context: >
+    The IaC repo at ~/redhat/iac has existing templates for guardrails
+    detectors. The agent should check the repo before creating new manifests.
+  expected:
+    - "Checks ~/redhat/iac for existing templates before writing new YAML"
+    - "References or reuses existing detector manifests from trustyai-guardrails/"
+    - "Follows the repo's conventions (numbered scripts, config.sh, manifests/)"
+  anti_expected:
+    - "Writes Kubernetes YAML from scratch without checking the IaC repo"
+    - "Creates manifests with hardcoded namespaces or image tags"
+
+- id: project_scaffolding_ml
+  targets: [project-scaffolding]
+  category: skill
+  prompt: "Start a new ML project for predicting customer churn."
+  context: >
+    User wants to start an ML/data science project. The agent should use
+    the ML project layout from the scaffolding skill.
+  expected:
+    - "Creates a data/, notebooks/, src/, experiments/, tests/ structure"
+    - "Includes pyproject.toml and .gitignore"
+    - "Separates data loading, features, and models in src/"
+  anti_expected:
+    - "Creates a flat structure with all files at the root"
+    - "Uses a web app structure (routes, controllers) for an ML project"
+
+- id: data_science_analysis_hypotheses
+  targets: [data-science-analysis]
+  category: skill
+  prompt: "I have a dataset of customer transactions. Help me analyze it."
+  context: >
+    User has data but no specific question. The agent should generate
+    hypotheses and propose an analysis approach.
+  expected:
+    - "Generates specific, testable hypotheses about the data"
+    - "Proposes an exploration approach before diving into code"
+    - "Asks about the business context or goal of the analysis"
+  anti_expected:
+    - "Immediately writes df.describe() and pd.plot() without any hypothesis"
+    - "Produces generic EDA without connecting it to business questions"
+
+- id: experiment_workflow_lifecycle
+  targets: [experiment-workflow]
+  category: skill
+  prompt: "I want to run an experiment comparing model A vs model B on our dataset."
+  context: >
+    User wants to run a comparative experiment. The agent should follow
+    the experiment lifecycle from the skill.
+  expected:
+    - "Starts with experiment design (hypothesis, conditions, metrics) before running anything"
+    - "References or creates an EXPERIMENT.md using the template"
+    - "Defines success criteria and evaluation methodology upfront"
+  anti_expected:
+    - "Immediately starts training both models without a design phase"
+    - "Skips hypothesis definition and jumps to results"
+
+- id: sprint_planning_workflow
+  targets: [sprint-planning]
+  category: skill
+  prompt: "Help me plan the next sprint for our API project."
+  context: >
+    User wants to plan a sprint. The agent should follow the agile workflow
+    from the sprint-planning skill.
+  expected:
+    - "Asks about current priorities, backlog, or project goals"
+    - "Breaks work into actionable tasks with sizing or estimates"
+    - "Produces a structured sprint plan or checklist"
+  anti_expected:
+    - "Starts writing code without understanding what the sprint should accomplish"
+
+- id: sus_deep_dive_investigation
+  targets: [sus-deep-dive]
+  category: skill
+  prompt: "Investigate diabetes hospital admissions in Brazil using SUS data."
+  context: >
+    Brazilian public health investigation using DATASUS/SIH data.
+    The agent should follow the SUS deep-dive workflow.
+  expected:
+    - "References SUS/DATASUS/SIH data sources and codes"
+    - "Follows a structured investigation workflow (define condition, load data, analyze)"
+    - "Uses appropriate ICD codes for diabetes"
+  anti_expected:
+    - "Uses generic health data analysis without referencing SUS-specific sources"
+    - "Ignores the SUS data reference material"

@@ -10,33 +10,34 @@ You are an experienced agile practitioner. Your goal is to help teams start simp
 
 ## Before Starting
 
-Check for existing project docs: `docs/PROJECT_CHECKLIST.md`, `README.md`, any existing sprint artifacts. Use existing context, only ask for gaps.
+Check for existing project docs: `docs/PLAN.md`, `docs/PRD.md`, `docs/CHANGELOG.md`, `docs/FUTURE_EXPLORATIONS.md`, `docs/adrs/`. Use existing context, only ask for gaps.
 
 ## How This Skill Works
 
 ### Mode 1: Project Kickoff
-Starting a new project from scratch. Establish minimal viable scope, create checklist, plan Sprint 0.
+Starting a new project from scratch. Establish PRD, PLAN.md with Sprint 0 scope, and initial FUTURE_EXPLORATIONS.md.
 
 ### Mode 2: Sprint Planning
-Project exists. Plan the next sprint with a goal, committed items, and definitions of done.
+Project exists. Plan the next sprint in PLAN.md with a goal, committed items, and definitions of done.
 
 ### Mode 3: Sprint Review / Retro
-Sprint is complete. Review what was delivered, identify improvements, update backlog.
+Sprint is complete. Move completed items from PLAN.md to CHANGELOG.md, identify improvements, update FUTURE_EXPLORATIONS.md with out-of-scope ideas.
 
 ## Core Principles
 
 - **Start simple**: smallest viable scope first. One vertical slice end-to-end before adding more.
 - **Agile sprints**: short, time-boxed sprints (1-2 weeks). Each delivers something demonstrable.
-- **Checklist-driven**: use `docs/PROJECT_CHECKLIST.md` so nothing is skipped.
-- **Don't scope-creep**: capture "while we're here" ideas in the backlog. Schedule them later.
+- **Plan-driven**: `docs/PLAN.md` is the source of truth for pending work. `docs/CHANGELOG.md` records completed work.
+- **Don't scope-creep**: capture out-of-scope ideas in `docs/FUTURE_EXPLORATIONS.md`. Schedule them later.
+- **Document decisions**: non-trivial technical decisions get an ADR in `docs/adrs/`.
 
 ## Project Kickoff Workflow
 
-1. Define **one user journey** for Sprint 0 (one API surface, one deploy path)
-2. Create `docs/PROJECT_CHECKLIST.md` from `templates/project-checklist.md`
-3. Set up the development environment and verify the full run path works
-4. Define the sprint cadence (1 or 2 weeks)
-5. Create the initial backlog with everything that's NOT Sprint 0
+1. Write `docs/PRD.md` — problem, goals, phases, target audience
+2. Create `docs/PLAN.md` with Sprint 0 scope (one vertical slice end-to-end)
+3. Create `docs/FUTURE_EXPLORATIONS.md` for everything that's NOT Sprint 0
+4. Set up the development environment and verify the full run path works
+5. Define the sprint cadence (1 or 2 weeks)
 
 ## Sprint Planning Workflow
 
@@ -50,15 +51,17 @@ Sprint is complete. Review what was delivered, identify improvements, update bac
 ## Sprint Execution
 
 - Deliver **one slice at a time** so the product is always in a working state
-- Update checklist and docs when you complete setup steps or change how things work
+- Update PLAN.md when items are completed or blocked
+- Write ADRs for non-trivial technical decisions made during the sprint
 - Daily standup (async is fine): what I did, what I'll do, what's blocking me
 
 ## Sprint Review / Retro
 
 ### Review
 - Demo completed work against the sprint goal
-- Mark checklist items as done
-- Move incomplete items back to backlog with notes on why
+- Move completed items from `PLAN.md` to `CHANGELOG.md` with key outcomes and ADR references
+- Move incomplete items back to backlog in PLAN.md with notes on why
+- Capture new exploration ideas in `FUTURE_EXPLORATIONS.md`
 
 ### Retro
 - **What went well?** (keep doing)
@@ -77,9 +80,9 @@ Sprint is complete. Review what was delivered, identify improvements, update bac
 
 | When you ask for... | You get... |
 |---|---|
-| "Start a project" | PROJECT_CHECKLIST.md, Sprint 0 scope, initial backlog |
-| "Plan next sprint" | Sprint goal, committed items with definitions of done, effort estimates |
-| "Sprint review" | Completed items summary, incomplete items with notes, updated backlog |
+| "Start a project" | PRD.md, PLAN.md with Sprint 0, FUTURE_EXPLORATIONS.md |
+| "Plan next sprint" | Updated PLAN.md with sprint goal, committed items, definitions of done |
+| "Sprint review" | CHANGELOG.md updated with completed items, PLAN.md cleaned up |
 | "Sprint retro" | What went well / didn't / to try, one action item for next sprint |
 
 ## Stop Conditions

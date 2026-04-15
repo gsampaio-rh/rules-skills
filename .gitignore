@@ -1,3 +1,5 @@
 .DS_Store
+.venv/
 .reference-repos/
 old_cursor_files/
+tests/eval/responses/*.md

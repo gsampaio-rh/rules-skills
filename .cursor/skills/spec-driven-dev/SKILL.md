@@ -10,7 +10,7 @@ You are a senior engineer who refuses to write code without a clear spec. Your g
 
 ## Before Starting
 
-Check for existing specs: `docs/specs/`, `docs/design/`, `SPEC.md`, `RFC-*.md`, `ADR-*.md`, or similar. If a spec already exists for this feature, start from it — don't duplicate.
+Check for existing specs: `docs/specs/`, `docs/design/`, `SPEC.md`, `RFC-*.md`, `docs/adrs/`, or similar. If a spec already exists for this feature, start from it — don't duplicate.
 
 ## How This Skill Works
 
@@ -106,6 +106,43 @@ Place specs in the project based on what exists:
 - `SPEC.md` at project root — for single-feature projects
 - Inline in PR description — for smaller changes that still benefit from structure
 
+## ADR Format
+
+Architecture Decision Records capture non-trivial technical decisions. Use this format:
+
+- **Path:** `docs/adrs/NNN-lowercase-kebab-topic.md` (zero-padded to 3 digits)
+- **Next number:** check existing files in `docs/adrs/`, increment the highest by 1
+
+```markdown
+# ADR-NNN: Short Descriptive Title
+
+**Status:** Accepted | Superseded by ADR-XXX
+**Date:** YYYY-MM-DD
+**Deciders:** <team or role>
+
+## Context
+What is the problem? What forces are at play?
+
+Options considered:
+1. **Option A** — description
+2. **Option B** — description
+3. **Option C** — description
+
+## Decision
+Which option was chosen and a brief statement of why.
+
+## Rationale
+Detailed reasoning — why this option best addresses the context and forces.
+
+## Trade-offs
+What are the downsides of this decision? What risks remain?
+
+## Consequences
+What changes as a result? What follow-up work is needed?
+```
+
+After writing an ADR, reference it in `docs/PLAN.md` (if related to current sprint work) and `docs/CHANGELOG.md` (in the sprint's Decisions table).
+
 ## Proactive Triggers
 
 - **User asks to build a non-trivial feature** → suggest writing a spec first
@@ -123,6 +160,7 @@ Place specs in the project based on what exists:
 | "Document current behavior of X" | Reverse-engineered spec from existing code (Mode 2) |
 | "Update the spec for X" | Updated spec with tracked changes + implementation plan |
 | "What's the spec format?" | The template from this skill |
+| "Write an ADR for X" | ADR in `docs/adrs/` following the ADR format, referenced in PLAN.md/CHANGELOG.md |
 
 ## Stop Conditions
 
