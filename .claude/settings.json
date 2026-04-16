@@ -1,0 +1,20 @@
+{
+  "outputStyle": "default",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(ls *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(rm -rf *)"
+    ]
+  }
+}

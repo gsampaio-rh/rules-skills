@@ -1,0 +1,87 @@
+---
+paths:
+  - "**/*.py"
+  - "**/*.ts"
+  - "**/*.tsx"
+---
+
+# Architecture & Design Principles
+
+## SOLID Principles
+
+### Single Responsibility (SRP)
+- One reason to change per class/module
+- Split validation, persistence, notification into separate types; orchestrate elsewhere
+
+### Open/Closed (OCP)
+- Open for extension, closed for modification
+- Use interfaces and add new implementations instead of editing existing logic
+
+### Liskov Substitution (LSP)
+- Subtypes must be substitutable for their base type without breaking callers
+- Don't weaken preconditions, strengthen postconditions, or throw where the base doesn't
+
+### Interface Segregation (ISP)
+- Small, focused interfaces; clients shouldn't depend on methods they don't use
+- Prefer `Readable` + `Writable` over one fat `FileSystem` interface
+
+### Dependency Inversion (DIP)
+- Depend on abstractions (interfaces/protocols), not concrete classes
+- Inject dependencies; high-level modules don't import low-level implementations
+
+## Dependency Direction
+
+```
+domain/          → no imports from application, infrastructure, or api
+application/     → domain only (use cases, workflows)
+infrastructure/  → domain + application (implements ports)
+api/             → application + infrastructure (HTTP → application calls)
+```
+
+Do not import from infrastructure or api inside domain or application; depend on interfaces (ports) and inject adapters.
+
+## Pattern Selection — Pick the Simplest That Works
+
+Every pattern has a cost. Weigh complexity vs benefit. Start simple, escalate only when there's a concrete reason.
+
+| Signal | Start with... | Escalate to... | When... |
+|---|---|---|---|
+| Simple data operations | Functions + modules | Layered architecture | Business logic grows beyond CRUD |
+| Complex domain rules | Layered architecture | DDD with bounded contexts | Multiple teams, complex invariants, ubiquitous language needed |
+| Single deployment unit | Modular monolith | Microservices | Independent scaling, different deploy cadences, team autonomy needed |
+| Direct function calls | Synchronous communication | Event-driven | Temporal decoupling, multiple independent consumers |
+| Single read/write model | Standard data access | CQRS | Read/write performance diverge significantly |
+
+**Default position**: start with the simplest architecture. Refactor toward more complex patterns when you hit real problems, not hypothetical ones.
+
+## Architectural Patterns (Summary)
+
+### Domain-Driven Design (DDD)
+- Organize by business domain, not technical layers
+- Use ubiquitous language: code reflects domain expert terminology
+- Define aggregate roots with clear consistency boundaries
+- Use bounded contexts for different models of the same concept
+
+### Hexagonal Architecture (Ports & Adapters)
+- Ports: interfaces defined in domain/application layers
+- Adapters: implementations in infrastructure layer
+- Core has zero knowledge of frameworks or external services
+
+### Event-Driven Architecture
+- Capture state changes as events (past tense: `OrderPlaced`, not `PlaceOrder`)
+- Idempotent consumers, dead letter queues, explicit ordering guarantees
+- Use when temporal decoupling or multiple independent consumers are needed
+
+### API Design
+- RESTful conventions: resources, HTTP methods, proper status codes
+- Type safety: generate types from OpenAPI schemas
+- Version APIs for backward compatibility
+- Contract testing: ensure frontend/backend contracts match
+
+## Quick Checklist
+- One clear responsibility per class/file
+- New behavior via new types, not big `if/else` in existing code
+- Depend on interfaces; inject concrete implementations
+- Keep interfaces small and focused
+- Respect layer boundaries and dependency direction
+- Pick the simplest pattern that solves the actual problem
