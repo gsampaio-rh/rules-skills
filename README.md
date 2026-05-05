@@ -14,7 +14,7 @@ Passive, always-on constraints that shape how the AI agent writes code and commu
 | `autonomous_execution` | Always on | Act without asking permission, fix errors autonomously, pause on destructive ops |
 | `code_standards` | Always on | Explicit > implicit, single responsibility, naming, DRY |
 | `critical_thinking` | Always on | Analyze requests, challenge assumptions, improve vague prompts |
-| `development_workflow` | Always on | Document hierarchy, lifecycle rules, ADR conventions |
+| `development_workflow` | Always on | PLAN + CHANGELOG core workflow, optional ADRs/PRD/architecture docs |
 | `planning_discipline` | Always on | Plan before code, structured task tracking, thread hygiene |
 | `prompt_coaching` | Always on | Coach users toward more effective prompts when requests are vague |
 | `verification` | Always on | Require verification after code changes — tests, lint, or build |
