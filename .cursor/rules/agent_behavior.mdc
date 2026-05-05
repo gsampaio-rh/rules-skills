@@ -29,4 +29,5 @@ alwaysApply: true
 - Don't suggest updates when no modifications are needed
 - Don't show current implementation unless specifically requested
 - Only make changes that are explicitly requested
+- Refactoring is permitted when it directly serves the requested change or fixes issues introduced by it — do not refactor unrelated code
 - Focus on what needs to change, not what stays the same

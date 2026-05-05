@@ -14,6 +14,10 @@ Passive, always-on constraints that shape how the AI agent writes code and commu
 | `autonomous_execution` | Always on | Act without asking permission, fix errors autonomously, pause on destructive ops |
 | `code_standards` | Always on | Explicit > implicit, single responsibility, naming, DRY |
 | `critical_thinking` | Always on | Analyze requests, challenge assumptions, improve vague prompts |
+| `development_workflow` | Always on | Document hierarchy, lifecycle rules, ADR conventions |
+| `planning_discipline` | Always on | Plan before code, structured task tracking, thread hygiene |
+| `prompt_coaching` | Always on | Coach users toward more effective prompts when requests are vague |
+| `verification` | Always on | Require verification after code changes — tests, lint, or build |
 | `security` | Always on | Input validation, data protection, dependency scanning |
 | `architecture` | `*.py, *.ts, *.tsx` | SOLID, dependency direction, pattern selection with trade-off reasoning |
 | `python_ml` | `*.py, *.ipynb` | Type hints, pandas patterns, ML conventions, notebook standards |
@@ -45,6 +49,14 @@ Deep knowledge loaded on demand by rules and skills.
 - **`patterns/`** — Architecture patterns (clean architecture, DDD, hexagonal, event-driven, microservices, CQRS) with when-to-use, when-not-to-use, trade-offs, and evolution paths
 - **`design/`** — Design thinking, UX research methods, data visualization principles, design systems
 
+### Hooks (`.cursor/hooks/`)
+
+Pre-submission prompt quality checks.
+
+| Hook | Event | What it does |
+|---|---|---|
+| `prompt-check.sh` | `beforeSubmitPrompt` | Nudges the user to add context when prompts are under 30 characters |
+
 ### Authoring Standards
 
 Internal quality contracts at the repo root (not loaded by the agent):
@@ -69,18 +81,25 @@ Internal quality contracts at the repo root (not loaded by the agent):
 │       ├── ux-research/
 │       ├── data-visualization/
 │       └── design-systems/
+├── hooks/
+│   └── prompt-check.sh
+├── hooks.json
 ├── rules/
 │   ├── agent_behavior.mdc
-│   ├── autonomous_execution.mdc
 │   ├── architecture.mdc
+│   ├── autonomous_execution.mdc
 │   ├── causal_rigor.mdc
 │   ├── code_standards.mdc
 │   ├── critical_thinking.mdc
 │   ├── design_principles.mdc
+│   ├── development_workflow.mdc
+│   ├── planning_discipline.mdc
+│   ├── prompt_coaching.mdc
 │   ├── python_ml.mdc
 │   ├── research_standards.mdc
 │   ├── security.mdc
-│   └── testing.mdc
+│   ├── testing.mdc
+│   └── verification.mdc
 └── skills/
     ├── code-review/
     ├── commit/

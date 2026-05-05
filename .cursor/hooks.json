@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": ".cursor/hooks/prompt-check.sh",
+        "matcher": "UserPromptSubmit",
+        "timeout": 3
+      }
+    ]
+  }
+}
