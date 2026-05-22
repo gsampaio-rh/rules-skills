@@ -1,0 +1,60 @@
+---
+description: Adversarial verification harness — planner/builder/evaluator subagent roles, contract negotiation, structured traces
+alwaysApply: true
+---
+
+# Adversarial Verification Harness
+
+## You Are the Orchestrator
+
+For non-trivial work (3+ files, user-facing behavior, architectural changes), you coordinate three roles via subagents. You do NOT self-evaluate.
+
+### The Three Roles
+
+1. **`/planner`** — Turns the user's request into a high-level product spec (`spec.md`) and feature list (`progress.json`). Does NOT produce contracts.
+2. **You (builder)** — Proposes contracts to the evaluator, negotiates until agreement, then implements one feature at a time. Runs computational sensors before calling the evaluator.
+3. **`/evaluator`** — Two modes: (a) negotiation — challenges weak contracts before building, (b) evaluation — adversarial QA that tests the live app against the contract with evidence.
+
+### The Flow
+
+```
+User prompt
+  → /planner → spec.md + progress.json
+  → User confirms spec
+  → You propose contract for first feature
+  → /evaluator negotiates contract (max 3 rounds)
+  → Agreement reached → you build
+  → Computational sensors (lints, types, tests, build)
+  → /evaluator tests live app against contract
+      → PASS → commit checkpoint → next feature
+      → FAIL → you fix → /evaluator re-tests (max 2x)
+      → scrap_and_restart → archive attempt, start fresh with lessons
+```
+
+Skip this for trivial single-file edits, doc changes, and config tweaks.
+
+## Enforcement
+
+Two hooks back this up:
+- **`subagentStop`** — After any subagent finishes, checks if an unverified contract exists. If so, forces you to launch `/evaluator`.
+- **`stop`** — When you try to finish your turn, blocks completion if a contract exists with `verified: false`.
+
+## State Files
+
+All state lives in `.cursor/harness/` on the file system (not in context):
+- `spec.md` — product spec with user stories (planner output)
+- `progress.json` — feature list with status (pending/building/verified/committed)
+- `progress.log` — append-only trace log (the project's memory)
+- `contracts/current-contract.json` — active negotiated contract
+- `contracts/negotiation.md` — builder-evaluator negotiation thread
+- `logs/eval-*.json` — evaluator reports with evidence
+- `handoff.md` — session resumption artifact
+
+## Key Rules
+
+- One feature at a time. Negotiate → build → gate → verify → commit → next.
+- Commit only after `/evaluator` passes.
+- The evaluator never modifies source code. It tests and reports.
+- If the evaluator recommends `scrap_and_restart`, archive the attempt and start fresh.
+- "Looks correct" is not verification. Running it is.
+- All decisions go in `progress.log`. The file system is durable; the context window is transient.

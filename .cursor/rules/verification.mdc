@@ -1,11 +1,11 @@
 ---
-description: Require verification after code changes — run tests, lint, or build to confirm edits work
+description: Per-edit verification — run tests, lint, or build after every code change
 alwaysApply: true
 ---
 
 # Verification After Code Changes
 
-Every code change must be verified. Never leave Write or StrReplace edits unverified.
+This rule covers **per-edit** verification: the immediate check after each Write or StrReplace. Feature-level verification (does the whole feature work end-to-end?) goes through the `/evaluator` subagent per the adversarial harness.
 
 ## After Any Code Edit
 

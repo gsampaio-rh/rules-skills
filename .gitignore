@@ -3,3 +3,4 @@
 .reference-repos/
 old_cursor_files/
 tests/eval/responses/*.md
+.cursor/harness/

@@ -1,17 +1,13 @@
 ---
-description: Plan before coding for complex tasks, use structured task tracking, and maintain thread hygiene
+description: Structured task tracking, thread hygiene, and single-objective discipline
 alwaysApply: true
 ---
 
 # Planning Discipline
 
-## Plan Before Code
+## Non-Trivial Work → Harness
 
-For tasks that touch 3+ files or involve architectural decisions:
-1. Switch to Plan mode or create a plan before writing code
-2. Identify all files that need changes
-3. Establish the order of operations
-4. Define what "done" looks like
+For tasks that touch 3+ files or involve user-facing behavior, use the adversarial harness: launch `/planner` to produce a spec, negotiate a contract with `/evaluator`, build against it, then `/evaluator` to verify. See `adversarial_harness.mdc` for the full flow.
 
 For simple, single-file changes — just do it. Don't over-plan trivial work.
 

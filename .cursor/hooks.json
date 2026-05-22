@@ -12,14 +12,14 @@
       {
         "command": ".cursor/hooks/verify-harness.sh",
         "timeout": 5,
-        "loop_limit": 2
+        "loop_limit": 3
       }
     ],
     "subagentStop": [
       {
         "command": ".cursor/hooks/chain-evaluator.sh",
         "timeout": 5,
-        "loop_limit": 2
+        "loop_limit": 3
       }
     ]
   }

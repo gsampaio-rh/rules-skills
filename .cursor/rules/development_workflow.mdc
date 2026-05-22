@@ -1,64 +1,80 @@
 ---
-description: "Development workflow and documentation methodology. Defines the document hierarchy, lifecycle rules, naming conventions, and format conventions for all project documentation."
+description: "Development workflow centered on the adversarial harness. Defines how work is tracked, how state persists, and how agents hand off context."
 globs: 
 alwaysApply: true
 ---
 
 # Development Workflow
 
-## Core Documents
+## Workflow Selection
 
-Every project uses these two documents. They are the minimum for tracking work.
+| Complexity | Approach |
+|---|---|
+| Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
+| Non-trivial (3+ files, user-facing, architectural) | Adversarial harness: `/planner` → negotiate contract → build → `/evaluator` |
 
-| Document | Purpose | Updated when |
-|---|---|---|
-| `docs/PLAN.md` | Sprint roadmap, pending work only | Sprint boundaries, new work added/removed |
-| `docs/CHANGELOG.md` | Completed work by sprint, outcomes, decisions | Items completed — moved from PLAN.md |
+## Harness Workflow
 
-## Optional Documents
+The adversarial harness is the primary workflow for non-trivial work. See the `adversarial-harness` skill for the full protocol.
 
-Adopt these when the project's size or complexity justifies them. Don't create them preemptively.
+### Phases
+
+1. **Plan** — `/planner` produces `spec.md` (product spec with user stories) and `progress.json` (feature list)
+2. **Negotiate** — Builder proposes a contract, `/evaluator` challenges it, iterate until agreement
+3. **Build** — Implement against the negotiated contract, one feature at a time
+4. **Gate** — Computational sensors run first (lints, types, tests, build)
+5. **Evaluate** — `/evaluator` tests the live app against the contract with evidence
+6. **Checkpoint** — Commit verified work, pick next feature, repeat
+
+### State Files
+
+All active work state lives in `.cursor/harness/`:
+
+| File | Purpose |
+|---|---|
+| `spec.md` | Product spec with user stories (planner output) |
+| `progress.json` | Feature list with statuses |
+| `progress.log` | Append-only trace — the project's memory |
+| `contracts/current-contract.json` | Active negotiated contract |
+| `contracts/negotiation.md` | Builder-evaluator negotiation thread |
+| `logs/eval-*.json` | Evaluator reports with evidence |
+| `handoff.md` | Session resumption artifact |
+
+### Lifecycle
+
+- **Starting new work?** Check if `.cursor/harness/progress.json` exists. If yes, pick the next pending feature. If no, launch `/planner`.
+- **Resuming a session?** Read `handoff.md` + `progress.log` + git log to understand state.
+- **Feature verified?** Archive the contract, update `progress.json`, commit, pick next feature.
+- **All features done?** Write final `handoff.md`, clean up harness state if desired.
+- **Made a significant decision?** It's already in `progress.log` and the contract's `trade_offs` field. No separate ADR needed.
+
+## Optional Reference Documents
+
+These are reference docs, not workflow artifacts. Create only when justified.
 
 | Document | When to adopt | Purpose |
 |---|---|---|
-| `docs/PRD.md` | Multi-phase product with stakeholders | Product requirements, goals, phases, target audience |
 | `docs/ARCHITECTURE.md` | 3+ services or complex component topology | System overview, diagrams, component topology |
-| `docs/adrs/NNN-slug.md` | Non-trivial technical decisions worth recording | Architecture decisions with context and trade-offs |
-| `docs/FUTURE_EXPLORATIONS.md` | Active backlog of out-of-scope ideas | Post-PoC themes, exploration backlog |
 
-## Lifecycle Rules
+## Deprecated
 
-- **Starting new work?** Read `PLAN.md` to find the current sprint and pick a pending item.
-- **Completed a sprint item?** Move it from `PLAN.md` to `CHANGELOG.md` with key outcomes.
-- **Made an architecture decision?** If the project uses ADRs, write one in `docs/adrs/` and reference it in `CHANGELOG.md`.
-- **Exploring something outside current sprint?** Note it in `FUTURE_EXPLORATIONS.md` if it exists, otherwise add a "Future" section in `PLAN.md`.
-- **Don't duplicate** — each fact lives in one document and others link to it.
+The following documents are replaced by harness artifacts:
 
-## ADR Conventions
+| Was | Replaced by |
+|---|---|
+| `docs/PLAN.md` | `progress.json` + `spec.md` |
+| `docs/PRD.md` | `spec.md` (planner output) |
+| `docs/CHANGELOG.md` | `progress.log` (append-only trace) |
+| `docs/adrs/*.md` | `progress.log` (decisions inline) + contracts (`trade_offs` field) |
+| `docs/FUTURE_EXPLORATIONS.md` | Out-of-scope items in `spec.md` or backlog |
 
-Only applies to projects that have adopted ADRs.
+If a project already has these files, they can coexist. Don't delete them. But new work flows through the harness.
 
-- **Path:** `docs/adrs/NNN-lowercase-kebab-topic.md` (zero-padded to 3 digits)
-- **Next number:** check existing files in `docs/adrs/`, increment the highest by 1
-- **H1:** `# ADR-NNN: Short Descriptive Title`
-- **Sections:** Status, Date, Context (with options considered), Decision, Rationale, Trade-offs, Consequences
+## Durable State Principle
 
-## Format Conventions
+The file system is durable state. The context window is transient.
 
-### PLAN.md
-```
-# Plan: <Project Name>
-
-**Status:** Sprint N (in progress)
-**Date:** YYYY-MM-DD
-```
-- ASCII progress bar per sprint
-- Conventions line: `[ ]` = pending | `[!]` = blocked | **Gate** = required criterion
-- Only pending/in-progress work lives here — completed items go to CHANGELOG.md
-
-### CHANGELOG.md
-```
-# Changelog: <Project Name>
-```
-- Sections by sprint: `## Sprint N — <Theme>`
-- Each sprint has: **Date**, **Status**, **Key Outcomes**, and optionally a **Decisions** table linking ADRs
+- Write decisions, progress, and lessons to files — not just conversation
+- Agents starting fresh sessions read files, not conversation history
+- Git commits are checkpoints — descriptive messages serve as the historical record
+- `progress.log` is append-only — never edit past entries, only add new ones
