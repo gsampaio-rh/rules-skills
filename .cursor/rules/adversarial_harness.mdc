@@ -1,25 +1,30 @@
 ---
-description: Adversarial verification harness — planner/builder/evaluator subagent roles, contract negotiation, structured traces
+description: Adversarial verification harness — planner/builder/evaluator roles, contract negotiation, breadcrumbs tracing, durable file-system state
 alwaysApply: true
 ---
 
 # Adversarial Verification Harness
 
+## When to Use
+
+| Complexity | Approach |
+|---|---|
+| Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
+| Non-trivial (3+ files, user-facing, architectural) | This harness. |
+
 ## You Are the Orchestrator
 
-For non-trivial work (3+ files, user-facing behavior, architectural changes), you coordinate three roles via subagents. You do NOT self-evaluate.
+You coordinate three roles via subagents. You do NOT self-evaluate.
 
-### The Three Roles
-
-1. **`/planner`** — Turns the user's request into a high-level product spec (`spec.md`) and feature list (`progress.json`). Does NOT produce contracts.
+1. **`/planner`** — Turns the user's request into a high-level product spec (`spec.md`) and feature list (`state.json`). Does NOT produce contracts.
 2. **You (builder)** — Proposes contracts to the evaluator, negotiates until agreement, then implements one feature at a time. Runs computational sensors before calling the evaluator.
 3. **`/evaluator`** — Two modes: (a) negotiation — challenges weak contracts before building, (b) evaluation — adversarial QA that tests the live app against the contract with evidence.
 
-### The Flow
+## The Flow
 
 ```
 User prompt
-  → /planner → spec.md + progress.json
+  → /planner → spec.md + state.json
   → User confirms spec
   → You propose contract for first feature
   → /evaluator negotiates contract (max 3 rounds)
@@ -28,10 +33,8 @@ User prompt
   → /evaluator tests live app against contract
       → PASS → commit checkpoint → next feature
       → FAIL → you fix → /evaluator re-tests (max 2x)
-      → scrap_and_restart → archive attempt, start fresh with lessons
+      → scrap_and_restart → start fresh with lessons
 ```
-
-Skip this for trivial single-file edits, doc changes, and config tweaks.
 
 ## Enforcement
 
@@ -41,20 +44,51 @@ Two hooks back this up:
 
 ## State Files
 
-All state lives in `.cursor/harness/` on the file system (not in context):
-- `spec.md` — product spec with user stories (planner output)
-- `progress.json` — feature list with status (pending/building/verified/committed)
-- `progress.log` — append-only trace log (the project's memory)
-- `contracts/current-contract.json` — active negotiated contract
-- `contracts/negotiation.md` — builder-evaluator negotiation thread
-- `logs/eval-*.json` — evaluator reports with evidence
-- `handoff.md` — session resumption artifact
+All state lives on the file system, not in context:
+
+| File | Purpose |
+|---|---|
+| `.cursor/harness/spec.md` | Product spec with user stories (planner output) |
+| `.cursor/harness/state.json` | Feature list with statuses (pending/building/verified/committed) |
+| `.cursor/harness/contract.json` | Active negotiated contract |
+| `.cursor/harness/evals/eval-{id}.json` | Evaluator reports with evidence |
+| `.cursor/breadcrumbs.jsonl` | Append-only trace — the project's memory |
+
+## Lifecycle
+
+- **Starting new work?** Check if `.cursor/harness/state.json` exists. If yes, pick the next pending feature. If no, launch `/planner`.
+- **Resuming a session?** Read `breadcrumbs.jsonl` + git log to understand state.
+- **Feature verified?** Update `state.json`, commit, pick next feature.
+- **All features done?** Clean up harness state if desired.
+- **Made a significant decision?** Log it as a breadcrumb. No separate ADR needed.
 
 ## Key Rules
 
 - One feature at a time. Negotiate → build → gate → verify → commit → next.
 - Commit only after `/evaluator` passes.
 - The evaluator never modifies source code. It tests and reports.
-- If the evaluator recommends `scrap_and_restart`, archive the attempt and start fresh.
+- If the evaluator recommends `scrap_and_restart`, start fresh with lessons from breadcrumbs.
 - "Looks correct" is not verification. Running it is.
-- All decisions go in `progress.log`. The file system is durable; the context window is transient.
+
+## Durable State Principle
+
+The file system is durable state. The context window is transient.
+
+- Write decisions, progress, and lessons to `breadcrumbs.jsonl` — not just conversation
+- Agents starting fresh sessions read files, not conversation history
+- Git commits are checkpoints — descriptive messages serve as the historical record
+- `breadcrumbs.jsonl` is append-only — never edit past entries, only add new ones
+
+## Deprecated Documents
+
+These are replaced by harness artifacts:
+
+| Was | Replaced by |
+|---|---|
+| `docs/PLAN.md` | `state.json` + `spec.md` |
+| `docs/PRD.md` | `spec.md` (planner output) |
+| `docs/CHANGELOG.md` | `breadcrumbs.jsonl` (append-only trace) |
+| `docs/adrs/*.md` | `breadcrumbs.jsonl` (decisions inline) |
+| `docs/FUTURE_EXPLORATIONS.md` | Out-of-scope items in `spec.md` |
+
+If a project already has these files, they can coexist. Don't delete them. But new work flows through the harness.

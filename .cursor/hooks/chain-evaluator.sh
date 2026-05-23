@@ -9,7 +9,7 @@
 
 input=$(cat)
 
-CONTRACT=".cursor/harness/contracts/current-contract.json"
+CONTRACT=".cursor/harness/contract.json"
 
 if [ ! -f "$CONTRACT" ]; then
   echo '{}'
@@ -17,7 +17,7 @@ if [ ! -f "$CONTRACT" ]; then
 fi
 
 RESULT=$(python3 -c "
-import json, sys
+import json
 
 with open('$CONTRACT') as f:
     contract = json.load(f)
@@ -31,7 +31,7 @@ else:
     msg = (
         f'The builder finished, but the contract for \"{feature}\" is not verified. '
         f'Launch the /evaluator subagent now to test this implementation against '
-        f'the contract at .cursor/harness/contracts/current-contract.json. '
+        f'the contract at .cursor/harness/contract.json. '
         f'The evaluator will grade each acceptance criterion with evidence and '
         f'update the contract when verification passes.'
     )

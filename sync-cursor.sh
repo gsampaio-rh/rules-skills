@@ -51,6 +51,10 @@ SOURCE_FILES_LIST="$TMPDIR_SYNC/source_files"
 find "$SOURCE_CURSOR" -type f \
     ! -name '.DS_Store' \
     ! -path '*/plans/*' \
+    ! -path '*/harness/*' \
+    ! -path '*/agents/*' \
+    ! -path '*/skills/*' \
+    ! -name 'breadcrumbs.jsonl' \
     | sort > "$SOURCE_FILES_LIST"
 
 compare_project() {
@@ -97,7 +101,49 @@ sync_project() {
     done < "$SOURCE_FILES_LIST"
 }
 
+sync_global() {
+    local global_cursor="$HOME/.cursor"
+    local src_dir=""
+    local file_list=""
+    local src_file=""
+    local rel_file=""
+    local target_file=""
+
+    echo -e "${BOLD}Syncing global files to ~/.cursor/ ...${RESET}"
+
+    for subdir in agents skills; do
+        src_dir="$SOURCE_CURSOR/$subdir"
+        [[ -d "$src_dir" ]] || continue
+
+        file_list="$TMPDIR_SYNC/global_${subdir}_files"
+        find "$src_dir" -type f ! -name '.DS_Store' | sort > "$file_list"
+
+        while IFS= read -r src_file; do
+            rel_file="${src_file#$SOURCE_CURSOR/}"
+            target_file="$global_cursor/$rel_file"
+
+            if [[ ! -f "$target_file" ]]; then
+                if ! $DRY_RUN; then
+                    mkdir -p "$(dirname "$target_file")"
+                    cp "$src_file" "$target_file"
+                fi
+                $VERBOSE && printf "  ${GREEN}+ %s${RESET}\n" "$rel_file"
+            elif ! diff -q "$src_file" "$target_file" > /dev/null 2>&1; then
+                if ! $DRY_RUN; then
+                    cp "$src_file" "$target_file"
+                fi
+                $VERBOSE && printf "  ${YELLOW}~ %s${RESET}\n" "$rel_file"
+            fi
+        done < "$file_list"
+    done
+
+    echo -e "  ${CYAN}~/.cursor/${RESET}: agents + skills synced"
+    echo ""
+}
+
 main() {
+    sync_global
+
     echo -e "${BOLD}Scanning $SEARCH_ROOT for .cursor/ directories...${RESET}"
 
     local targets_file="$TMPDIR_SYNC/targets"

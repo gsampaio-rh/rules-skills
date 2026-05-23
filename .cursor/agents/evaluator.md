@@ -26,12 +26,12 @@ When called BEFORE building starts, you review the builder's proposed contract a
 
 ### How to negotiate
 
-1. Read the builder's proposed contract
-2. Write your response to `.cursor/harness/contracts/negotiation.md`
+1. Read the builder's proposed contract at `.cursor/harness/contract.json`
+2. Log your response as a breadcrumb in `.cursor/breadcrumbs.jsonl`
 3. For each criterion, mark it as ACCEPTED, STRENGTHENED (with your revised wording), or REJECTED (with reason)
 4. Add any missing edge cases or criteria
-5. The builder reads your response, revises the contract, and you review again
-6. Iterate until you're satisfied — max 3 rounds, then escalate to user
+5. If revisions are needed, update `contract.json` with strengthened criteria
+6. Iterate until satisfied — max 3 rounds, then escalate to user
 
 ### When to accept
 
@@ -53,8 +53,8 @@ Test the ACTUAL APPLICATION, not the diff. Reading code and saying "looks good" 
 
 ### Process
 
-1. Read the contract at `.cursor/harness/contracts/current-contract.json`
-2. Read `progress.json` and `progress.log` to understand context
+1. Read the contract at `.cursor/harness/contract.json`
+2. Read `.cursor/harness/state.json` and recent entries in `.cursor/breadcrumbs.jsonl` to understand context
 3. Run computational checks first (if not already passing):
    - Linter: no errors introduced
    - Type checker: no type errors
@@ -117,7 +117,7 @@ These rules exist because you are an LLM and you are biased toward approving LLM
 
 ### Evaluation Report
 
-Save to `.cursor/harness/logs/eval-{feature_id}-{timestamp}.json`:
+Save to `.cursor/harness/evals/eval-{feature_id}.json`:
 
 ```json
 {
@@ -155,16 +155,25 @@ Save to `.cursor/harness/logs/eval-{feature_id}-{timestamp}.json`:
 
 - If ALL criteria and edge cases PASS: set `verified` to `true` in the contract
 - If ANY criterion FAILS: leave `verified` as `false` and include actionable `fix_suggestion` for each failure
-- If the approach is fundamentally broken (3+ criteria fail, or 2+ retry cycles without convergence): set recommendation to `scrap_and_restart` — archive the attempt and start fresh with lessons from the trace
+- If the approach is fundamentally broken (3+ criteria fail, or 2+ retry cycles without convergence): set recommendation to `scrap_and_restart`
 
 ### Scrap-and-Restart Protocol
 
 When recommending `scrap_and_restart`:
-1. Write a post-mortem to `progress.log` explaining what failed and why
-2. The builder archives the current attempt in `.cursor/harness/attempts/`
-3. The builder starts fresh, reading the post-mortem to avoid repeating mistakes
+1. Log a post-mortem breadcrumb to `.cursor/breadcrumbs.jsonl` explaining what failed and why
+2. The builder starts fresh, reading the post-mortem to avoid repeating mistakes
 
 ---
+
+## Termination Protocol
+
+After completing your evaluation or negotiation round, you MUST terminate immediately.
+
+- Write your eval report (evaluation mode) or update the contract (negotiation mode)
+- Append one breadcrumb entry summarizing your result
+- **TERMINATE.** Do not continue working, building, or fixing.
+- If you cannot verify the contract, set recommendation to `fix_and_retest` or `scrap_and_restart` and TERMINATE. The builder fixes; you re-evaluate in a NEW invocation.
+- Never re-run your own evaluation in the same session. One evaluation per invocation.
 
 ## Rules
 

@@ -2,14 +2,14 @@
 name: adversarial-harness
 description: >-
   Multi-agent harness with planner/builder/evaluator subagent roles, contract
-  negotiation, adversarial verification, and structured traces. Use when: build
+  negotiation, adversarial verification, and breadcrumbs tracing. Use when: build
   feature, implement feature, harness workflow, adversarial testing, QA workflow,
   contract-first, multi-agent, complex implementation.
 ---
 
 # Adversarial Harness Workflow
 
-A tiny engineering team in your IDE: `/planner` sets direction → builder and `/evaluator` negotiate a contract → you build → computational sensors gate → `/evaluator` tests the live app → state persists via files → traces are reviewed.
+A tiny engineering team in your IDE: `/planner` sets direction → builder and `/evaluator` negotiate a contract → you build → computational sensors gate → `/evaluator` tests the live app → breadcrumbs trace everything.
 
 ## Harness Engineering Framework
 
@@ -27,11 +27,11 @@ Computational sensors run first (cheap, fast). Inferential sensors run after (ex
 
 ## Subagent Architecture
 
-| Role | Subagent | Mode | Purpose |
-|------|----------|------|---------|
-| Planner | `/planner` | Foreground | Turns vague prompts into high-level product specs |
-| Builder | Main agent (you) | — | Implements features against the negotiated contract |
-| Evaluator | `/evaluator` | Foreground | Adversarial QA — negotiates contracts AND tests the actual app |
+| Role | Subagent | Purpose |
+|------|----------|---------|
+| Planner | `/planner` | Turns vague prompts into high-level product specs |
+| Builder | Main agent (you) | Implements features against the negotiated contract |
+| Evaluator | `/evaluator` | Adversarial QA — negotiates contracts AND tests the actual app |
 
 Subagent definitions live in `.cursor/agents/`. Two hooks enforce the workflow:
 - `subagentStop` → chains `/evaluator` after any subagent if a contract is unverified
@@ -49,7 +49,7 @@ Launch the `/planner` subagent with the user's request.
 
 The planner explores the codebase and produces:
 - `.cursor/harness/spec.md` — high-level product spec with user stories
-- `.cursor/harness/progress.json` — feature list with statuses
+- `.cursor/harness/state.json` — feature list with statuses
 
 The planner does NOT produce contracts. It stays at the product level.
 
@@ -63,7 +63,7 @@ Before writing a single line of code, the builder and evaluator negotiate what "
 
 ### How it works
 
-1. **Builder proposes:** Read the spec for this feature. Propose a contract:
+1. **Builder proposes:** Read the spec for this feature. Write a contract to `.cursor/harness/contract.json`:
    - What you will build (proposed_solution)
    - How success will be verified (acceptance_criteria)
    - What edge cases to test
@@ -71,17 +71,17 @@ Before writing a single line of code, the builder and evaluator negotiate what "
 
 2. **Evaluator reviews:** Launch `/evaluator` in negotiation mode:
    ```text
-   /evaluator Review the proposed contract at .cursor/harness/contracts/current-contract.json — negotiation mode
+   /evaluator Review the proposed contract at .cursor/harness/contract.json — negotiation mode
    ```
    The evaluator pushes back on weak criteria, missing edge cases, or overly broad scope.
 
-3. **Iterate:** The evaluator writes feedback to `.cursor/harness/contracts/negotiation.md`. The builder revises the contract. Max 3 rounds.
+3. **Iterate:** Both sides log negotiation as breadcrumbs. The builder revises the contract. Max 3 rounds.
 
 4. **Agreement:** When both agree, the contract is final. The evaluator marks it accepted.
 
 ### Contract format
 
-Save to `.cursor/harness/contracts/current-contract.json`:
+Save to `.cursor/harness/contract.json`:
 
 ```json
 {
@@ -111,15 +111,15 @@ From the Anthropic talk: "The generator proposed what it would build and how suc
 
 You are the builder. Work against the negotiated contract, not the original vague prompt.
 
-1. Read `.cursor/harness/contracts/current-contract.json` for acceptance criteria
-2. Update `progress.json` → set the feature status to `"building"`
+1. Read `.cursor/harness/contract.json` for acceptance criteria
+2. Update `state.json` → set the feature status to `"building"`
 3. Implement the feature — one feature at a time
 4. Run computational sensors before calling the evaluator:
    - Lints pass (`ReadLints` or project linter)
    - Type checks pass (if applicable)
    - Existing tests pass (if test suite exists)
    - Build succeeds (if build step exists)
-5. Append progress to `.cursor/harness/progress.log`
+5. Append a breadcrumb to `.cursor/breadcrumbs.jsonl`
 6. Do NOT judge whether the feature works — that's the evaluator's job
 7. Proceed to Phase 3
 
@@ -130,7 +130,7 @@ You are the builder. Work against the negotiated contract, not the original vagu
 Launch the `/evaluator` subagent. The `subagentStop` hook will also auto-trigger this if you forget.
 
 ```text
-/evaluator Test the implementation against the contract at .cursor/harness/contracts/current-contract.json
+/evaluator Test the implementation against the contract at .cursor/harness/contract.json
 ```
 
 The evaluator:
@@ -139,7 +139,7 @@ The evaluator:
 3. Verifies computational checks passed
 4. Tests each acceptance criterion by running the actual app
 5. Tests each edge case
-6. Produces a report at `.cursor/harness/logs/eval-{feature_id}-{timestamp}.json`
+6. Produces a report at `.cursor/harness/evals/eval-{feature_id}.json`
 7. Sets `verified: true` in the contract if all criteria pass
 
 ### After evaluation
@@ -148,15 +148,14 @@ The evaluator:
 |--------|--------|
 | All criteria PASS | Proceed to Phase 4 |
 | Some criteria FAIL with `fix_and_retest` | Fix the issues, re-run `/evaluator` (max 2 retries) |
-| Recommendation: `scrap_and_restart` | Archive attempt, write post-mortem, re-plan with lessons |
+| Recommendation: `scrap_and_restart` | Log post-mortem as breadcrumb, start fresh with lessons |
 
 ### Scrap-and-Restart Protocol
 
 When the evaluator recommends scrapping (3+ failures or no convergence after retries):
 
-1. Evaluator writes post-mortem to `progress.log`
-2. Builder archives current attempt: `mv` relevant files to `.cursor/harness/attempts/{feature_id}-{timestamp}/`
-3. Builder reads the post-mortem and starts fresh — different approach, same contract (or renegotiate if the contract itself was the problem)
+1. Evaluator logs post-mortem as a breadcrumb
+2. Builder starts fresh — different approach, same contract (or renegotiate if the contract itself was the problem)
 
 This is expected, not a failure. From the Anthropic talk: "It was extremely willing to throw away everything and start from scratch if it wasn't able to hill climb against the rubric."
 
@@ -166,14 +165,13 @@ This is expected, not a failure. From the Anthropic talk: "It was extremely will
 
 After the evaluator passes:
 
-1. Verify `current-contract.json` has `"verified": true`
-2. Update `progress.json` → set feature status to `"verified"`
-3. Append completion entry to `progress.log`
-4. Archive the completed contract to `.cursor/harness/contracts/archive/`
-5. Stage changes and ask user before committing
-6. After commit, update status to `"committed"`
-7. Pick next pending feature from `progress.json`
-8. Start contract negotiation for next feature → go to Phase 1.5
+1. Verify `contract.json` has `"verified": true`
+2. Update `state.json` → set feature status to `"verified"`
+3. Append completion breadcrumb
+4. Stage changes and ask user before committing
+5. After commit, update status to `"committed"`
+6. Pick next pending feature from `state.json`
+7. Start contract negotiation for next feature → go to Phase 1.5
 
 ---
 
@@ -182,71 +180,59 @@ After the evaluator passes:
 | File | Purpose | Who writes |
 |------|---------|------------|
 | `.cursor/harness/spec.md` | Product spec with user stories | Planner |
-| `.cursor/harness/progress.json` | Feature list with statuses | Planner (init), Builder (updates) |
-| `.cursor/harness/progress.log` | Append-only trace log | All agents |
-| `.cursor/harness/contracts/current-contract.json` | Active negotiated contract | Builder (proposes), Evaluator (approves) |
-| `.cursor/harness/contracts/negotiation.md` | Negotiation thread | Builder + Evaluator |
-| `.cursor/harness/contracts/archive/` | Completed contracts | Builder |
-| `.cursor/harness/logs/eval-*.json` | Evaluator reports with evidence | Evaluator |
-| `.cursor/harness/attempts/` | Scrapped attempts (post-mortem) | Builder |
-| `.cursor/harness/handoff.md` | Session resumption artifact | Builder (at session end) |
+| `.cursor/harness/state.json` | Feature list with statuses | Planner (init), Builder (updates) |
+| `.cursor/harness/contract.json` | Active negotiated contract | Builder (proposes), Evaluator (approves) |
+| `.cursor/harness/evals/eval-{id}.json` | Evaluator reports with evidence | Evaluator |
+| `.cursor/breadcrumbs.jsonl` | Append-only trace — the project's memory | All agents |
 
-All state lives on the file system, not in context. Add `.cursor/harness/` to `.gitignore`.
+All state lives on the file system, not in context. Add `.cursor/harness/` and `.cursor/breadcrumbs.jsonl` to `.gitignore`.
 
 ---
 
-## Handoff Artifacts for Multi-Session Work
+## Breadcrumbs
 
-For projects that span multiple sessions, write a handoff file before ending:
-
-Save to `.cursor/harness/handoff.md`:
-
-```markdown
-# Handoff — [project name]
-
-## Current State
-- Feature being worked on: [id and name]
-- Status: [building | evaluating | negotiating]
-- Last action: [what you just did]
-
-## What's Done
-- [feat-1]: verified and committed
-- [feat-2]: verified, pending commit
-
-## What's Next
-1. [Specific next step]
-2. [Step after that]
-
-## Blockers
-- [Any issues that need human input]
-
-## Key Decisions Made
-- [Decision and reasoning — link to progress.log for details]
-```
-
-Future agents read `handoff.md` + `progress.log` + git log to resume without conversation memory. The file system is durable state; the context window is transient.
-
----
-
-## Structured Trace Log
-
-The `progress.log` is the project's memory. Every agent appends to it.
+The single append-only trace log. Every agent appends one JSONL line per significant action.
 
 ### Format
 
-```markdown
-## YYYY-MM-DDTHH:MM — [Role]: [summary]
+Each line in `.cursor/breadcrumbs.jsonl` is one JSON object:
 
-- What was attempted: [description]
-- Result: [PASS/FAIL/BLOCKED]
-- Lessons learned: [what to do differently next time]
-- Decisions made: [any choices with reasoning]
-- Next step: [what should happen next]
+```jsonl
+{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created spec with 5 features"}
+{"ts":"2026-05-23T09:52","role":"builder","type":"negotiate","feat":"feat-1","msg":"Proposed contract: 4 criteria, 2 edge cases"}
+{"ts":"2026-05-23T09:54","role":"evaluator","type":"negotiate","feat":"feat-1","msg":"Pushed back: scope too broad, missing expired token edge case"}
+{"ts":"2026-05-23T10:05","role":"builder","type":"build","feat":"feat-1","msg":"Implemented JWT validation middleware"}
+{"ts":"2026-05-23T10:07","role":"builder","type":"verify","feat":"feat-1","msg":"Computational checks pass: lint, types, tests"}
+{"ts":"2026-05-23T10:15","role":"evaluator","type":"eval","feat":"feat-1","msg":"PASS 6/6 criteria","result":"pass"}
+{"ts":"2026-05-23T10:16","role":"builder","type":"checkpoint","feat":"feat-1","msg":"Committed and archived"}
 ```
 
-### Why append-only
+### Fields
 
-From the Anthropic harness: "The key insight was finding a way for agents to quickly understand the state of work when starting with a fresh context window." An append-only log gives any new agent a complete history without relying on conversation memory or compaction summaries.
+| Field | Required | Values |
+|-------|----------|--------|
+| `ts` | yes | ISO-8601 timestamp |
+| `role` | yes | `planner`, `builder`, `evaluator` |
+| `type` | yes | `plan`, `negotiate`, `build`, `verify`, `eval`, `checkpoint`, `decision`, `scrap` |
+| `feat` | no | Feature ID (e.g., `feat-1`) or `null` for non-harness work |
+| `msg` | yes | One-line summary of what happened |
+| `result` | no | `pass`, `fail`, `blocked` (only for `verify` and `eval` types) |
+
+### Why breadcrumbs
+
+From the Anthropic harness: "You're basically just leaving breadcrumbs for another model to come and pick up. Tried this, evaluated, found this bug, implemented this fix, this fix worked, yes, tick."
+
+- **Append-only** — never edit past entries
+- **JSONL** — models are less likely to overwrite JSON; machine-parseable for hooks
+- **Greppable** — `rg '"type":"eval"'` to see all evaluations
+- **Replaces** negotiation threads, archive, attempts, handoff, and progress logs in ONE file
+- **Session resume** — read last N lines to understand current state
+
+For non-harness work (general progress tracking), use `feat: null`:
+
+```jsonl
+{"ts":"2026-05-23T11:00","role":"builder","type":"build","feat":null,"msg":"Updated sync-cursor.sh to split global vs per-project"}
+```
 
 ---
 
@@ -307,7 +293,7 @@ User: "Add dark mode support to the dashboard"
 → /planner Add dark mode support to the dashboard. The app uses React + Tailwind.
   Check the current theme setup in src/styles/ and component structure.
 
-→ [planner produces spec.md and progress.json, user confirms]
+→ [planner produces spec.md and state.json, user confirms]
 
 → [builder proposes contract for feat-1]
 
@@ -321,11 +307,4 @@ User: "Add dark mode support to the dashboard"
   Use browser tools to toggle theme, verify all components, check persistence.
 
 → [evaluator reports PASS/FAIL with evidence]
-```
-
-Parallel evaluators for different concerns:
-
-```text
-→ /evaluator Test functionality: all interactive elements work in dark mode
-→ /evaluator Test accessibility: contrast ratios meet WCAG AA in dark mode
 ```

@@ -5,25 +5,25 @@
 
 input=$(cat)
 
-CONTRACT=".cursor/harness/contracts/current-contract.json"
-PROGRESS_LOG=".cursor/harness/progress.log"
+CONTRACT=".cursor/harness/contract.json"
+BREADCRUMBS=".cursor/breadcrumbs.jsonl"
 
 if [ ! -f "$CONTRACT" ]; then
   echo '{}'
   exit 0
 fi
 
-if [ ! -f "$PROGRESS_LOG" ]; then
+if [ ! -f "$BREADCRUMBS" ]; then
   cat <<EOF
 {
-  "followup_message": "HARNESS WARNING: A contract exists but no progress.log was found. Create .cursor/harness/progress.log before continuing — the trace log is required for the adversarial harness workflow."
+  "followup_message": "HARNESS WARNING: A contract exists but no breadcrumbs.jsonl was found. Create .cursor/breadcrumbs.jsonl before continuing — the trace log is required for the adversarial harness workflow."
 }
 EOF
   exit 0
 fi
 
 VERIFIED=$(python3 -c "
-import json, sys
+import json
 try:
     with open('$CONTRACT') as f:
         data = json.load(f)
@@ -49,7 +49,7 @@ except Exception:
 
 cat <<EOF
 {
-  "followup_message": "HARNESS GATE: A contract exists for \"$FEATURE\" but verification is incomplete. Launch an evaluator subagent (Task tool) to test the implementation against the contract at .cursor/harness/contracts/current-contract.json. After the evaluator passes, set verified to true in the contract. Do not skip this step."
+  "followup_message": "HARNESS GATE: A contract exists for \"$FEATURE\" but verification is incomplete. Launch an evaluator subagent (Task tool) to test the implementation against the contract at .cursor/harness/contract.json. After the evaluator passes, set verified to true in the contract. Do not skip this step."
 }
 EOF
 exit 0

@@ -5,12 +5,6 @@ alwaysApply: true
 
 # Planning Discipline
 
-## Non-Trivial Work → Harness
-
-For tasks that touch 3+ files or involve user-facing behavior, use the adversarial harness: launch `/planner` to produce a spec, negotiate a contract with `/evaluator`, build against it, then `/evaluator` to verify. See `adversarial_harness.mdc` for the full flow.
-
-For simple, single-file changes — just do it. Don't over-plan trivial work.
-
 ## Structured Task Tracking
 
 For multi-step tasks (3+ distinct steps):

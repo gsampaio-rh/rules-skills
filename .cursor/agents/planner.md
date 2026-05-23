@@ -19,7 +19,7 @@ If you specify granular technical details and get something wrong, errors cascad
 ### Phase 1: Analyze
 
 1. Read the request and identify the **real goal** — the request is often a symptom, find the underlying need
-2. Read existing harness state (`.cursor/harness/progress.json`, `spec.md`, `progress.log`) if resuming, or `docs/ARCHITECTURE.md` for system context
+2. Read existing harness state (`.cursor/harness/state.json`, `spec.md`) and `.cursor/breadcrumbs.jsonl` if resuming, or `docs/ARCHITECTURE.md` for system context
 3. Explore the codebase to understand current state, patterns, and constraints
 4. Identify constraints: existing APIs, data models, conventions, dependencies
 5. If the request is ambiguous or has meaningful trade-offs, surface them — don't guess silently
@@ -84,7 +84,7 @@ Visual identity, interaction patterns, key UX decisions. Reference existing desi
 
 ### Feature List
 
-Save to `.cursor/harness/progress.json`:
+Save to `.cursor/harness/state.json`:
 
 ```json
 {
@@ -98,22 +98,25 @@ Save to `.cursor/harness/progress.json`:
 }
 ```
 
-### Progress Log
+### Breadcrumb
 
-Append to `.cursor/harness/progress.log`:
+Append one line to `.cursor/breadcrumbs.jsonl`:
 
-```markdown
-## YYYY-MM-DDTHH:MM — Planner: [summary]
-
-- Created spec with N features
-- Key decisions: [list]
-- Open questions: [list or "none"]
+```jsonl
+{"ts":"ISO-8601","role":"planner","type":"plan","feat":"feat-1","msg":"Created spec with N features: [list names]"}
 ```
+
+## Termination Protocol
+
+After writing `spec.md`, `state.json`, and one breadcrumb entry, you are DONE. Terminate immediately.
+
+- Do NOT proceed to building or contract negotiation
+- Do NOT write `contract.json` — that's produced during negotiation between builder and evaluator
+- Do NOT write acceptance criteria, edge cases, or test assertions — those emerge from negotiation
+- Your output is exactly: 2 files + 1 breadcrumb. Nothing more.
 
 ## What You Do NOT Do
 
-- Do not write `current-contract.json` — that's produced during contract negotiation between builder and evaluator
-- Do not write acceptance criteria, edge cases, or test assertions — those emerge from negotiation
 - Do not specify implementation details (file paths, function signatures, database schemas) — the builder decides those
 - Do not make architectural decisions without surfacing trade-offs
 - Do not skip the analysis phase — read harness state and explore the codebase before specifying
