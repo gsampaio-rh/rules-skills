@@ -1,0 +1,91 @@
+# Adversarial Verification Harness
+
+## When to Use
+
+| Complexity | Approach |
+|---|---|
+| Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
+| Non-trivial (3+ files, user-facing, architectural) | This harness. |
+
+## You Are the Orchestrator
+
+You coordinate three roles via subagents. You do NOT self-evaluate.
+
+1. **`/planner`** — Turns the user's request into a high-level product spec (`spec.md`) and feature list (`state.json`). Does NOT produce contracts.
+2. **You (builder)** — Proposes contracts to the evaluator, negotiates until agreement, then implements one feature at a time. Runs computational sensors before calling the evaluator.
+3. **`/evaluator`** — Two modes: (a) negotiation — challenges weak contracts before building, (b) evaluation — adversarial QA that tests the live app against the contract with evidence.
+
+## The Flow
+
+```
+User prompt
+  → /planner → spec.md + state.json
+  → User confirms spec
+  → You propose contract for first feature
+  → /evaluator negotiates contract (max 3 rounds)
+  → Agreement reached → you build
+  → Computational sensors (lints, types, tests, build)
+  → /evaluator tests live app against contract
+      → PASS → commit checkpoint → next feature
+      → FAIL → you fix → /evaluator re-tests (max 2x)
+      → scrap_and_restart → start fresh with lessons
+```
+
+## Enforcement
+
+Four hooks back this up:
+- **`SessionStart`** — Injects current harness state (active feature, phase, recent breadcrumbs) into conversation context at the start of every session.
+- **`Stop`** — Blocks completion if a contract exists with `verified: false`.
+- **`SubagentStop`** — Routes based on the contract's `phase` field: after negotiation → build, after building → launch evaluator, after evaluation → re-launch if unverified.
+- **CLAUDE.md harness gate** — Instructs the agent to use `/planner` for non-trivial work. User can say "skip harness" to opt out.
+
+## State Files
+
+All state lives on the file system, not in context:
+
+| File | Purpose |
+|---|---|
+| `.claude/harness/spec.md` | Product spec with user stories (planner output) |
+| `.claude/harness/state.json` | Feature list with statuses (pending/building/verified/committed) |
+| `.claude/harness/contract.json` | Active negotiated contract |
+| `.claude/harness/evals/eval-{id}.json` | Evaluator reports with evidence |
+| `.claude/breadcrumbs.jsonl` | Append-only trace — the project's memory |
+
+## Lifecycle
+
+- **Starting new work?** Check if `.claude/harness/state.json` exists. If yes, pick the next pending feature. If no, launch `/planner`.
+- **Resuming a session?** Read `breadcrumbs.jsonl` + git log to understand state.
+- **Feature verified?** Update `state.json`, commit, pick next feature.
+- **All features done?** Clean up harness state if desired.
+- **Made a significant decision?** Log it as a breadcrumb. No separate ADR needed.
+
+## Key Rules
+
+- One feature at a time. Negotiate → build → gate → verify → commit → next.
+- Commit only after `/evaluator` passes.
+- The evaluator never modifies source code. It tests and reports.
+- If the evaluator recommends `scrap_and_restart`, start fresh with lessons from breadcrumbs.
+- "Looks correct" is not verification. Running it is.
+
+## Durable State Principle
+
+The file system is durable state. The context window is transient.
+
+- Write decisions, progress, and lessons to `breadcrumbs.jsonl` — not just conversation
+- Agents starting fresh sessions read files, not conversation history
+- Git commits are checkpoints — descriptive messages serve as the historical record
+- `breadcrumbs.jsonl` is append-only — never edit past entries, only add new ones
+
+## Deprecated Documents
+
+These are replaced by harness artifacts:
+
+| Was | Replaced by |
+|---|---|
+| `docs/PLAN.md` | `state.json` + `spec.md` |
+| `docs/PRD.md` | `spec.md` (planner output) |
+| `docs/CHANGELOG.md` | `breadcrumbs.jsonl` (append-only trace) |
+| `docs/adrs/*.md` | `breadcrumbs.jsonl` (decisions inline) |
+| `docs/FUTURE_EXPLORATIONS.md` | Out-of-scope items in `spec.md` |
+
+If a project already has these files, they can coexist. Don't delete them. But new work flows through the harness.

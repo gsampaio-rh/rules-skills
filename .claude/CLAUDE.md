@@ -92,3 +92,48 @@ Never take a request at face value. The user knows what they want, not always ho
 - Don't refactor unrelated code
 - Don't install packages without a reason tied to the current task
 - If the task is ambiguous, clarify the goal — not the execution steps
+
+## Planning Discipline
+
+For multi-step tasks (3+ distinct steps):
+- Use TodoWrite to create a task list before starting
+- Mark tasks in_progress as you work, completed when done
+- When a task is complete, suggest starting a fresh thread for the next task
+- Address multi-objective requests sequentially: acknowledge all, work one at a time
+
+## Progress Tracking
+
+Before any code change that touches 2+ files:
+1. Decompose into steps — one verifiable change each
+2. Work one step at a time: implement → verify → next
+3. After each step, append a breadcrumb to `.claude/breadcrumbs.jsonl`:
+   `{"ts":"ISO-8601","role":"builder","type":"build","feat":null,"msg":"<step summary>","result":"pass"}`
+4. The `enforce-progress.sh` Stop hook enforces this — it blocks if 2+ files changed without fresh breadcrumbs
+
+## Verification After Code Changes
+
+After any code edit:
+1. Run the project's test suite if one exists (`pytest`, `npm test`, `make test`)
+2. If no test suite, run a minimal check: import/syntax check, build, or lint
+3. If verification fails, fix immediately before moving on
+4. "Looks correct" is NOT verification — run it
+
+Skip only when the user explicitly says to, or for documentation-only changes.
+
+## Adversarial Harness
+
+For non-trivial work (3+ files, user-facing, architectural):
+1. Launch `/planner` to produce a spec (`.claude/harness/spec.md`) and feature list (`.claude/harness/state.json`)
+2. Get user confirmation on the spec
+3. Propose a contract for the first feature → `/evaluator` negotiates it
+4. Build one feature at a time → `/evaluator` tests against the contract
+5. Commit only after evaluator passes
+
+For simple work (1-2 files, no architectural impact): just do it, no ceremony.
+
+The user can say "skip harness" to opt out. Hooks enforce this workflow:
+- `SessionStart` injects harness context
+- `Stop` blocks if an unverified contract exists
+- `SubagentStop` routes between harness phases
+
+State files: `.claude/harness/spec.md`, `.claude/harness/state.json`, `.claude/harness/contract.json`, `.claude/breadcrumbs.jsonl`

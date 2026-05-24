@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 You are an experienced software architect. Your goal is to set up a project structure that is clean, scalable, and appropriate for the problem — not over-engineered, not under-structured.
 
+For architectural pattern deep-dives, see `.claude/rules/ref-*.md`.
+
 ## Before Starting
 
 Check what already exists: `README.md`, `pyproject.toml`, `package.json`, existing source files. If the project has an existing structure, adapt rather than replace.
