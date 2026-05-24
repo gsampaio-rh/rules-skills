@@ -4,10 +4,16 @@
 Reads test cases from dataset.yaml, matches them with captured agent responses
 in responses/, and scores each response against behavioral criteria using an LLM judge.
 
+Supports multi-model response directories:
+    responses/composer-2.5/test_id.md   (model-specific, preferred)
+    responses/test_id.md                (legacy flat layout, fallback)
+
 Usage:
-    python tests/eval/run_eval.py                    # evaluate all captured responses
-    python tests/eval/run_eval.py --filter security  # evaluate only tests matching 'security'
-    python tests/eval/run_eval.py --dry-run           # show what would be evaluated
+    python tests/eval/run_eval.py                           # evaluate all captured responses
+    python tests/eval/run_eval.py --model composer-2.5      # evaluate a specific model's responses
+    python tests/eval/run_eval.py --filter security         # only tests matching 'security'
+    python tests/eval/run_eval.py --compare                 # compare scores across all models
+    python tests/eval/run_eval.py --dry-run                 # show what would be evaluated
 
 Environment variables:
     EVAL_PROVIDER   - 'openai' or 'anthropic' (default: openai)
@@ -104,10 +110,30 @@ def load_dataset() -> list[dict]:
         return yaml.safe_load(f)
 
 
-def load_response(test_id: str) -> str | None:
+def discover_models() -> list[str]:
+    """Find all model subdirectories under responses/."""
+    if not RESPONSES_DIR.exists():
+        return []
+    return sorted(
+        d.name for d in RESPONSES_DIR.iterdir()
+        if d.is_dir() and any(d.glob("*.md"))
+    )
+
+
+def load_response(test_id: str, model: str | None = None) -> str | None:
+    """Load a response, checking model subdir first, then legacy flat layout."""
+    if model:
+        path = RESPONSES_DIR / model / f"{test_id}.md"
+        if path.exists():
+            text = path.read_text().strip()
+            if text and not text.startswith("<!-- Response for:"):
+                return text
+
     path = RESPONSES_DIR / f"{test_id}.md"
     if path.exists():
-        return path.read_text().strip()
+        text = path.read_text().strip()
+        if text and not text.startswith("<!-- Response for:"):
+            return text
     return None
 
 
@@ -185,7 +211,7 @@ def call_judge(system: str, user: str) -> dict:
     return json.loads(clean)
 
 
-def evaluate_test(test_case: dict) -> TestResult:
+def evaluate_test(test_case: dict, model: str | None = None) -> TestResult:
     test_id = test_case["id"]
     result = TestResult(
         test_id=test_id,
@@ -193,7 +219,7 @@ def evaluate_test(test_case: dict) -> TestResult:
         category=test_case.get("category", ""),
     )
 
-    response = load_response(test_id)
+    response = load_response(test_id, model)
     if response is None:
         result.error = "no_response"
         return result
@@ -286,9 +312,59 @@ def print_report(results: list[TestResult]) -> None:
         print(f"Skipped (no response): {', '.join(r.test_id for r in skipped)}")
 
 
+def run_eval_for_model(dataset: list[dict], model: str | None = None) -> list[TestResult]:
+    results = []
+    total = len(dataset)
+    label = f" (model: {model})" if model else ""
+
+    for i, test_case in enumerate(dataset, 1):
+        response = load_response(test_case["id"], model)
+        if response is None:
+            results.append(
+                TestResult(
+                    test_id=test_case["id"],
+                    targets=test_case.get("targets", []),
+                    category=test_case.get("category", ""),
+                    error="no_response",
+                )
+            )
+            continue
+
+        print(f"Evaluating [{i}/{total}]{label}: {test_case['id']}...", flush=True)
+        results.append(evaluate_test(test_case, model))
+
+    return results
+
+
+def print_compare(dataset: list[dict], models: list[str]) -> None:
+    print("\n" + "=" * 70)
+    print("MODEL COMPARISON")
+    print("=" * 70)
+
+    header = f"  {'test_id':45s}"
+    for m in models:
+        header += f" {m:>10s}"
+    print(header)
+    print("  " + "-" * (45 + 11 * len(models)))
+
+    for t in dataset:
+        row = f"  {t['id']:45s}"
+        for m in models:
+            resp = load_response(t["id"], m)
+            row += f" {'   yes':>10s}" if resp else f" {'    -':>10s}"
+        print(row)
+
+    print(f"\n  Responses per model:")
+    for m in models:
+        count = sum(1 for t in dataset if load_response(t["id"], m))
+        print(f"    {m}: {count}/{len(dataset)}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate agent responses against rules/skills")
     parser.add_argument("--filter", help="Only run tests matching this string (id, target, or category)")
+    parser.add_argument("--model", help="Evaluate responses from a specific model subdirectory")
+    parser.add_argument("--compare", action="store_true", help="Compare response availability across models")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be evaluated")
     args = parser.parse_args()
 
@@ -303,32 +379,23 @@ def main() -> int:
             or any(f in tgt.lower() for tgt in t.get("targets", []))
         ]
 
+    if args.compare:
+        models = discover_models()
+        if not models:
+            print("No model subdirectories found in responses/.")
+            return 1
+        print_compare(dataset, models)
+        return 0
+
     if args.dry_run:
         print(f"Would evaluate {len(dataset)} test cases:\n")
         for t in dataset:
-            response = load_response(t["id"])
+            response = load_response(t["id"], args.model)
             status = "has response" if response else "needs capture"
             print(f"  {t['id']:45s} [{status}]")
         return 0
 
-    results = []
-    total = len(dataset)
-    for i, test_case in enumerate(dataset, 1):
-        response = load_response(test_case["id"])
-        if response is None:
-            results.append(
-                TestResult(
-                    test_id=test_case["id"],
-                    targets=test_case.get("targets", []),
-                    category=test_case.get("category", ""),
-                    error="no_response",
-                )
-            )
-            continue
-
-        print(f"Evaluating [{i}/{total}]: {test_case['id']}...", flush=True)
-        results.append(evaluate_test(test_case))
-
+    results = run_eval_for_model(dataset, args.model)
     print_report(results)
 
     evaluated = [r for r in results if r.error != "no_response"]

@@ -13,6 +13,11 @@ STATE=".claude/harness/state.json"
 CONTRACT=".claude/harness/contract.json"
 BREADCRUMBS=".claude/breadcrumbs.jsonl"
 
+# Write a session_start marker so hooks that read breadcrumbs can scope
+# their analysis to the current session (breadcrumbs are project-level).
+TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+echo "{\"ts\":\"$TS\",\"role\":\"system\",\"type\":\"session_start\",\"feat\":null,\"msg\":\"New chat session started\",\"result\":\"pass\"}" >> "$BREADCRUMBS" 2>/dev/null
+
 if [ ! -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
   echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: no harness state, skipping" >> "$HOOK_LOG" 2>/dev/null
   exit 0

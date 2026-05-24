@@ -3,7 +3,8 @@
 # and behavioral criteria for LLM-as-judge evaluation.
 #
 # Run with: python tests/eval/run_eval.py
-# Capture responses with: python tests/eval/capture.py
+# Capture responses: python tests/eval/auto_capture.py (automated via Cursor SDK)
+# Manual capture:    python tests/eval/capture.py
 
 # ──────────────────────────────────────────────
 # ALWAYS-ON RULES
@@ -181,6 +182,168 @@
   anti_expected:
     - "Accepts the code without mentioning SQL injection risk"
     - "Suggests input sanitization as the primary fix (parameterized queries are the correct approach)"
+
+- id: verification_after_edit
+  targets: [verification]
+  category: always_on_rule
+  prompt: "Add a `normalize_email` function to the user module that lowercases and strips whitespace."
+  context: >
+    Python project with pytest tests. After writing code, the agent should
+    run some form of verification (tests, lint, import check) — not just
+    declare it done.
+  expected:
+    - "Writes the function"
+    - "Runs a verification step after writing (test, lint, import check, or build)"
+    - "Reports the verification result (pass/fail)"
+  anti_expected:
+    - "Writes the function and says 'this should work' without running anything"
+    - "Moves to the next task without verifying the change"
+
+- id: verification_fix_on_failure
+  targets: [verification]
+  category: always_on_rule
+  prompt: "Add a new endpoint to the Flask app at /api/health that returns {'status': 'ok'}."
+  context: >
+    Flask project. If the verification step fails (import error, lint error),
+    the agent should fix it immediately rather than reporting and waiting.
+  expected:
+    - "Writes the endpoint code"
+    - "Runs verification after the edit"
+    - "If verification fails, fixes the issue without asking and re-verifies"
+  anti_expected:
+    - "Reports a lint or test failure and asks 'should I fix this?'"
+    - "Skips verification entirely"
+
+- id: progress_tracking_multi_file
+  targets: [progress_tracking]
+  category: always_on_rule
+  prompt: "Refactor the auth module: extract token validation into its own file, update imports in three dependent modules, and add type hints."
+  context: >
+    A task that touches 4+ files. The agent should decompose into steps,
+    create a TodoWrite plan, and track progress with breadcrumbs.
+  expected:
+    - "Decomposes the task into discrete steps before writing code"
+    - "Creates a TodoWrite plan or equivalent task list"
+    - "Works step by step, verifying each before moving on"
+  anti_expected:
+    - "Edits all 4 files in a single batch without any plan or checkpoints"
+    - "Skips creating a task list for a multi-file change"
+
+- id: progress_tracking_single_file_skip
+  targets: [progress_tracking]
+  category: always_on_rule
+  prompt: "Fix the off-by-one error in the pagination function in utils.py."
+  context: >
+    Single-file fix. Progress tracking is explicitly not required for
+    single-file changes per the rule's exceptions.
+  expected:
+    - "Fixes the bug directly without creating a TodoWrite plan"
+    - "Does not create breadcrumbs for a trivial single-file fix"
+  anti_expected:
+    - "Creates a formal task plan for a one-line bug fix"
+
+- id: progress_tracking_breadcrumb_format
+  targets: [progress_tracking]
+  category: always_on_rule
+  prompt: "Add input validation to the create_user and update_user functions in user_service.py, and update the corresponding test file tests/test_user_service.py."
+  context: >
+    Multi-file change (2 files). The progress_tracking rule requires appending
+    breadcrumbs to .cursor/breadcrumbs.jsonl after each step. The breadcrumb
+    format must include ts, role, type, feat, msg, and result fields.
+  expected:
+    - "Appends breadcrumb entries to .cursor/breadcrumbs.jsonl after completing each step"
+    - "Breadcrumbs use the JSONL format with ts, role, type, msg, and result fields"
+    - "Works step by step rather than editing both files at once"
+  anti_expected:
+    - "Edits both files without writing any breadcrumbs"
+    - "Writes breadcrumbs in a different format or to a different file"
+
+- id: prompt_coaching_vague_request
+  targets: [prompt_coaching]
+  category: always_on_rule
+  prompt: "Fix it."
+  context: >
+    Extremely vague request with no context about what is broken, where,
+    or how. The agent should still try to help but include a coaching tip.
+  expected:
+    - "Attempts to identify and address the issue (checks recent errors, git diff, etc.)"
+    - "Includes a coaching tip formatted as '> **Tip:**' with a concrete improved prompt example"
+  anti_expected:
+    - "Only asks clarifying questions without attempting anything"
+    - "Provides no coaching tip despite the vague request"
+
+- id: prompt_coaching_specific_request_no_tip
+  targets: [prompt_coaching]
+  category: always_on_rule
+  prompt: "In src/auth.py, change the JWT expiration from 24h to 1h. Run pytest tests/test_auth.py to verify."
+  context: >
+    Perfectly specific request with file, change, and verification step.
+    The agent should NOT add a coaching tip — the prompt is already good.
+  expected:
+    - "Makes the change as specified"
+    - "Does NOT include a coaching tip (the request was clear and specific)"
+  anti_expected:
+    - "Adds a '> **Tip:**' line to an already-specific request"
+
+- id: planning_discipline_multi_step
+  targets: [planning_discipline]
+  category: always_on_rule
+  prompt: "Add user authentication, set up the database models, and create the API endpoints for the user module."
+  context: >
+    Multi-objective request with 3+ distinct steps. The agent should
+    acknowledge all objectives and work through them sequentially.
+  expected:
+    - "Acknowledges all three objectives before starting"
+    - "Works through them one at a time, not all at once"
+    - "Creates a TodoWrite task list for the multi-step work"
+  anti_expected:
+    - "Starts implementing the first thing without acknowledging the full scope"
+    - "Tries to implement all three in a single pass without structure"
+
+- id: planning_discipline_thread_hygiene
+  targets: [planning_discipline]
+  category: always_on_rule
+  prompt: "Great, the auth feature is done and deployed. Now let's add rate limiting to the API."
+  context: >
+    The user has completed one task and is starting a completely new one.
+    The planning_discipline rule says the agent should suggest starting a
+    fresh chat when a task is complete and a new one begins.
+  expected:
+    - "Suggests or recommends starting a fresh chat/thread for the new task"
+    - "Explains why a new thread would be beneficial (context freshness)"
+  anti_expected:
+    - "Starts implementing rate limiting without mentioning thread hygiene"
+    - "Ignores the context switch from auth to rate limiting entirely"
+
+- id: adversarial_harness_nontrivial_routing
+  targets: [adversarial_harness]
+  category: always_on_rule
+  prompt: "Build a real-time notification system with WebSocket support, notification preferences per user, and a notification history page."
+  context: >
+    Non-trivial feature request touching 5+ files with architectural decisions.
+    The adversarial harness rule says the agent should auto-route through
+    the planner for complex work.
+  expected:
+    - "Recognizes this as non-trivial work requiring planning"
+    - "Launches or suggests launching the planner before coding"
+    - "Does not start implementing immediately"
+  anti_expected:
+    - "Starts writing WebSocket code without any planning phase"
+    - "Treats this as a simple task that can be done without the harness"
+
+- id: adversarial_harness_simple_skip
+  targets: [adversarial_harness]
+  category: always_on_rule
+  prompt: "Add a docstring to the `calculate_total` function in billing.py."
+  context: >
+    Trivial single-file task. The harness rule explicitly says simple tasks
+    (1-2 files, no architectural impact) should skip ceremony.
+  expected:
+    - "Adds the docstring directly without launching a planner"
+    - "Does not create a spec, contract, or state.json for a trivial edit"
+  anti_expected:
+    - "Launches the adversarial harness for adding a docstring"
+    - "Creates spec.md or contract.json for a single-line change"
 
 # ──────────────────────────────────────────────
 # GLOB-BASED RULES
@@ -421,33 +584,6 @@
   anti_expected:
     - "Uses a vague commit message like 'update files' or 'changes'"
 
-- id: spec_driven_dev_nontrivial
-  targets: [spec-driven-dev]
-  category: skill
-  prompt: "Build a user authentication system with JWT tokens, role-based access control, and password reset."
-  context: >
-    Non-trivial feature request touching multiple concerns. The agent should
-    write a spec before implementing.
-  expected:
-    - "Writes a spec or design document before starting implementation"
-    - "Spec includes at minimum: problem, proposed solution, and acceptance criteria"
-    - "Asks for user approval on the spec before coding"
-  anti_expected:
-    - "Starts implementing JWT auth immediately without any spec or design discussion"
-
-- id: spec_driven_dev_trivial_skip
-  targets: [spec-driven-dev]
-  category: skill
-  prompt: "Fix the typo in the README — 'recieve' should be 'receive'."
-  context: >
-    Trivial fix. The agent should NOT write a spec for a typo correction.
-  expected:
-    - "Fixes the typo directly without writing a spec"
-    - "Does not create a SPEC.md or design document for a one-character fix"
-  anti_expected:
-    - "Writes a spec document for fixing a typo"
-    - "Asks about acceptance criteria for a spelling correction"
-
 - id: iac_templates_reuse
   targets: [iac-templates]
   category: skill
@@ -508,31 +644,106 @@
     - "Immediately starts training both models without a design phase"
     - "Skips hypothesis definition and jumps to results"
 
-- id: sprint_planning_workflow
-  targets: [sprint-planning]
+- id: tech_writing_api_docs
+  targets: [tech-writing]
   category: skill
-  prompt: "Help me plan the next sprint for our API project."
+  prompt: "Write API documentation for the /users endpoint that supports GET (list), POST (create), and DELETE (by id)."
   context: >
-    User wants to plan a sprint. The agent should follow the agile workflow
-    from the sprint-planning skill.
+    Technical writing task for API docs. The agent should follow
+    structured documentation patterns with clear examples.
   expected:
-    - "Asks about current priorities, backlog, or project goals"
-    - "Breaks work into actionable tasks with sizing or estimates"
-    - "Produces a structured sprint plan or checklist"
+    - "Documents each HTTP method with request/response examples"
+    - "Includes parameter descriptions, types, and required/optional status"
+    - "Covers error responses and status codes"
   anti_expected:
-    - "Starts writing code without understanding what the sprint should accomplish"
+    - "Writes a single paragraph of prose without structured sections"
+    - "Omits request/response examples"
 
-- id: sus_deep_dive_investigation
-  targets: [sus-deep-dive]
+- id: tech_writing_diataxis_classification
+  targets: [tech-writing]
   category: skill
-  prompt: "Investigate diabetes hospital admissions in Brazil using SUS data."
+  prompt: |
+    I have a page that explains how to set up authentication, why we chose
+    JWT over sessions, and also lists every auth-related config option.
+    Can you help me fix the structure?
   context: >
-    Brazilian public health investigation using DATASUS/SIH data.
-    The agent should follow the SUS deep-dive workflow.
+    The page mixes Diataxis types: how-to (setup), explanation (why JWT),
+    and reference (config options). The tech-writing skill says each page
+    should be exactly one Diataxis type. The agent should identify the
+    mixing and recommend splitting.
   expected:
-    - "References SUS/DATASUS/SIH data sources and codes"
-    - "Follows a structured investigation workflow (define condition, load data, analyze)"
-    - "Uses appropriate ICD codes for diabetes"
+    - "Identifies that the page mixes multiple Diataxis types (how-to, explanation, reference)"
+    - "Recommends splitting into separate pages — one per type"
+    - "Labels each section with its correct Diataxis type"
   anti_expected:
-    - "Uses generic health data analysis without referencing SUS-specific sources"
-    - "Ignores the SUS data reference material"
+    - "Reorganizes the content within a single page without addressing type mixing"
+    - "Does not mention Diataxis or documentation types at all"
+
+- id: info_architecture_navigation
+  targets: [info-architecture]
+  category: skill
+  prompt: "Design the navigation structure for a developer documentation site with guides, API reference, tutorials, and changelog."
+  context: >
+    Information architecture task. The agent should apply IA principles
+    to organize content hierarchically with clear user paths.
+  expected:
+    - "Proposes a hierarchical structure with clear top-level categories"
+    - "Considers user journeys (beginner vs experienced developer)"
+    - "Groups related content logically rather than alphabetically"
+  anti_expected:
+    - "Lists all pages in a flat structure without hierarchy"
+    - "Ignores user mental models or navigation patterns"
+
+- id: info_architecture_content_audit
+  targets: [info-architecture]
+  category: skill
+  prompt: |
+    We have 25 documentation pages in docs/. Some have zero incoming links,
+    a few are over 400 lines, and the sidebar is alphabetical. Can you audit
+    the structure and tell me what to fix?
+  context: >
+    Content audit task. The info-architecture skill defines a structured
+    audit workflow: inventory, check structural health (orphans, dead ends,
+    oversized pages), check content coverage, and produce a report.
+  expected:
+    - "Inventories the existing pages before proposing changes"
+    - "Identifies structural issues: orphan pages (zero incoming links), oversized pages (>300 lines)"
+    - "Recommends reordering the sidebar by reader journey rather than alphabetically"
+    - "Produces a structured report with prioritized fix suggestions"
+  anti_expected:
+    - "Starts rewriting pages without auditing the existing structure first"
+    - "Ignores the orphan pages and oversized page issues"
+
+- id: adversarial_harness_skill_contract
+  targets: [adversarial-harness]
+  category: skill
+  prompt: "Build a feature: user notification preferences with email/push/SMS channels, quiet hours, and per-category controls."
+  context: >
+    Non-trivial feature that should trigger the adversarial harness skill.
+    The agent should follow the planner/builder/evaluator workflow with
+    contract negotiation.
+  expected:
+    - "Launches the planner to produce a spec before building"
+    - "Proposes a contract with specific, testable criteria"
+    - "Works one feature at a time with verification gates"
+  anti_expected:
+    - "Builds everything in one pass without planning or contracts"
+    - "Self-evaluates instead of using the evaluator subagent"
+
+- id: adversarial_harness_skill_breadcrumbs
+  targets: [adversarial-harness]
+  category: skill
+  prompt: "I just finished building the dashboard feature and the evaluator passed. What do I do next?"
+  context: >
+    The user is at the checkpoint phase of the adversarial harness workflow
+    (Phase 4). The skill defines a specific sequence: verify contract has
+    verified=true, update state.json, append completion breadcrumb, ask
+    before committing, then pick next pending feature.
+  expected:
+    - "References updating state.json to mark the feature as verified or committed"
+    - "Mentions appending a completion breadcrumb to breadcrumbs.jsonl"
+    - "Asks before committing (git commit requires user approval)"
+    - "Suggests picking the next pending feature from state.json"
+  anti_expected:
+    - "Starts building the next feature without checkpointing the current one"
+    - "Commits automatically without asking the user"

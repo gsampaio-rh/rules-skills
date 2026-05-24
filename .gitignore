@@ -2,7 +2,7 @@
 .venv/
 .reference-repos/
 old_cursor_files/
-tests/eval/responses/*.md
+tests/eval/responses/
 .cursor/harness/
 .cursor/breadcrumbs.jsonl
 .cursor/hooks.log

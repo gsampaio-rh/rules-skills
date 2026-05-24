@@ -132,6 +132,43 @@ Internal quality contracts at the repo root (not loaded by the agent):
 
 **Skills** are loaded when the user's request matches the skill's `description` keywords. Skills with `disable-model-invocation: true` must be explicitly invoked.
 
+## Eval Pipeline (`tests/eval/`)
+
+Behavioral testing framework that verifies rules and skills actually change agent behavior.
+
+### Quick Start
+
+```bash
+pip install -r tests/eval/requirements.txt
+export CURSOR_API_KEY="cursor_..."      # for automated capture
+export OPENAI_API_KEY="sk-..."          # for LLM-as-judge eval
+
+make pipeline                           # validate → capture → eval
+```
+
+### Components
+
+| File | Purpose |
+|---|---|
+| `dataset.yaml` | 40 test cases with prompts, expected/anti-expected behaviors |
+| `auto_capture.py` | Automated response capture via Cursor SDK `Agent.prompt()` |
+| `capture.py` | Manual capture fallback (paste responses into `.md` files) |
+| `run_eval.py` | LLM-as-judge evaluator (OpenAI or Anthropic) |
+
+### Makefile Targets
+
+| Target | Description |
+|---|---|
+| `make validate` | Check rules/skills against authoring standards |
+| `make capture` | Capture responses via Cursor SDK (skips existing) |
+| `make eval` | Run LLM-as-judge on captured responses |
+| `make pipeline` | Full pipeline: validate, capture, eval |
+| `make compare` | Compare response availability across models |
+| `make status` | Show capture progress |
+| `make dry-run` | Preview what would be captured/evaluated |
+
+Use `MODEL=auto make capture` to capture with a different model. Responses are stored in `responses/<model>/` for side-by-side comparison.
+
 ## Adding New Rules or Skills
 
 Follow the conventions in `RULES_STANDARD.md` and `SKILLS_STANDARD.md`. Key principles:

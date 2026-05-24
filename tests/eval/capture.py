@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Helper to capture agent responses for eval test cases.
+"""Manual capture helper for eval test cases.
 
-Lists uncaptured test cases, shows the prompt to run in Cursor,
-and creates response files for you to paste into.
+For automated capture, use auto_capture.py instead (requires Cursor SDK).
+This script is for manual paste-based capture as a fallback.
 
 Usage:
     python tests/eval/capture.py              # show all uncaptured tests
@@ -30,8 +30,19 @@ def load_dataset() -> list[dict]:
 
 
 def has_response(test_id: str) -> bool:
+    """Check flat layout and all model subdirs."""
     path = RESPONSES_DIR / f"{test_id}.md"
-    return path.exists() and path.read_text().strip() != ""
+    if path.exists() and path.read_text().strip() and not path.read_text().strip().startswith("<!-- Response for:"):
+        return True
+    if RESPONSES_DIR.exists():
+        for subdir in RESPONSES_DIR.iterdir():
+            if subdir.is_dir():
+                sub_path = subdir / f"{test_id}.md"
+                if sub_path.exists():
+                    text = sub_path.read_text().strip()
+                    if text and not text.startswith("<!-- Response for:"):
+                        return True
+    return False
 
 
 def show_status(dataset: list[dict]) -> None:

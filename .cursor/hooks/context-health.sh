@@ -2,9 +2,13 @@
 # Stop hook: detects context rot, decision fatigue, and circular behavior.
 # Forces the agent to recommend a fresh chat when the session is degraded.
 #
-# Fatigue signals (all measured from breadcrumbs.jsonl):
+# Session scoping: only analyzes breadcrumbs AFTER the last session_start marker
+# (written by harness-context.sh on sessionStart). This prevents false positives
+# when opening a fresh chat — breadcrumbs.jsonl is project-level, not session-level.
+#
+# Fatigue signals (scoped to current session):
 #   1. Session too long (> 90 min since first breadcrumb this session)
-#   2. Too many breadcrumbs (> 25 entries — context is saturated)
+#   2. Too many breadcrumbs (> 25 entries this session — context is saturated)
 #   3. Consecutive failures (3+ fail results in a row — going in circles)
 #   4. Multiple scrap-and-restart cycles (2+ scraps — approach exhaustion)
 #   5. Same feature stuck (3+ eval failures on the same feature)
@@ -39,16 +43,27 @@ from datetime import datetime, timezone
 
 breadcrumbs_path = '$BREADCRUMBS'
 
-entries = []
+all_entries = []
 with open(breadcrumbs_path) as f:
     for line in f:
         line = line.strip()
         if not line:
             continue
         try:
-            entries.append(json.loads(line))
+            all_entries.append(json.loads(line))
         except Exception:
             pass
+
+# Scope to current session: find the last session_start marker.
+# breadcrumbs.jsonl is project-level (persists across sessions).
+# Without scoping, a fresh chat inherits fatigue signals from old sessions.
+session_start_idx = 0
+for i in range(len(all_entries) - 1, -1, -1):
+    if all_entries[i].get('type') == 'session_start':
+        session_start_idx = i + 1
+        break
+
+entries = all_entries[session_start_idx:]
 
 if len(entries) < 5:
     print(json.dumps({'signals': 0}))
@@ -57,19 +72,18 @@ if len(entries) < 5:
 signals = []
 details = []
 
-# --- Signal 1: Session duration ---
+def parse_ts(ts_str):
+    for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M'):
+        try:
+            return datetime.strptime(ts_str, fmt)
+        except ValueError:
+            continue
+    return None
+
+# --- Signal 1: Session duration (time since session_start) ---
 try:
     first_ts = entries[0].get('ts', '')
     last_ts = entries[-1].get('ts', '')
-    # Parse ISO timestamps (handle both with and without timezone)
-    def parse_ts(ts_str):
-        for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M'):
-            try:
-                return datetime.strptime(ts_str, fmt)
-            except ValueError:
-                continue
-        return None
-
     t_first = parse_ts(first_ts)
     t_last = parse_ts(last_ts)
     if t_first and t_last:
@@ -80,14 +94,14 @@ try:
 except Exception:
     pass
 
-# --- Signal 2: Breadcrumb volume ---
+# --- Signal 2: Breadcrumb volume (this session only) ---
 total = len(entries)
 if total > 25:
     signals.append('breadcrumb_volume')
-    details.append(f'{total} breadcrumbs — context is likely saturated')
+    details.append(f'{total} breadcrumbs in this session — context is likely saturated')
 
-# --- Signal 3: Consecutive failures ---
-recent = entries[-8:]  # look at last 8 entries
+# --- Signal 3: Consecutive failures (this session) ---
+recent = entries[-8:]
 consecutive_fails = 0
 max_consecutive = 0
 for e in recent:
@@ -101,13 +115,13 @@ if max_consecutive >= 3:
     signals.append('consecutive_failures')
     details.append(f'{max_consecutive} consecutive failures — going in circles')
 
-# --- Signal 4: Scrap-and-restart count ---
+# --- Signal 4: Scrap-and-restart count (this session) ---
 scrap_count = sum(1 for e in entries if e.get('type') == 'scrap')
 if scrap_count >= 2:
     signals.append('scrap_exhaustion')
     details.append(f'{scrap_count} scrap-and-restart cycles — approach exhaustion')
 
-# --- Signal 5: Same feature stuck ---
+# --- Signal 5: Same feature stuck (this session) ---
 eval_failures = {}
 for e in entries:
     if e.get('type') == 'eval' and e.get('result') == 'fail':
@@ -125,12 +139,11 @@ result = {
     'signals': len(signals),
     'signal_names': signals,
     'details': details,
-    'total_breadcrumbs': total,
+    'session_breadcrumbs': total,
+    'total_breadcrumbs': len(all_entries),
 }
 
-# Add context for handoff
 if len(signals) >= 1:
-    # Last few breadcrumbs as context summary
     recent_msgs = []
     for e in entries[-5:]:
         role = e.get('role', '?')
@@ -142,7 +155,6 @@ if len(signals) >= 1:
         recent_msgs.append(line)
     result['recent_context'] = recent_msgs
 
-    # Active feature
     active_feat = None
     for e in reversed(entries):
         if e.get('feat') and e.get('feat') != 'null':

@@ -12,6 +12,11 @@ STATE=".cursor/harness/state.json"
 CONTRACT=".cursor/harness/contract.json"
 BREADCRUMBS=".cursor/breadcrumbs.jsonl"
 
+# Write a session_start marker so context-health.sh can scope its analysis
+# to the current session only (breadcrumbs are project-level, not session-level).
+TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+echo "{\"ts\":\"$TS\",\"role\":\"system\",\"type\":\"session_start\",\"feat\":null,\"msg\":\"New chat session started\",\"result\":\"pass\"}" >> "$BREADCRUMBS" 2>/dev/null
+
 if [ ! -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
   echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: no harness state, skipping" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
