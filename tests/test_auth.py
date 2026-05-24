@@ -1,4 +1,5 @@
-from src.auth import create_token, verify_token
+from src.auth import create_token, hash_password, verify_password
+from src.token_validation import verify_token
 
 
 def test_valid_token_returns_200() -> None:
@@ -19,3 +20,10 @@ def test_invalid_token_returns_401() -> None:
     status, body = verify_token("not.a.jwt")
     assert status == 401
     assert body == {"error": "invalid_token"}
+
+
+def test_password_hash_round_trip() -> None:
+    password_hash = hash_password("password123")
+
+    assert verify_password(password_hash, "password123") is True
+    assert verify_password(password_hash, "wrong-password") is False

@@ -7,10 +7,21 @@ import hashlib
 import hmac
 import json
 import time
-from typing import Any
 
-SECRET = "dev-secret"
-DEFAULT_EXPIRATION_SECONDS = 24 * 3600
+from werkzeug.security import check_password_hash, generate_password_hash
+
+SECRET: str = "dev-secret"
+DEFAULT_EXPIRATION_SECONDS: int = 1 * 3600
+
+
+def hash_password(password: str) -> str:
+    """Return a salted password hash."""
+    return generate_password_hash(password)
+
+
+def verify_password(password_hash: str, password: str) -> bool:
+    """Return True when the password matches the stored hash."""
+    return check_password_hash(password_hash, password)
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -33,20 +44,3 @@ def create_token(subject: str, exp_offset: int | None = None) -> str:
     signing_input = f"{header_b64}.{payload_b64}".encode()
     signature = _b64url_encode(hmac.new(SECRET.encode(), signing_input, hashlib.sha256).digest())
     return f"{header_b64}.{payload_b64}.{signature}"
-
-
-def verify_token(token: str) -> tuple[int, dict[str, Any]]:
-    """Verify JWT and return (status_code, body)."""
-    try:
-        header_b64, payload_b64, signature = token.split(".")
-        signing_input = f"{header_b64}.{payload_b64}".encode()
-        expected_sig = _b64url_encode(hmac.new(SECRET.encode(), signing_input, hashlib.sha256).digest())
-        if not hmac.compare_digest(signature, expected_sig):
-            return 401, {"error": "invalid_token"}
-
-        payload = json.loads(_b64url_decode(payload_b64))
-        if payload.get("exp", 0) < int(time.time()):
-            return 401, {"error": "token_expired"}
-        return 200, {"valid": True, "sub": payload["sub"]}
-    except (ValueError, KeyError, json.JSONDecodeError):
-        return 401, {"error": "invalid_token"}
