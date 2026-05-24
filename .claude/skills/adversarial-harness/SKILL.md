@@ -33,8 +33,10 @@ Computational sensors run first (cheap, fast). Inferential sensors run after (ex
 | Builder | Main agent (you) | Implements features against the negotiated contract |
 | Evaluator | `/evaluator` | Adversarial QA — negotiates contracts AND tests the actual app |
 
-Subagent definitions live in `.cursor/agents/`. Two hooks enforce the workflow:
-- `subagentStop` → chains `/evaluator` after any subagent if a contract is unverified
+Subagent definitions live in `.cursor/agents/`. Four hooks enforce the workflow:
+- `sessionStart` → injects current harness state into conversation context
+- `beforeSubmitPrompt` → blocks non-trivial prompts when no harness is active
+- `subagentStop` → routes between negotiation, building, and evaluation based on `phase` field
 - `stop` → blocks the main agent from finishing if a contract is unverified
 
 ---
@@ -63,7 +65,7 @@ Before writing a single line of code, the builder and evaluator negotiate what "
 
 ### How it works
 
-1. **Builder proposes:** Read the spec for this feature. Write a contract to `.cursor/harness/contract.json`:
+1. **Builder proposes:** Read the spec for this feature. Write a contract to `.cursor/harness/contract.json` with `"phase": "negotiating"`:
    - What you will build (proposed_solution)
    - How success will be verified (acceptance_criteria)
    - What edge cases to test
@@ -77,7 +79,7 @@ Before writing a single line of code, the builder and evaluator negotiate what "
 
 3. **Iterate:** Both sides log negotiation as breadcrumbs. The builder revises the contract. Max 3 rounds.
 
-4. **Agreement:** When both agree, the contract is final. The evaluator marks it accepted.
+4. **Agreement:** When both agree, the contract is final. The evaluator marks it accepted and sets `"phase": "negotiated"`.
 
 ### Contract format
 
@@ -97,9 +99,21 @@ Save to `.cursor/harness/contract.json`:
   ],
   "verification_method": "Exactly what the evaluator should run and check",
   "negotiation_rounds": 1,
+  "phase": "negotiating",
   "verified": false
 }
 ```
+
+### Phase field
+
+The `phase` field tracks where the harness is in the workflow. Hooks read it to route correctly.
+
+| Phase | Set by | Means |
+|-------|--------|-------|
+| `negotiating` | Builder (on propose) | Contract is being negotiated |
+| `negotiated` | Evaluator (on accept) | Negotiation complete, ready to build |
+| `building` | Builder (when starting implementation) | Implementation in progress |
+| `evaluating` | Builder (when launching evaluator for testing) | Evaluator is testing the live app |
 
 ### Why negotiate?
 
@@ -112,8 +126,9 @@ From the Anthropic talk: "The generator proposed what it would build and how suc
 You are the builder. Work against the negotiated contract, not the original vague prompt.
 
 1. Read `.cursor/harness/contract.json` for acceptance criteria
-2. Update `state.json` → set the feature status to `"building"`
-3. Implement the feature — one feature at a time
+2. Set `"phase": "building"` in `contract.json`
+3. Update `state.json` → set the feature status to `"building"`
+4. Implement the feature — one feature at a time
 4. Run computational sensors before calling the evaluator:
    - Lints pass (`ReadLints` or project linter)
    - Type checks pass (if applicable)
@@ -127,7 +142,7 @@ You are the builder. Work against the negotiated contract, not the original vagu
 
 ## Phase 3: Evaluation
 
-Launch the `/evaluator` subagent. The `subagentStop` hook will also auto-trigger this if you forget.
+Set `"phase": "evaluating"` in `contract.json`, then launch the `/evaluator` subagent. The `subagentStop` hook will also auto-trigger this if you forget.
 
 ```text
 /evaluator Test the implementation against the contract at .cursor/harness/contract.json

@@ -38,9 +38,11 @@ User prompt
 
 ## Enforcement
 
-Two hooks back this up:
-- **`subagentStop`** — After any subagent finishes, checks if an unverified contract exists. If so, forces you to launch `/evaluator`.
-- **`stop`** — When you try to finish your turn, blocks completion if a contract exists with `verified: false`.
+Four hooks back this up:
+- **`sessionStart`** — Injects current harness state (active feature, phase, recent breadcrumbs) into conversation context at the start of every session.
+- **`beforeSubmitPrompt`** — Blocks non-trivial prompts when no harness is active. Suggests `/planner` first. User can say "skip harness" to opt out.
+- **`subagentStop`** — Routes based on the contract's `phase` field: after negotiation → build, after building → launch evaluator, after evaluation → re-launch if unverified.
+- **`stop`** — Blocks completion if a contract exists with `verified: false`.
 
 ## State Files
 

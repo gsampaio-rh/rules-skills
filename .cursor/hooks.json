@@ -1,11 +1,25 @@
 {
   "version": 1,
   "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/harness-context.sh",
+        "timeout": 5
+      }
+    ],
     "beforeSubmitPrompt": [
       {
-        "command": ".cursor/hooks/prompt-check.sh",
+        "type": "prompt",
+        "prompt": "Block ONLY if this prompt is clearly requesting a NEW multi-file feature or major architectural change that would take HOURS to implement (e.g. 'implement a new authentication system', 'build a dashboard with charts', 'migrate the database layer'). Allow everything else: bug fixes, reviews, small refactors, config changes, questions, commit/sync requests, follow-ups, maintenance, single-file edits, and any prompt where the scope is unclear. When in doubt, ALLOW. The user can invoke /planner manually when they need it. Check if .cursor/harness/state.json or .cursor/harness/contract.json exist — if either exists, the harness is already active, so ALLOW.",
         "matcher": "UserPromptSubmit",
-        "timeout": 3
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/dedup-server.sh",
+        "matcher": "npm|yarn|pnpm|vite|next|flask|uvicorn|gunicorn|cargo run|go run|python.*http",
+        "timeout": 5
       }
     ],
     "stop": [
@@ -24,7 +38,7 @@
       {
         "command": ".cursor/hooks/chain-evaluator.sh",
         "timeout": 5,
-        "loop_limit": 2
+        "loop_limit": 3
       }
     ]
   }

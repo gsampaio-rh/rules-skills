@@ -51,11 +51,17 @@ Deep knowledge loaded on demand by rules and skills.
 
 ### Hooks (`.cursor/hooks/`)
 
-Pre-submission prompt quality checks.
+Enforcement hooks for the adversarial harness workflow and agent guardrails.
 
 | Hook | Event | What it does |
 |---|---|---|
-| `prompt-check.sh` | `beforeSubmitPrompt` | Nudges the user to add context when prompts are under 30 characters |
+| `harness-context.sh` | `sessionStart` | Injects current harness state into conversation context |
+| (LLM-as-judge) | `beforeSubmitPrompt` | Blocks prompts requesting multi-hour features without harness |
+| `dedup-server.sh` | `beforeShellExecution` | Prevents duplicate dev servers on the same port |
+| `chain-evaluator.sh` | `subagentStop` | Routes between negotiation, building, and evaluation phases |
+| `verify-harness.sh` | `stop` | Blocks agent completion if contract is unverified |
+| `enforce-progress.sh` | `stop` | Enforces breadcrumb logging and harness usage |
+| `validate-hooks.sh` | (manual) | Validates all hooks are configured, executable, and functional |
 
 ### Authoring Standards
 
@@ -82,7 +88,12 @@ Internal quality contracts at the repo root (not loaded by the agent):
 │       ├── data-visualization/
 │       └── design-systems/
 ├── hooks/
-│   └── prompt-check.sh
+│   ├── harness-context.sh
+│   ├── harness-gate.sh
+│   ├── chain-evaluator.sh
+│   ├── verify-harness.sh
+│   ├── enforce-progress.sh
+│   └── validate-hooks.sh
 ├── hooks.json
 ├── rules/
 │   ├── agent_behavior.mdc

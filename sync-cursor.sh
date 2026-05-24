@@ -55,6 +55,7 @@ find "$SOURCE_CURSOR" -type f \
     ! -path '*/agents/*' \
     ! -path '*/skills/*' \
     ! -name 'breadcrumbs.jsonl' \
+    ! -name 'hooks.log' \
     | sort > "$SOURCE_FILES_LIST"
 
 compare_project() {

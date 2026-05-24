@@ -5,10 +5,14 @@
 
 input=$(cat)
 
+HOOK_LOG=".cursor/hooks.log"
+echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: triggered" >> "$HOOK_LOG" 2>/dev/null
+
 CONTRACT=".cursor/harness/contract.json"
 BREADCRUMBS=".cursor/breadcrumbs.jsonl"
 
 if [ ! -f "$CONTRACT" ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: no contract, skipping" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi
@@ -33,6 +37,7 @@ except Exception:
 " 2>/dev/null)
 
 if [ "$VERIFIED" = "True" ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: contract verified, passing" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi
@@ -46,6 +51,8 @@ try:
 except Exception:
     print('unknown feature')
 " 2>/dev/null)
+
+echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: BLOCKED — contract unverified for '$FEATURE'" >> "$HOOK_LOG" 2>/dev/null
 
 cat <<EOF
 {

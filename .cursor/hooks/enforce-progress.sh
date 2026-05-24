@@ -1,12 +1,17 @@
 #!/bin/bash
-# Stop hook: forces progress tracking when the agent modifies multiple files.
-# If 2+ files are changed and .cursor/breadcrumbs.jsonl wasn't updated recently, block.
+# Stop hook: two-tier enforcement for progress tracking and harness usage.
+# Tier 1: 2+ files changed without fresh breadcrumbs → ask for breadcrumbs
+# Tier 2: 4+ files changed without a contract → ask why harness isn't being used
 # Skips when adversarial harness is active (it has its own enforcement).
 
 input=$(cat)
 
+HOOK_LOG=".cursor/hooks.log"
+echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: triggered" >> "$HOOK_LOG" 2>/dev/null
+
 CONTRACT=".cursor/harness/contract.json"
 if [ -f "$CONTRACT" ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: contract exists, skipping" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi
@@ -17,11 +22,13 @@ UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l | tr -d
 TOTAL=$((CHANGED + STAGED + UNTRACKED))
 
 if [ "$TOTAL" -lt 2 ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: $TOTAL files changed, below threshold" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi
 
 BREADCRUMBS=".cursor/breadcrumbs.jsonl"
+BREADCRUMBS_FRESH=false
 
 if [ -f "$BREADCRUMBS" ]; then
   NOW=$(date +%s)
@@ -29,20 +36,44 @@ if [ -f "$BREADCRUMBS" ]; then
   AGE=$((NOW - MTIME))
 
   if [ "$AGE" -lt 180 ]; then
-    echo '{}'
-    exit 0
+    BREADCRUMBS_FRESH=true
   fi
 fi
 
-CHANGED_LIST=$(git diff --name-only 2>/dev/null | head -10)
-STAGED_LIST=$(git diff --cached --name-only 2>/dev/null | head -10)
-UNTRACKED_LIST=$(git ls-files --others --exclude-standard 2>/dev/null | head -10)
+# Tier 2: 4+ files without a contract → harness enforcement
+if [ "$TOTAL" -ge 4 ] && [ "$BREADCRUMBS_FRESH" = true ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: $TOTAL files, breadcrumbs fresh, but no contract — harness warning" >> "$HOOK_LOG" 2>/dev/null
 
-ALL_FILES=$(printf "%s\n%s\n%s" "$CHANGED_LIST" "$STAGED_LIST" "$UNTRACKED_LIST" | sort -u | head -10)
+  CHANGED_LIST=$(git diff --name-only 2>/dev/null | head -10)
+  STAGED_LIST=$(git diff --cached --name-only 2>/dev/null | head -10)
+  UNTRACKED_LIST=$(git ls-files --others --exclude-standard 2>/dev/null | head -10)
+  ALL_FILES=$(printf "%s\n%s\n%s" "$CHANGED_LIST" "$STAGED_LIST" "$UNTRACKED_LIST" | sort -u | head -10)
 
-cat <<EOF
+  cat <<EOF
+{
+  "followup_message": "HARNESS CHECK: You modified $TOTAL files without an active harness contract. For non-trivial work (3+ files, user-facing behavior, architectural changes), the adversarial harness should be used: /planner → contract negotiation → /evaluator.\n\nIf this IS simple work, add a breadcrumb explaining why harness was skipped:\n{\"ts\":\"...\",\"role\":\"builder\",\"type\":\"decision\",\"feat\":null,\"msg\":\"Skipped harness: <reason>\"}\n\nFiles changed:\n$ALL_FILES"
+}
+EOF
+  exit 0
+fi
+
+# Tier 1: 2+ files without fresh breadcrumbs → breadcrumbs enforcement
+if [ "$BREADCRUMBS_FRESH" = false ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: $TOTAL files, no fresh breadcrumbs — breadcrumbs required" >> "$HOOK_LOG" 2>/dev/null
+
+  CHANGED_LIST=$(git diff --name-only 2>/dev/null | head -10)
+  STAGED_LIST=$(git diff --cached --name-only 2>/dev/null | head -10)
+  UNTRACKED_LIST=$(git ls-files --others --exclude-standard 2>/dev/null | head -10)
+  ALL_FILES=$(printf "%s\n%s\n%s" "$CHANGED_LIST" "$STAGED_LIST" "$UNTRACKED_LIST" | sort -u | head -10)
+
+  cat <<EOF
 {
   "followup_message": "PROGRESS CHECK: You modified $TOTAL files but .cursor/breadcrumbs.jsonl is missing or stale. Before ending your turn:\n1. Append a breadcrumb to .cursor/breadcrumbs.jsonl: {\"ts\":\"...\",\"role\":\"builder\",\"type\":\"build\",\"feat\":null,\"msg\":\"what you did\"}\n2. If you haven't used TodoWrite for this task, create a todo list now\n3. Files changed:\n$ALL_FILES\n\nDo NOT skip this — progress tracking is required for multi-file changes."
 }
 EOF
+  exit 0
+fi
+
+echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: passed ($TOTAL files, breadcrumbs fresh)" >> "$HOOK_LOG" 2>/dev/null
+echo '{}'
 exit 0

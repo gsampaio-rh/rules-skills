@@ -41,6 +41,8 @@ Accept the contract when:
 - At least 2 edge cases per feature
 - No criterion requires subjective judgment to grade
 
+When accepting, set `"phase": "negotiated"` in `contract.json` so the `subagentStop` hook knows negotiation is complete and the builder should start building.
+
 ---
 
 ## Mode 2: Evaluation
