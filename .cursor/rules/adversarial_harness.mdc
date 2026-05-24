@@ -10,21 +10,39 @@ alwaysApply: true
 | Complexity | Approach |
 |---|---|
 | Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
-| Non-trivial (3+ files, user-facing, architectural) | This harness. |
+| Non-trivial (3+ files, user-facing, architectural) | This harness. Auto-route through `/planner`. |
+
+## Core Principles (from Anthropic's Long-Running Agent Research)
+
+1. **Self-evaluation is a trap.** Use an adversarial evaluator — a separate context that judges output, not process.
+2. **File system is durable state.** The context window is transient. Write decisions, progress, and lessons to files — not conversation.
+3. **High-level planning, granular contracts.** The planner sets creative direction. The builder and evaluator negotiate testable contracts. Don't over-specify up front — errors cascade.
+4. **Contract negotiation is the key innovation.** Before writing code, the builder and evaluator agree on what "done" means via files on disk. This bridges user stories → testable assertions without the planner having to over-specify.
+5. **Compaction does not equal coherence.** Lossy summaries drift. Structured hand-offs and clean contexts are better patterns for long-running work.
+6. **Scrap and restart is expected, not failure.** If an approach isn't converging, throw it away and start fresh with lessons from breadcrumbs. Models should be willing to discard hours of work.
 
 ## You Are the Orchestrator
 
 You coordinate three roles via subagents. You do NOT self-evaluate.
 
-1. **`/planner`** — Turns the user's request into a high-level product spec (`spec.md`) and feature list (`state.json`). Does NOT produce contracts.
+1. **`/planner`** — Turns the user's request into a high-level product spec (`spec.md`) and feature list (`state.json`). Does NOT produce contracts or implementation details.
 2. **You (builder)** — Proposes contracts to the evaluator, negotiates until agreement, then implements one feature at a time. Runs computational sensors before calling the evaluator.
 3. **`/evaluator`** — Two modes: (a) negotiation — challenges weak contracts before building, (b) evaluation — adversarial QA that tests the live app against the contract with evidence.
+
+## Automatic Routing
+
+**Do not wait for the user to manually invoke `/planner`.** When you receive a prompt that describes non-trivial work (3+ files, user-facing features, architectural changes), you MUST automatically launch the planner. The `beforeSubmitPrompt` hook will inject routing instructions for complex prompts, but even without the hook, follow this principle:
+
+- User sends vague or complex request → you launch `/planner` automatically
+- Planner produces spec + feature list → you present to user for confirmation
+- User confirms → you start contract negotiation for the first feature
+- User says "skip harness" → you implement directly without the harness
 
 ## The Flow
 
 ```
-User prompt
-  → /planner → spec.md + state.json
+User prompt (non-trivial)
+  → You auto-launch /planner → spec.md + state.json
   → User confirms spec
   → You propose contract for first feature
   → /evaluator negotiates contract (max 3 rounds)
@@ -40,9 +58,9 @@ User prompt
 
 Four hooks back this up:
 - **`sessionStart`** — Injects current harness state (active feature, phase, recent breadcrumbs) into conversation context at the start of every session.
-- **`beforeSubmitPrompt`** — Blocks non-trivial prompts when no harness is active. Suggests `/planner` first. User can say "skip harness" to opt out.
+- **`beforeSubmitPrompt`** — Detects non-trivial prompts and injects routing instructions to launch the planner. Does NOT block — it guides. User can say "skip harness" to opt out.
 - **`subagentStop`** — Routes based on the contract's `phase` field: after negotiation → build, after building → launch evaluator, after evaluation → re-launch if unverified.
-- **`stop`** — Blocks completion if a contract exists with `verified: false`.
+- **`stop`** — Blocks completion if a contract exists with `verified: false`. Also flags multi-file changes without breadcrumbs.
 
 ## State Files
 
@@ -56,10 +74,12 @@ All state lives on the file system, not in context:
 | `.cursor/harness/evals/eval-{id}.json` | Evaluator reports with evidence |
 | `.cursor/breadcrumbs.jsonl` | Append-only trace — the project's memory |
 
+JSON files are preferred for structured state because models are less likely to accidentally overwrite them compared to markdown.
+
 ## Lifecycle
 
-- **Starting new work?** Check if `.cursor/harness/state.json` exists. If yes, pick the next pending feature. If no, launch `/planner`.
-- **Resuming a session?** Read `breadcrumbs.jsonl` + git log to understand state.
+- **Starting new work?** Check if `.cursor/harness/state.json` exists. If yes, pick the next pending feature. If no, launch `/planner` automatically.
+- **Resuming a session?** Read `breadcrumbs.jsonl` + git log to understand state. Don't rely on conversation history.
 - **Feature verified?** Update `state.json`, commit, pick next feature.
 - **All features done?** Clean up harness state if desired.
 - **Made a significant decision?** Log it as a breadcrumb. No separate ADR needed.
@@ -69,8 +89,24 @@ All state lives on the file system, not in context:
 - One feature at a time. Negotiate → build → gate → verify → commit → next.
 - Commit only after `/evaluator` passes.
 - The evaluator never modifies source code. It tests and reports.
+- The evaluator never sees the builder's context or traces. It judges output only.
 - If the evaluator recommends `scrap_and_restart`, start fresh with lessons from breadcrumbs.
 - "Looks correct" is not verification. Running it is.
+- Vague criteria produce vague critiques. Granular criteria produce actionable fixes. Aim for 5+ specific, binary criteria per feature.
+
+## Model-Adaptive Tuning
+
+Every harness component encodes an assumption about what the model can't do on its own. As models improve, re-examine assumptions:
+
+| Component | Weaker Models | Stronger Models (Opus 4.6+) |
+|---|---|---|
+| Context resets | Fresh context per feature | Single continuous session + compaction |
+| Sprint decomposition | One feature at a time, strictly gated | Can hold multi-hour builds coherently |
+| Evaluator frequency | Run after each feature | Run at end of full build |
+| Contract negotiation depth | Full 3-round negotiation | Reduce rounds if criteria are strong |
+| Planner granularity | Detailed sprint breakdown | High-level creative direction is enough |
+
+The harness doesn't shrink as models improve — it moves. Strip what's no longer load-bearing, add new components for new capabilities.
 
 ## Durable State Principle
 
@@ -80,6 +116,7 @@ The file system is durable state. The context window is transient.
 - Agents starting fresh sessions read files, not conversation history
 - Git commits are checkpoints — descriptive messages serve as the historical record
 - `breadcrumbs.jsonl` is append-only — never edit past entries, only add new ones
+- Breadcrumbs are what allow another model (or a human) to pick up where this session left off
 
 ## Deprecated Documents
 

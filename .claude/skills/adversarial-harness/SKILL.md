@@ -9,7 +9,16 @@ description: >-
 
 # Adversarial Harness Workflow
 
-A tiny engineering team in your IDE: `/planner` sets direction → builder and `/evaluator` negotiate a contract → you build → computational sensors gate → `/evaluator` tests the live app → breadcrumbs trace everything.
+A tiny engineering team in your IDE: `/planner` auto-decomposes complex prompts → builder and `/evaluator` negotiate a contract → you build → computational sensors gate → `/evaluator` tests the live app → breadcrumbs trace everything.
+
+## Core Principles
+
+1. **Self-evaluation is a trap.** Use an adversarial evaluator in a separate context. Tuning a standalone critic to be harsh is tractable; tuning a builder to be self-critical is not.
+2. **File system is durable state.** The context window is transient. Write decisions, progress, and lessons to files.
+3. **High-level planning, granular contracts.** The planner sets creative direction without implementation details. The builder and evaluator negotiate testable contracts. Don't over-specify up front — errors cascade.
+4. **Contract negotiation bridges the gap.** Before writing code, builder and evaluator agree on what "done" means via files on disk. This turns user stories into testable assertions without the planner having to over-specify.
+5. **Route, don't block.** The harness auto-routes complex prompts through the planner. It never blocks the user from interacting.
+6. **Scrap and restart is expected.** If an approach isn't converging, discard it and start fresh with lessons from breadcrumbs.
 
 ## Harness Engineering Framework
 
@@ -33,9 +42,9 @@ Computational sensors run first (cheap, fast). Inferential sensors run after (ex
 | Builder | Main agent (you) | Implements features against the negotiated contract |
 | Evaluator | `/evaluator` | Adversarial QA — negotiates contracts AND tests the actual app |
 
-Subagent definitions live in `.cursor/agents/`. Four hooks enforce the workflow:
+Subagent definitions live in `.cursor/agents/` (Cursor) or `.claude/agents/` (Claude Code). Hooks enforce the workflow:
 - `sessionStart` → injects current harness state into conversation context
-- `beforeSubmitPrompt` → blocks non-trivial prompts when no harness is active
+- `beforeSubmitPrompt` → detects non-trivial prompts and injects planner routing instructions (does NOT block)
 - `subagentStop` → routes between negotiation, building, and evaluation based on `phase` field
 - `stop` → blocks the main agent from finishing if a contract is unverified
 
@@ -289,37 +298,66 @@ Tune per domain. Vague criteria produce vague critiques. Granular criteria produ
 
 Every harness component encodes an assumption about what the model can't do on its own. As models improve, re-examine assumptions:
 
-- **Context resets**: Opus 4.6+ handles long contexts well. Use continuous sessions with compaction. Older models may need fresh context windows per feature.
-- **Sprint decomposition**: Stronger models hold multi-hour builds coherently. Weaker models need explicit one-feature-at-a-time gating.
-- **Evaluator frequency**: For strong models, evaluate at the end of a full build. For weaker models, evaluate after each feature.
-- **Contract negotiation depth**: If the model consistently produces strong criteria on its own, reduce negotiation rounds.
+| Component | Weaker Models | Stronger Models (Opus 4.6+) |
+|---|---|---|
+| Context resets | Fresh context per feature | Single continuous session + compaction |
+| Sprint decomposition | One feature at a time, strictly gated | Can hold multi-hour builds coherently |
+| Evaluator frequency | Run after each feature | Run at end of full build |
+| Contract negotiation depth | Full 3-round negotiation | Reduce rounds if criteria are strong |
+| Planner granularity | Detailed sprint breakdown | High-level creative direction is enough |
 
 The harness doesn't shrink as models improve — it moves. Strip what's no longer load-bearing, add new components for new capabilities.
+
+### Tuning Guidelines
+
+- **Read traces, then tune.** The primary debugging loop is reading what the agent actually did, finding where its judgment diverged from yours, and tuning the prompt for that. Not running more experiments.
+- **Evaluator harshness is tractable.** Tuning a standalone critic to be harsh is easy. Tuning a builder to be self-critical is not. Exploit this asymmetry.
+- **Pivot over patch.** If the builder gets stuck on a criterion after multiple attempts, the harness should scrap and restart rather than keep patching the same approach.
+- **JSON over markdown for state.** Models are less likely to overwrite JSON files than markdown. Use JSON for `state.json`, `contract.json`, `breadcrumbs.jsonl`.
+- **Don't share context between builder and evaluator.** The evaluator judges output only. Sharing builder traces muddies the separation and lets the model kid itself.
+
+---
+
+## Automatic Routing
+
+The `beforeSubmitPrompt` hook detects non-trivial prompts and injects routing instructions. The agent should launch `/planner` automatically — the user should never have to invoke it manually.
+
+If the hook doesn't fire (e.g., the heuristics miss a complex prompt), the agent should still recognize non-trivial work from the always-applied rule and route through the planner.
 
 ---
 
 ## Invocation Examples
 
-Full harness for a new feature:
+Full harness for a new feature (auto-routed):
 
 ```text
 User: "Add dark mode support to the dashboard"
 
+→ [agent detects non-trivial work, auto-launches /planner]
 → /planner Add dark mode support to the dashboard. The app uses React + Tailwind.
   Check the current theme setup in src/styles/ and component structure.
 
-→ [planner produces spec.md and state.json, user confirms]
+→ [planner produces spec.md and state.json]
+→ [agent presents spec to user, user confirms]
 
-→ [builder proposes contract for feat-1]
-
+→ [builder proposes contract for feat-1 with 5+ binary criteria]
 → /evaluator Review the proposed contract — negotiation mode
-
-→ [evaluator pushes back, builder revises, agreement reached]
+→ [evaluator pushes back: "scope too big, tests too weak, missed edge case"]
+→ [builder revises, agreement reached]
 
 → [builder implements the feature, runs computational sensors]
-
 → /evaluator Test the dark mode implementation against the contract.
   Use browser tools to toggle theme, verify all components, check persistence.
 
 → [evaluator reports PASS/FAIL with evidence]
+→ [PASS → commit checkpoint → next feature]
+```
+
+Simple work (no harness):
+
+```text
+User: "Fix the broken import in auth.py"
+
+→ [agent detects simple fix, implements directly]
+→ [no planner, no contract, no evaluator]
 ```

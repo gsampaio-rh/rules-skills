@@ -200,17 +200,17 @@ fi
 
 # --- harness-gate (beforeSubmitPrompt) tests ---
 
-# Test: harness active (state.json exists) → allow
+# Test: harness active (state.json exists) → allow silently
 rm -f .cursor/harness/contract.json 2>/dev/null
 echo '{"features":[]}' > .cursor/harness/state.json
 OUTPUT=$(echo '{"prompt":"implement a new authentication system with OAuth2"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q '^\{\}$'; then
-  pass "harness-gate allows when harness is active"
+  pass "harness-gate allows silently when harness is active"
 else
   fail "harness-gate should allow when state.json exists: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: glue message → allow
+# Test: glue message → allow silently
 rm -f .cursor/harness/state.json .cursor/harness/contract.json 2>/dev/null
 OUTPUT=$(echo '{"prompt":"ok next"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q '^\{\}$'; then
@@ -219,16 +219,16 @@ else
   fail "harness-gate should allow short glue messages: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: non-trivial prompt without harness → block
+# Test: non-trivial prompt without harness → allow + inject routing
 rm -f .cursor/harness/state.json .cursor/harness/contract.json 2>/dev/null
 OUTPUT=$(echo '{"prompt":"implement a new authentication service with OAuth2 integration and database schema"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "continue.*false|planner"; then
-  pass "harness-gate blocks non-trivial prompt without harness"
+if echo "$OUTPUT" | rg -q "agent_message.*planner|HARNESS ROUTING"; then
+  pass "harness-gate injects planner routing for non-trivial prompt (does NOT block)"
 else
-  fail "harness-gate should block non-trivial prompt: $(echo "$OUTPUT" | head -1)"
+  fail "harness-gate should inject routing instructions for non-trivial prompt: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: "skip harness" opt-out → allow
+# Test: "skip harness" opt-out → allow silently
 rm -f .cursor/harness/state.json .cursor/harness/contract.json 2>/dev/null
 OUTPUT=$(echo '{"prompt":"implement a new authentication service skip harness"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q '^\{\}$'; then
@@ -236,6 +236,111 @@ if echo "$OUTPUT" | rg -q '^\{\}$'; then
 else
   fail "harness-gate should allow skip harness opt-out: $(echo "$OUTPUT" | head -1)"
 fi
+
+# --- pre-commit-harness (beforeShellExecution) tests ---
+
+# Test: non-git-commit command → allow silently
+OUTPUT=$(echo '{"command":"git status"}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '"permission".*"allow"'; then
+  pass "pre-commit allows non-commit git commands"
+else
+  fail "pre-commit should allow non-commit commands: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: git commit without harness → allow + auto-breadcrumb
+rm -f .cursor/harness/contract.json .cursor/harness/state.json 2>/dev/null
+BREADCRUMB_BEFORE=""
+[ -f .cursor/breadcrumbs.jsonl ] && BREADCRUMB_BEFORE=$(wc -l < .cursor/breadcrumbs.jsonl | tr -d ' ')
+OUTPUT=$(echo '{"command":"git commit -m \"test commit\""}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
+BREADCRUMB_AFTER=$(wc -l < .cursor/breadcrumbs.jsonl 2>/dev/null | tr -d ' ')
+if echo "$OUTPUT" | rg -q '"permission".*"allow"'; then
+  pass "pre-commit allows git commit"
+else
+  fail "pre-commit should allow git commit: $(echo "$OUTPUT" | head -1)"
+fi
+if [ "${BREADCRUMB_AFTER:-0}" -gt "${BREADCRUMB_BEFORE:-0}" ]; then
+  pass "pre-commit auto-records breadcrumb on commit"
+else
+  fail "pre-commit should auto-append breadcrumb"
+fi
+
+# Test: git commit with active harness (unverified contract) → allow + warning
+mkdir -p .cursor/harness 2>/dev/null
+echo '{"feature":"auth","verified":false,"phase":"building"}' > .cursor/harness/contract.json
+OUTPUT=$(echo '{"command":"git commit -m \"wip\""}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "agent_message.*unverified|WARNING"; then
+  pass "pre-commit warns when committing with unverified contract"
+else
+  fail "pre-commit should warn about unverified contract: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: git commit with verified contract → allow + next-feature guidance
+echo '{"feature":"auth","feature_id":"feat-1","verified":true,"phase":"evaluating"}' > .cursor/harness/contract.json
+echo '{"features":[{"id":"feat-1","status":"verified"}]}' > .cursor/harness/state.json
+OUTPUT=$(echo '{"command":"git commit -m \"feat: auth done\""}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "agent_message.*committed|next"; then
+  pass "pre-commit guides to next feature after verified commit"
+else
+  fail "pre-commit should guide to next feature: $(echo "$OUTPUT" | head -1)"
+fi
+
+rm -f .cursor/harness/contract.json .cursor/harness/state.json 2>/dev/null
+
+# --- context-health (stop) tests ---
+
+# Test: few breadcrumbs → healthy, pass through
+rm -f .cursor/breadcrumbs.jsonl 2>/dev/null
+echo '{"ts":"2026-05-24T10:00","role":"builder","type":"build","feat":null,"msg":"step 1"}' > .cursor/breadcrumbs.jsonl
+echo '{"ts":"2026-05-24T10:01","role":"builder","type":"build","feat":null,"msg":"step 2"}' >> .cursor/breadcrumbs.jsonl
+OUTPUT=$(echo '{}' | .cursor/hooks/context-health.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "context-health passes with few breadcrumbs (healthy)"
+else
+  fail "context-health should pass with only 2 breadcrumbs: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: many breadcrumbs (>25) → fatigue signal
+rm -f .cursor/breadcrumbs.jsonl 2>/dev/null
+for i in $(seq 1 30); do
+  echo "{\"ts\":\"2026-05-24T10:$(printf '%02d' $i)\",\"role\":\"builder\",\"type\":\"build\",\"feat\":null,\"msg\":\"step $i\"}" >> .cursor/breadcrumbs.jsonl
+done
+OUTPUT=$(echo '{}' | .cursor/hooks/context-health.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "CONTEXT HEALTH|breadcrumb"; then
+  pass "context-health detects breadcrumb volume fatigue (>25 entries)"
+else
+  fail "context-health should detect volume fatigue: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: consecutive failures → fatigue signal
+rm -f .cursor/breadcrumbs.jsonl 2>/dev/null
+for i in $(seq 1 3); do
+  echo "{\"ts\":\"2026-05-24T10:0$i\",\"role\":\"builder\",\"type\":\"build\",\"feat\":\"feat-1\",\"msg\":\"attempt $i\"}" >> .cursor/breadcrumbs.jsonl
+done
+for i in $(seq 4 8); do
+  echo "{\"ts\":\"2026-05-24T10:0$i\",\"role\":\"evaluator\",\"type\":\"eval\",\"feat\":\"feat-1\",\"msg\":\"eval $i\",\"result\":\"fail\"}" >> .cursor/breadcrumbs.jsonl
+done
+OUTPUT=$(echo '{}' | .cursor/hooks/context-health.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "CONTEXT HEALTH|consecutive|circles"; then
+  pass "context-health detects consecutive failure fatigue"
+else
+  fail "context-health should detect consecutive failures: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: scrap-and-restart exhaustion → fatigue signal
+rm -f .cursor/breadcrumbs.jsonl 2>/dev/null
+for i in $(seq 1 6); do
+  echo "{\"ts\":\"2026-05-24T10:0$i\",\"role\":\"builder\",\"type\":\"build\",\"feat\":\"feat-1\",\"msg\":\"build $i\"}" >> .cursor/breadcrumbs.jsonl
+done
+echo '{"ts":"2026-05-24T10:07","role":"evaluator","type":"scrap","feat":"feat-1","msg":"scrap 1"}' >> .cursor/breadcrumbs.jsonl
+echo '{"ts":"2026-05-24T10:08","role":"evaluator","type":"scrap","feat":"feat-1","msg":"scrap 2"}' >> .cursor/breadcrumbs.jsonl
+OUTPUT=$(echo '{}' | .cursor/hooks/context-health.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "CONTEXT HEALTH|scrap|exhaustion"; then
+  pass "context-health detects scrap-and-restart exhaustion"
+else
+  fail "context-health should detect scrap exhaustion: $(echo "$OUTPUT" | head -1)"
+fi
+
+rm -f .cursor/breadcrumbs.jsonl 2>/dev/null
 
 # --- harness-context (sessionStart) tests ---
 
