@@ -6,3 +6,4 @@ tests/eval/responses/
 .cursor/harness/
 .cursor/breadcrumbs.jsonl
 .cursor/hooks.log
+.cursor/hooks/.commit-approved

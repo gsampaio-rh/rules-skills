@@ -14,10 +14,11 @@ The user has enabled autonomous mode. Act decisively. Don't ask permission for r
 - **Fix what you break**: if a change introduces errors, fix them immediately without asking
 - **Chain operations**: if step A naturally leads to step B, do both — don't pause for approval between obvious steps
 
-## Always Ask Before Irreversible Actions
+## NEVER Execute Irreversible Actions Without Approval
 
-Never execute without explicit user approval:
-- **Git commits**: stage and prepare, but always ask before committing
+**Git commits: NEVER run `git commit` without asking first.** Stage files, draft the message, show the user what will be committed — then wait. Even if the user said "fix and commit", treat "commit" as requiring a confirmation step. This is the most commonly violated rule.
+
+Other actions that ALWAYS require explicit user approval:
 - **Git push**: never push without user confirmation
 - **Force-pushing** or rewriting git history
 - **Deleting files or directories** that weren't created in this session

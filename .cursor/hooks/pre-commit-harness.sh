@@ -1,15 +1,15 @@
 #!/bin/bash
 # beforeShellExecution hook: fires on git commit commands.
 #
-# Automatically:
-#   1. Records a checkpoint breadcrumb with commit context
-#   2. Checks if harness contract is unverified (warns but doesn't block)
-#   3. Injects agent_message with post-commit instructions:
-#      - Update state.json if harness is active
-#      - Review changed files for doc/changelog updates
-#      - Pick next feature if current one is verified
+# Enforcement:
+#   1. BLOCKS the first commit attempt — forces the agent to get user approval
+#   2. ALLOWS the second attempt (after agent creates .commit-approved flag)
+#   3. Records a checkpoint breadcrumb with commit context
+#   4. Injects post-commit guidance (harness state, doc changes, etc.)
 #
-# Never blocks the commit. Always allows. Guides the agent on follow-up work.
+# The commit gate uses a flag file (.cursor/hooks/.commit-approved) to break
+# the deny loop: first attempt → deny + instruct, agent asks user, agent
+# writes flag + retries → allow + delete flag.
 
 input=$(cat)
 
@@ -19,6 +19,7 @@ echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: triggered" >> "$HOOK_LOG" 2>/d
 BREADCRUMBS=".cursor/breadcrumbs.jsonl"
 CONTRACT=".cursor/harness/contract.json"
 STATE=".cursor/harness/state.json"
+COMMIT_GATE=".cursor/hooks/.commit-approved"
 
 command=$(echo "$input" | python3 -c "
 import sys, json
@@ -29,7 +30,7 @@ except Exception:
     print('')
 " 2>/dev/null)
 
-# Only act on actual git commit commands (not git add, git status, etc.)
+# Only act on actual git commit commands
 if ! echo "$command" | grep -q "git commit"; then
   echo '{"permission":"allow"}'
   exit 0
@@ -37,32 +38,80 @@ fi
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: git commit detected" >> "$HOOK_LOG" 2>/dev/null
 
+# --- 0. Commit gate: require user approval ---
+
+if [ -f "$COMMIT_GATE" ]; then
+  # Agent already got user approval and set the flag — allow this attempt
+  rm -f "$COMMIT_GATE" 2>/dev/null
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: commit-approved flag found, allowing" >> "$HOOK_LOG" 2>/dev/null
+else
+  # First attempt — DENY and force the agent to ask the user
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: DENIED — no commit-approved flag" >> "$HOOK_LOG" 2>/dev/null
+
+  STAGED_PREVIEW=$(git diff --cached --name-only 2>/dev/null | head -10)
+  if [ -z "$STAGED_PREVIEW" ]; then
+    STAGED_PREVIEW=$(git status --porcelain 2>/dev/null | head -10)
+  fi
+
+  ESCAPED_PREVIEW=$(echo "$STAGED_PREVIEW" | python3 -c "
+import sys, json
+text = sys.stdin.read().strip()
+print(json.dumps(text))
+" 2>/dev/null)
+
+  cat <<EOF
+{
+  "permission": "deny",
+  "agent_message": "COMMIT BLOCKED: You must get explicit user approval before committing. Show the user what will be committed and ask for their go-ahead. After they approve, write the flag file .cursor/hooks/.commit-approved (any content) and retry the commit command.\n\nFiles to be committed:\n$(echo "$STAGED_PREVIEW" | head -10)"
+}
+EOF
+  exit 0
+fi
+
 # --- 1. Auto-record breadcrumb ---
 
 TS=$(date -u +%Y-%m-%dT%H:%M:%S)
 
-# Extract commit message from the command if available
 COMMIT_MSG=$(echo "$command" | python3 -c "
 import sys, re
 cmd = sys.stdin.read()
-# Match -m 'msg', -m \"msg\", or heredoc patterns
-match = re.search(r'-m\s+[\"'\''](.*?)[\"'\''']', cmd)
-if match:
-    print(match.group(1)[:120])
-else:
-    # Try heredoc pattern: -m \"\$(cat <<'EOF' ... EOF)\"
-    match = re.search(r'<<.*?EOF.*?\n(.*?)\nEOF', cmd, re.DOTALL)
-    if match:
-        print(match.group(1).strip()[:120])
-    else:
-        print('(commit message not extracted)')
+
+msg = ''
+
+# 1. Heredoc
+m = re.search(r\"<<['\\\"]?EOF['\\\"]?[)\\s]*\\\\n(.*?)\\\\nEOF\", cmd)
+if not m:
+    m = re.search(r\"<<['\\\"]?EOF['\\\"]?[)\\s]*\n(.*?)\nEOF\", cmd, re.DOTALL)
+if m:
+    msg = m.group(1).strip()
+
+# 2. -m \"msg\" or -m 'msg'
+if not msg:
+    m = re.search(r'-m\s+\"((?:[^\"\\\\]|\\\\.)*)\"', cmd)
+    if not m:
+        m = re.search(r\"-m\s+'([^']*)'\", cmd)
+    if m:
+        msg = m.group(1).strip()
+
+# 3. -m msg (unquoted)
+if not msg:
+    m = re.search(r'-m\s+([^\s\"'\\''][^\s]*)', cmd)
+    if m:
+        msg = m.group(1).strip()
+
+print(msg[:120] if msg else '(message not extracted)')
 " 2>/dev/null)
 
-# Get list of staged files
 STAGED_FILES=$(git diff --cached --name-only 2>/dev/null | head -10)
 STAGED_COUNT=$(git diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
 
-# Determine the breadcrumb feature context
+if [ "$STAGED_COUNT" = "0" ]; then
+  STAGED_COUNT=$(git status --porcelain 2>/dev/null | grep -cE '^[MADRC ]' || echo "0")
+  if [ "$STAGED_COUNT" = "0" ]; then
+    STAGED_COUNT=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  fi
+fi
+
 FEAT="null"
 if [ -f "$CONTRACT" ]; then
   FEAT=$(python3 -c "
@@ -77,7 +126,6 @@ except Exception:
 " 2>/dev/null)
 fi
 
-# Append breadcrumb
 mkdir -p "$(dirname "$BREADCRUMBS")" 2>/dev/null
 echo "{\"ts\":\"$TS\",\"role\":\"builder\",\"type\":\"checkpoint\",\"feat\":$FEAT,\"msg\":\"Commit: $COMMIT_MSG ($STAGED_COUNT files)\"}" >> "$BREADCRUMBS" 2>/dev/null
 
@@ -87,7 +135,6 @@ echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: breadcrumb recorded" >> "$HOOK
 
 GUIDANCE=""
 
-# Check harness state
 if [ -f "$CONTRACT" ]; then
   CONTRACT_STATE=$(python3 -c "
 import json
@@ -115,12 +162,6 @@ elif [ -f "$STATE" ]; then
   GUIDANCE="POST-COMMIT (harness active): Commit recorded. Check .cursor/harness/state.json for the next pending feature."
 fi
 
-# Check for doc-worthy changes
-DOC_CHANGES=""
-if echo "$STAGED_FILES" | grep -qE '\.(md|rst|txt)$'; then
-  DOC_CHANGES="Documentation files were included in this commit."
-fi
-
 HAS_API_CHANGES=""
 if echo "$STAGED_FILES" | grep -qiE '(route|endpoint|api|schema|migration|model)'; then
   HAS_API_CHANGES="API/schema/model files changed — verify that related documentation (README, API docs, migration notes) is up to date."
@@ -144,7 +185,6 @@ if [ -n "$HAS_CONFIG_CHANGES" ]; then
   PARTS="$PARTS\n$HAS_CONFIG_CHANGES"
 fi
 
-# If there's nothing noteworthy, just allow silently
 if [ -z "$PARTS" ]; then
   echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: no guidance needed, allowing" >> "$HOOK_LOG" 2>/dev/null
   echo '{"permission":"allow"}'
@@ -153,7 +193,6 @@ fi
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: injecting post-commit guidance" >> "$HOOK_LOG" 2>/dev/null
 
-# Escape for JSON
 ESCAPED_PARTS=$(echo -e "$PARTS" | python3 -c "
 import sys, json
 text = sys.stdin.read().strip()

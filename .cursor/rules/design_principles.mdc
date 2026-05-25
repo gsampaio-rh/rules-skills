@@ -109,6 +109,16 @@ Our design philosophy synthesizes principles from master designers: **Dieter Ram
 - Standard patterns: navigation, forms, feedback, layouts
 - Documentation with usage guidelines for each component
 
+## Required Checklist for Every UI Task
+
+Every UI implementation MUST address these — not just "consider" them:
+
+1. **Accessibility**: keyboard navigation, ARIA labels, color contrast (WCAG AA), focus indicators. If you build a UI without mentioning accessibility, you are violating this rule.
+2. **Visual hierarchy**: one clear focal point, progressive disclosure, consistent spacing.
+3. **Simplicity**: can anything be removed? Does every element serve a purpose?
+4. **Responsiveness**: does it work on mobile, tablet, and desktop?
+5. **Feedback**: does every interaction give clear, immediate feedback?
+
 ## Questions to Ask When Designing
 1. Does this solve a real problem?
 2. Can we remove anything?

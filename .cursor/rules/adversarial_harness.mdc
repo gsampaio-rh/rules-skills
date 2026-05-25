@@ -5,12 +5,22 @@ alwaysApply: true
 
 # Adversarial Verification Harness
 
-## When to Use
+## MANDATORY: Route Before Building
+
+**STOP. Before writing ANY implementation code, check complexity:**
 
 | Complexity | Approach |
 |---|---|
 | Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
-| Non-trivial (3+ files, user-facing, architectural) | This harness. Auto-route through `/planner`. |
+| Non-trivial (3+ files, user-facing, architectural) | **MUST launch `/planner` FIRST. Do NOT write code.** |
+
+**Non-trivial indicators (any ONE triggers the harness):**
+- Request touches 3+ files
+- Request involves user-facing features (UI, API endpoints, notifications)
+- Request requires architectural decisions (new services, data models, integrations)
+- Request is vague enough to have multiple valid implementations
+
+**If the request is non-trivial and you start coding without launching the planner, you are violating this rule.** The user can say "skip harness" to opt out — but the default for complex work is: plan first, build second.
 
 ## Core Principles (from Anthropic's Long-Running Agent Research)
 
@@ -37,6 +47,8 @@ You coordinate three roles via subagents. You do NOT self-evaluate.
 - Planner produces spec + feature list → you present to user for confirmation
 - User confirms → you start contract negotiation for the first feature
 - User says "skip harness" → you implement directly without the harness
+
+**Self-check before writing code:** "Is this task non-trivial? Did I launch the planner?" If the answer is "yes, non-trivial" and "no, I didn't plan" — stop and launch the planner now. Do not rationalize skipping it.
 
 ## The Flow
 
