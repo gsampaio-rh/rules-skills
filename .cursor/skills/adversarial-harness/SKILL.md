@@ -98,11 +98,38 @@ Save to `.cursor/harness/contract.json`:
     "At least 2 boundary conditions or error scenarios"
   ],
   "verification_method": "Exactly what the evaluator should run and check",
+  "rubrics": ["code-quality", "architecture"],
+  "rubric_mode": "warn",
   "negotiation_rounds": 1,
   "phase": "negotiating",
   "verified": false
 }
 ```
+
+### Rubrics field (optional)
+
+Contracts can reference domain-specific quality rubrics for additional evaluation beyond the feature-specific criteria.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rubrics` | `string[]` | List of rubric domains to apply: `"architecture"`, `"code-quality"`, `"organization"`, `"design-ui"` |
+| `rubric_mode` | `"warn" \| "strict"` | `"warn"` = report findings but don't block; `"strict"` = high-severity rubric failures block verification |
+
+**How it works:**
+1. The evaluator completes its normal feature evaluation (Mode 2) first
+2. Then runs a rubric audit (Mode 3) on files changed by the feature
+3. Rubric results are appended to the evaluation report
+4. In `strict` mode, high-severity rubric failures have the same weight as contract criteria failures
+
+**When to use rubrics:**
+- `architecture` — features that add new modules, services, or change dependency structure
+- `code-quality` — any feature with significant new code (50+ lines)
+- `organization` — features that add new files or directories
+- `design-ui` — features that touch user-facing components
+
+**During negotiation**, the evaluator can suggest relevant rubrics based on the feature being built. The builder accepts or negotiates which rubrics apply.
+
+Rubric definitions live at `.cursor/references/rubrics/{domain}.json`.
 
 ### Phase field
 
@@ -322,4 +349,31 @@ User: "Add dark mode support to the dashboard"
   Use browser tools to toggle theme, verify all components, check persistence.
 
 → [evaluator reports PASS/FAIL with evidence]
+```
+
+Standalone rubric audit (no feature build):
+
+```text
+User: "Audit this project's architecture"
+
+→ [skill architecture-audit activates]
+→ [loads rubric from .cursor/references/rubrics/architecture.json]
+→ [scans codebase: file structure, imports, dependency direction, naming]
+→ [launches /evaluator in rubric audit mode]
+→ /evaluator Run rubric audit for architecture on src/. Load .cursor/references/rubrics/architecture.json
+→ [evaluator grades each criterion PASS/FAIL with evidence]
+→ [produces report at .cursor/harness/audits/audit-architecture-{timestamp}.json]
+```
+
+Feature build with rubric integration:
+
+```text
+User: "Add payment processing"
+
+→ [harness flow: plan → negotiate → build → evaluate]
+→ [contract includes: "rubrics": ["architecture", "code-quality"], "rubric_mode": "strict"]
+→ [evaluator does Mode 2 (feature eval) — PASS]
+→ [evaluator does Mode 3 (rubric audit) on changed files]
+→ [rubric finds: new PaymentService violates dependency direction — imports from infrastructure]
+→ [rubric_mode is strict → feature BLOCKED until architecture fix applied]
 ```

@@ -167,9 +167,93 @@ When recommending `scrap_and_restart`:
 
 ---
 
+## Mode 3: Rubric Audit
+
+When called for a **domain-specific quality audit**, you evaluate code against pre-built rubrics rather than a negotiated contract. This mode is used both standalone (via audit skills) and integrated into the harness (when contracts specify `rubrics`).
+
+### When Activated
+
+- Builder invokes you with: "Run rubric audit for [domain] on [scope]"
+- Contract contains `"rubrics": ["architecture", "code-quality"]` — after feature evaluation, run rubric audit on changed files
+- User triggers an audit skill that routes to you for evaluation
+
+### Available Rubrics
+
+Load from `.cursor/references/rubrics/`:
+- `architecture.json` — DDD, Clean Architecture, Hexagonal (dependency direction, bounded contexts, ports/adapters)
+- `code-quality.json` — SOLID, complexity, naming, DRY, coupling, sizing, error handling
+- `organization.json` — file structure, module boundaries, cohesion, dependency flow
+- `design-ui.json` — accessibility, design tokens, visual hierarchy, responsiveness, interaction
+
+### Process
+
+1. **Load rubric(s)**: Read the specified rubric JSON file(s)
+2. **Determine scope**: files/directories to evaluate (from invocation or contract's changed files)
+3. **Grade each criterion**: apply the `how_to_test` method, produce PASS/FAIL/NOT_APPLICABLE/BLOCKED
+4. **Collect evidence**: specific file paths, line numbers, import chains, metrics
+5. **Calculate score**: based on high/medium/low severity pass/fail counts
+6. **Produce report**: save to `.cursor/harness/audits/audit-{domain}-{timestamp}.json`
+
+### Report Format
+
+```json
+{
+  "domain": "architecture|code-quality|organization|design-ui",
+  "timestamp": "ISO-8601",
+  "scope": ["src/"],
+  "overall_score": "A|B|C|D|F",
+  "summary": "1-2 sentence summary of findings",
+  "criteria_results": [
+    {
+      "id": "criterion-id-from-rubric",
+      "result": "PASS|FAIL|NOT_APPLICABLE|BLOCKED",
+      "severity": "high|medium|low",
+      "evidence": "specific, verifiable evidence",
+      "fix_suggestion": "concrete fix (only for FAIL)"
+    }
+  ],
+  "score_breakdown": {
+    "high_pass": 0, "high_fail": 0,
+    "medium_pass": 0, "medium_fail": 0,
+    "low_pass": 0, "low_fail": 0
+  },
+  "top_recommendations": ["3-5 prioritized improvements"]
+}
+```
+
+### Score Mapping
+
+| Score | Criteria |
+|---|---|
+| A | All high-severity pass, at most 1 medium fail |
+| B | At most 1 high-severity fail |
+| C | 2-3 high-severity fails |
+| D | 4+ high-severity fails |
+| F | Fundamental violations across the board |
+
+### Integration with Feature Evaluation
+
+When a contract includes `"rubrics": [...]`:
+
+1. Complete Mode 2 (feature evaluation) first
+2. Then run Mode 3 on the files changed by the feature
+3. Append rubric results to the feature evaluation report
+4. Behavior depends on `rubric_mode`:
+   - `"warn"` — report findings but don't change the feature's PASS/FAIL verdict
+   - `"strict"` — high-severity rubric failures block verification (same as contract criteria)
+
+### Anti-Sycophancy (Same Rules Apply)
+
+- Grade against the rubric as written, not what "seems reasonable"
+- NOT_APPLICABLE is valid — don't force-fit criteria that don't apply
+- BLOCKED is honest — don't guess PASS because you can't test it
+- Evidence must be specific and verifiable
+
+---
+
 ## Termination Protocol
 
-After completing your evaluation or negotiation round, you MUST terminate immediately.
+After completing your evaluation, negotiation, or rubric audit, you MUST terminate immediately.
 
 - Write your eval report (evaluation mode) or update the contract (negotiation mode)
 - Append one breadcrumb entry summarizing your result

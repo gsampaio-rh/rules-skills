@@ -1,0 +1,169 @@
+{
+  "domain": "design-ui",
+  "name": "Design & UI Quality",
+  "version": "1.0",
+  "when_applicable": "Projects with user-facing interfaces (web, mobile, desktop applications)",
+  "categories": ["accessibility", "design-tokens", "visual-hierarchy", "responsiveness", "interaction", "component-api", "consistency"],
+  "criteria": [
+    {
+      "id": "a11y-keyboard-nav",
+      "category": "accessibility",
+      "criterion": "All interactive elements are keyboard-accessible — focusable, activatable, and navigable without a mouse",
+      "how_to_test": "Tab through the interface. Every button, link, input, and interactive element must be reachable. Check for tabIndex, onKeyDown handlers on custom elements.",
+      "severity": "high",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "a11y-aria-labels",
+      "category": "accessibility",
+      "criterion": "Interactive elements have accessible names — via visible labels, aria-label, or aria-labelledby",
+      "how_to_test": "Check buttons, inputs, and icons for accessible names. Flag icon-only buttons without aria-label, inputs without labels.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "a11y-color-contrast",
+      "category": "accessibility",
+      "criterion": "Text meets WCAG AA contrast ratios — 4.5:1 for normal text, 3:1 for large text",
+      "how_to_test": "Check text colors against background colors. Use contrast ratio calculation. Flag any text below 4.5:1 ratio.",
+      "severity": "high",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "a11y-color-independence",
+      "category": "accessibility",
+      "criterion": "Information is not conveyed by color alone — additional indicators (icons, text, patterns) supplement color",
+      "how_to_test": "Check error states, status indicators, charts. If removing color makes information ambiguous, flag it.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "a11y-focus-visible",
+      "category": "accessibility",
+      "criterion": "Focus indicators are visible and clear — custom focus styles exist and are not suppressed with outline:none without replacement",
+      "how_to_test": "Tab through elements. Each focused element should show a visible ring or highlight. Flag outline:none or outline:0 without alternative.",
+      "severity": "high",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "a11y-semantic-html",
+      "category": "accessibility",
+      "criterion": "Semantic HTML is used — proper heading hierarchy (h1-h6), landmarks (nav, main, aside), lists, and form elements",
+      "how_to_test": "Check for div/span used where semantic elements belong. Flag clickable divs without role='button', non-hierarchical headings.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "tokens-consistent-spacing",
+      "category": "design-tokens",
+      "criterion": "Spacing uses a consistent scale (4px or 8px base) — no arbitrary pixel values scattered through the codebase",
+      "how_to_test": "Search for padding/margin values. Flag raw pixel values that don't align with the spacing scale (e.g., 7px, 13px, 22px).",
+      "severity": "medium",
+      "evidence_type": "file_grep"
+    },
+    {
+      "id": "tokens-color-palette",
+      "category": "design-tokens",
+      "criterion": "Colors come from a defined palette/token system — no hardcoded hex values outside the token definitions",
+      "how_to_test": "Search for raw hex colors (#xxx) or rgb() outside of theme/token files. Flag inline color values in components.",
+      "severity": "medium",
+      "evidence_type": "file_grep"
+    },
+    {
+      "id": "tokens-typography-scale",
+      "category": "design-tokens",
+      "criterion": "Typography uses a defined scale — limited set of font sizes, weights, and line heights from tokens, not arbitrary values",
+      "how_to_test": "Search for font-size declarations. Flag values outside the type scale. Check for consistent line-height ratios.",
+      "severity": "medium",
+      "evidence_type": "file_grep"
+    },
+    {
+      "id": "visual-hierarchy-clear",
+      "category": "visual-hierarchy",
+      "criterion": "Each screen has a clear focal point — one primary action, clear heading structure, obvious reading flow",
+      "how_to_test": "Look at each page/screen. Identify the primary action. If there are 3+ competing primary buttons or no clear heading, flag it.",
+      "severity": "medium",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "visual-progressive-disclosure",
+      "category": "visual-hierarchy",
+      "criterion": "Complex interfaces use progressive disclosure — only essential info shown upfront, details available on demand",
+      "how_to_test": "Check forms and dashboards. Flag screens with 10+ input fields visible at once or overwhelming data density without hierarchy.",
+      "severity": "low",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "responsive-mobile-first",
+      "category": "responsiveness",
+      "criterion": "Layout adapts to mobile (320px+), tablet (768px+), and desktop (1024px+) without horizontal scrolling or broken elements",
+      "how_to_test": "Test at 320px, 768px, and 1024px widths. Flag horizontal overflow, overlapping elements, or truncated content.",
+      "severity": "high",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "responsive-touch-targets",
+      "category": "responsiveness",
+      "criterion": "Touch targets are minimum 44x44px on mobile — buttons, links, and interactive areas are large enough to tap",
+      "how_to_test": "Measure interactive element sizes at mobile viewport. Flag targets smaller than 44x44px.",
+      "severity": "medium",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "interaction-feedback",
+      "category": "interaction",
+      "criterion": "Every user action provides immediate feedback — loading states, success confirmations, error messages",
+      "how_to_test": "Trigger actions (form submit, button click, API call). Check for loading spinners, success messages, or error states. Flag silent actions.",
+      "severity": "high",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "interaction-error-messages",
+      "category": "interaction",
+      "criterion": "Error messages are helpful and actionable — they explain what went wrong and how to fix it, not just 'Error occurred'",
+      "how_to_test": "Trigger error states (invalid input, network failure). Check messages for specificity and actionability. Flag generic 'Something went wrong'.",
+      "severity": "medium",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "interaction-states",
+      "category": "interaction",
+      "criterion": "Interactive elements have clear states — default, hover, active, disabled, loading. Users can tell what's clickable.",
+      "how_to_test": "Hover over interactive elements. Check for hover styles, disabled appearance, loading indicators. Flag flat/stateless interactive elements.",
+      "severity": "medium",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "component-api-consistent",
+      "category": "component-api",
+      "criterion": "Similar components have consistent APIs — same prop naming (variant, size, disabled), same patterns across the system",
+      "how_to_test": "Compare prop interfaces across related components (Button, Input, Select). Flag inconsistent naming (size vs sz, isDisabled vs disabled).",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "component-composable",
+      "category": "component-api",
+      "criterion": "Components are composable — compound components over monolithic configs (Card + CardHeader + CardBody over Card with 15 props)",
+      "how_to_test": "Check component APIs. Flag components with 10+ props that could be split into composable sub-components.",
+      "severity": "low",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "consistency-visual-rhythm",
+      "category": "consistency",
+      "criterion": "Visual rhythm is consistent — same spacing between similar elements, aligned grids, no arbitrary one-off spacings",
+      "how_to_test": "Compare spacing between repeated elements (card gaps, list items, form fields). Flag inconsistent gaps within the same context.",
+      "severity": "low",
+      "evidence_type": "browser_test"
+    },
+    {
+      "id": "consistency-patterns",
+      "category": "consistency",
+      "criterion": "Similar UI patterns use the same solution — not 3 different modal implementations or 2 different form patterns",
+      "how_to_test": "Find repeated patterns (modals, forms, tables, notifications). Check if they use the same component/approach. Flag divergent implementations.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    }
+  ]
+}

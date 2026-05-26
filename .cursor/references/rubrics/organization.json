@@ -1,0 +1,121 @@
+{
+  "domain": "organization",
+  "name": "Code Organization & Module Structure",
+  "version": "1.0",
+  "when_applicable": "Any project with more than 5 source files or multiple logical modules",
+  "categories": ["file-structure", "module-boundaries", "cohesion", "dependencies", "conventions"],
+  "criteria": [
+    {
+      "id": "screaming-architecture",
+      "category": "file-structure",
+      "criterion": "Top-level directory structure communicates the domain/purpose of the project, not the technical framework (features/ or orders/ over controllers/ or models/)",
+      "how_to_test": "Read top-level src/ directory — names should reflect business concepts. Flag purely technical names (controllers, models, views, helpers) at the top level.",
+      "severity": "medium",
+      "evidence_type": "file_location"
+    },
+    {
+      "id": "single-purpose-files",
+      "category": "file-structure",
+      "criterion": "Each file has a single, clear purpose — one primary export or concept per file",
+      "how_to_test": "Check files for multiple unrelated classes/functions. Flag files with 3+ exported symbols that serve different purposes.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "colocation",
+      "category": "file-structure",
+      "criterion": "Related files are co-located — tests next to source, styles next to components, types next to implementation",
+      "how_to_test": "Check if tests, types, and related files are near their source (same directory or sibling directory), not in distant parallel trees.",
+      "severity": "low",
+      "evidence_type": "file_location"
+    },
+    {
+      "id": "no-circular-deps",
+      "category": "dependencies",
+      "criterion": "No circular import dependencies between modules — dependency graph is a DAG",
+      "how_to_test": "Trace import chains between top-level modules. Flag any A→B→C→A cycles. Use tooling (madge, pydeps) if available.",
+      "severity": "high",
+      "evidence_type": "dependency_analysis"
+    },
+    {
+      "id": "clear-public-api",
+      "category": "module-boundaries",
+      "criterion": "Each module has a clear public API — exposed through index/barrel files or __init__.py, internal implementation is private",
+      "how_to_test": "Check if modules expose internals directly or through a defined public surface. Flag external imports that reach into internal/ or _private paths.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "no-deep-imports",
+      "category": "module-boundaries",
+      "criterion": "External consumers import from module boundaries, not from deeply nested internal paths",
+      "how_to_test": "Check import statements — flag imports like 'from app.users.internal.helpers.utils import X'. Imports should go through the module's public surface.",
+      "severity": "medium",
+      "evidence_type": "file_grep"
+    },
+    {
+      "id": "layered-dependencies",
+      "category": "dependencies",
+      "criterion": "Dependencies flow in one direction — higher-level modules don't depend on lower-level implementation details",
+      "how_to_test": "Map the dependency graph between top-level modules. Flag upward dependencies (utilities importing from features, shared importing from specific).",
+      "severity": "high",
+      "evidence_type": "dependency_analysis"
+    },
+    {
+      "id": "consistent-naming-convention",
+      "category": "conventions",
+      "criterion": "Files and directories follow a consistent naming convention (kebab-case, snake_case, or PascalCase — pick one and stick to it)",
+      "how_to_test": "List all source files — check for mixed conventions (some-file.ts next to someFile.ts next to some_file.ts).",
+      "severity": "low",
+      "evidence_type": "file_location"
+    },
+    {
+      "id": "predictable-file-location",
+      "category": "conventions",
+      "criterion": "Given a concept name, a developer can predict where to find or create the file without searching",
+      "how_to_test": "Check if similar concepts (e.g., all services, all repositories) live in predictable locations following the same pattern.",
+      "severity": "medium",
+      "evidence_type": "file_location"
+    },
+    {
+      "id": "shared-code-explicit",
+      "category": "module-boundaries",
+      "criterion": "Shared/common code lives in an explicit shared module — not duplicated across features and not hidden in one feature's folder",
+      "how_to_test": "Find code used by 3+ modules. It should live in a shared/, common/, or lib/ directory, not inside one feature's folder.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "no-god-files",
+      "category": "cohesion",
+      "criterion": "No 'utils.py', 'helpers.ts', or 'misc' files that accumulate unrelated functions — these should be split by purpose",
+      "how_to_test": "Find files named utils, helpers, misc, common. Check if their contents are related or a grab-bag. Flag files with 5+ unrelated functions.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "feature-isolation",
+      "category": "cohesion",
+      "criterion": "Features are self-contained — adding/removing a feature should not require changes scattered across 10+ unrelated files",
+      "how_to_test": "Pick a feature and trace all its files. If they're spread across 5+ unrelated directories with no clear grouping, flag it.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "config-centralized",
+      "category": "conventions",
+      "criterion": "Configuration is centralized — env vars loaded once at startup, not scattered through the codebase with os.getenv() calls everywhere",
+      "how_to_test": "Search for env var access (os.getenv, process.env, os.environ). Flag if found in 5+ different files outside a config module.",
+      "severity": "medium",
+      "evidence_type": "file_grep"
+    },
+    {
+      "id": "no-orphan-files",
+      "category": "file-structure",
+      "criterion": "No orphan files — every source file is reachable from the entry point or test suite. No dead code files lingering.",
+      "how_to_test": "Find source files not imported by anything and not referenced in tests or entry points. Flag likely dead files.",
+      "severity": "low",
+      "evidence_type": "dependency_analysis"
+    }
+  ]
+}

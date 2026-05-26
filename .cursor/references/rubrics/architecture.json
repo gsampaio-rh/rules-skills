@@ -1,0 +1,153 @@
+{
+  "domain": "architecture",
+  "name": "DDD & Clean Architecture",
+  "version": "1.0",
+  "when_applicable": "Projects with domain logic separated from infrastructure, or projects that should have such separation",
+  "categories": ["dependency-rule", "ddd-tactical", "ddd-strategic", "hexagonal", "use-cases"],
+  "criteria": [
+    {
+      "id": "dep-direction-inward",
+      "category": "dependency-rule",
+      "criterion": "No inner layer imports from an outer layer (domain does not import infrastructure, application does not import frameworks)",
+      "how_to_test": "Grep imports in domain/ and application/ directories — none should reference infrastructure/, frameworks/, or delivery-mechanism code",
+      "severity": "high",
+      "evidence_type": "file_grep"
+    },
+    {
+      "id": "entities-no-framework",
+      "category": "dependency-rule",
+      "criterion": "Entity and value object classes have zero framework imports (no ORM decorators, no HTTP types, no serialization annotations)",
+      "how_to_test": "Read entity/model files in domain layer — check for imports from SQLAlchemy, Django ORM, FastAPI, Express, Prisma, etc.",
+      "severity": "high",
+      "evidence_type": "file_grep"
+    },
+    {
+      "id": "repo-interface-in-domain",
+      "category": "dependency-rule",
+      "criterion": "Repository interfaces (abstract classes or protocols) are defined in the domain/application layer, not in infrastructure",
+      "how_to_test": "Find repository interface definitions — they should live in domain/ or application/, with implementations in infrastructure/",
+      "severity": "high",
+      "evidence_type": "file_location"
+    },
+    {
+      "id": "use-case-single-purpose",
+      "category": "use-cases",
+      "criterion": "Each use case / interactor does exactly one thing (no god-services with 10+ methods)",
+      "how_to_test": "Count public methods per use-case/service class — should be 1-2 per class. Flag any with 5+.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "use-case-no-io",
+      "category": "use-cases",
+      "criterion": "Use cases receive/return plain DTOs or domain objects, not HTTP requests, ORM models, or framework types",
+      "how_to_test": "Check use case method signatures — input/output types should be domain objects or simple DTOs, not Request/Response objects",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "ubiquitous-language",
+      "category": "ddd-strategic",
+      "criterion": "Code uses domain expert terminology — class names, method names, and variables reflect the business language, not technical jargon",
+      "how_to_test": "Compare naming in domain layer against business concepts. Flag generic names (Manager, Handler, Processor, Data, Info) in domain code.",
+      "severity": "medium",
+      "evidence_type": "naming_analysis"
+    },
+    {
+      "id": "bounded-context-boundaries",
+      "category": "ddd-strategic",
+      "criterion": "Different bounded contexts have separate models — no single model shared across unrelated domains",
+      "how_to_test": "Check if the same entity class is imported across multiple unrelated modules/services. Each context should define its own representation.",
+      "severity": "high",
+      "evidence_type": "dependency_analysis"
+    },
+    {
+      "id": "anti-corruption-layer",
+      "category": "ddd-strategic",
+      "criterion": "External system integrations go through an anti-corruption layer — external models are translated to domain models at the boundary",
+      "how_to_test": "Find external API clients or SDK usages — they should return domain objects, not raw external DTOs leaked into domain logic",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "aggregate-root-access",
+      "category": "ddd-tactical",
+      "criterion": "Child entities within an aggregate are only accessed through the aggregate root, not directly from repositories",
+      "how_to_test": "Check repositories — they should only load/save aggregate roots. No repositories for child entities within an aggregate.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "value-objects-immutable",
+      "category": "ddd-tactical",
+      "criterion": "Value objects are immutable — no setters, no mutation methods. Equality is by attributes, not identity.",
+      "how_to_test": "Find value object classes — check for frozen dataclass, __eq__ by value, no mutable state. Flag setters or mutation methods.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "domain-events-decoupled",
+      "category": "ddd-tactical",
+      "criterion": "Side effects are triggered via domain events, not inline method calls from the aggregate",
+      "how_to_test": "Check if significant state changes emit events (OrderPlaced, PaymentReceived) rather than directly calling notification/email/external services.",
+      "severity": "low",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "no-anemic-domain",
+      "category": "ddd-tactical",
+      "criterion": "Domain entities contain behavior (methods with logic), not just data fields with getters/setters",
+      "how_to_test": "Check entity classes — they should have methods that enforce business rules, not just property access. Flag entities that are pure data bags with all logic in services.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "ports-are-interfaces",
+      "category": "hexagonal",
+      "criterion": "Ports (driven and driving) are defined as interfaces/protocols/abstract classes, not concrete implementations",
+      "how_to_test": "Find port definitions — they should be abstract (Protocol, ABC, interface). Concrete code depends on the abstraction, not the implementation.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "adapters-outside-core",
+      "category": "hexagonal",
+      "criterion": "Adapter implementations live outside the application core (in infrastructure/ or adapters/ directories)",
+      "how_to_test": "Check that concrete implementations of ports (PostgresRepo, StripeGateway, etc.) are not co-located with domain/application code",
+      "severity": "medium",
+      "evidence_type": "file_location"
+    },
+    {
+      "id": "dependency-injection",
+      "category": "hexagonal",
+      "criterion": "Concrete adapters are injected at composition root (startup/main), not instantiated inside use cases",
+      "how_to_test": "Check use case constructors — they should receive interfaces, not instantiate concrete implementations. Look for 'new PostgresRepo()' inside business logic.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "no-business-logic-in-controllers",
+      "category": "dependency-rule",
+      "criterion": "Controllers/handlers contain only input parsing, use-case invocation, and response formatting — no business logic",
+      "how_to_test": "Read controller/route handler code — flag if-else chains, calculations, or domain rule enforcement happening at the delivery layer",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "dtos-at-boundaries",
+      "category": "dependency-rule",
+      "criterion": "Data crossing layer boundaries uses explicit DTOs or mappers — domain objects are not directly serialized to HTTP/DB",
+      "how_to_test": "Check API responses and DB queries — domain entities should be mapped to response DTOs, not returned directly. ORM models should be mapped to domain objects.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "testability-without-infra",
+      "category": "hexagonal",
+      "criterion": "Domain and application logic can be unit-tested without booting any infrastructure (DB, HTTP, queues)",
+      "how_to_test": "Check test files for domain/application layer — they should use in-memory fakes or mocks, not require real DB connections or HTTP servers",
+      "severity": "high",
+      "evidence_type": "test_analysis"
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "domain": "code-quality",
+  "name": "Code Quality & SOLID Principles",
+  "version": "1.0",
+  "when_applicable": "Any codebase with production code (not prototypes, scripts, or throwaway code)",
+  "categories": ["solid", "complexity", "naming", "dry", "coupling", "sizing", "error-handling", "testing"],
+  "criteria": [
+    {
+      "id": "srp-functions",
+      "category": "solid",
+      "criterion": "Each function does exactly one thing — a single, clear responsibility describable in one sentence without 'and'",
+      "how_to_test": "Read function bodies — flag functions that do input validation AND business logic AND persistence. Each should be split.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "srp-classes",
+      "category": "solid",
+      "criterion": "Each class has a single reason to change — one responsibility, one actor it serves",
+      "how_to_test": "Check class methods — if methods serve different concerns (e.g., UserService with authenticate(), sendEmail(), generateReport()), flag it.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "ocp-extension",
+      "category": "solid",
+      "criterion": "New behavior is added via extension (new classes, plugins, strategies), not by modifying existing working code",
+      "how_to_test": "Look for if/elif/switch chains that grow with new features. These should be polymorphism, strategy pattern, or registries instead.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "lsp-substitution",
+      "category": "solid",
+      "criterion": "Subtypes are substitutable for their base types without breaking behavior — no TypeError surprises",
+      "how_to_test": "Check inheritance hierarchies — subclasses should not raise NotImplementedError for base methods or violate base class contracts.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "isp-interfaces",
+      "category": "solid",
+      "criterion": "Interfaces are client-specific and small — no god-interfaces that force implementors to stub methods they don't use",
+      "how_to_test": "Find interfaces/protocols with 6+ methods. Check if all implementors actually use every method. Flag pass/NotImplementedError stubs.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "dip-abstractions",
+      "category": "solid",
+      "criterion": "High-level modules depend on abstractions, not concrete low-level implementations",
+      "how_to_test": "Check constructor parameters — high-level business logic should receive interfaces, not concrete DB/HTTP/file classes.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "function-size",
+      "category": "sizing",
+      "criterion": "Functions are under 50 lines (ideally under 20). No function exceeds 50 lines without strong justification.",
+      "how_to_test": "Count lines per function. Flag any over 30 lines, fail any over 50 lines.",
+      "severity": "high",
+      "evidence_type": "metric"
+    },
+    {
+      "id": "file-size",
+      "category": "sizing",
+      "criterion": "Files are under 300 lines (ideally under 200). No file exceeds 300 lines.",
+      "how_to_test": "Count lines per file (excluding blank lines and imports). Flag any over 200, fail any over 300.",
+      "severity": "medium",
+      "evidence_type": "metric"
+    },
+    {
+      "id": "cyclomatic-complexity",
+      "category": "complexity",
+      "criterion": "No function has cyclomatic complexity above 10 (count decision points: if, elif, for, while, and, or, except)",
+      "how_to_test": "Count branches per function. Flag functions with 7+ decision points, fail at 10+.",
+      "severity": "high",
+      "evidence_type": "metric"
+    },
+    {
+      "id": "nesting-depth",
+      "category": "complexity",
+      "criterion": "No code nests deeper than 3 levels of indentation (use early returns, guard clauses, extraction)",
+      "how_to_test": "Check indentation levels — flag any code at 4+ levels deep. Suggest early returns or function extraction.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "naming-descriptive",
+      "category": "naming",
+      "criterion": "Variables, functions, and classes reveal their purpose — no single-letter names (except loop counters), no abbreviations unless universal",
+      "how_to_test": "Scan for names like 'x', 'tmp', 'data', 'info', 'mgr', 'proc'. Flag unclear/ambiguous names.",
+      "severity": "medium",
+      "evidence_type": "naming_analysis"
+    },
+    {
+      "id": "naming-consistent",
+      "category": "naming",
+      "criterion": "Consistent naming conventions across the codebase — same concept uses the same name everywhere",
+      "how_to_test": "Check for inconsistencies: 'user' vs 'customer' vs 'account' for the same concept, 'get' vs 'fetch' vs 'retrieve' for the same operation.",
+      "severity": "medium",
+      "evidence_type": "naming_analysis"
+    },
+    {
+      "id": "dry-no-duplication",
+      "category": "dry",
+      "criterion": "No substantial logic duplicated across multiple locations — shared logic is extracted into reusable functions",
+      "how_to_test": "Search for near-identical code blocks (3+ lines repeated in 2+ places). Flag copy-paste with minor variations.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "dry-single-source-of-truth",
+      "category": "dry",
+      "criterion": "Configuration, constants, and business rules have a single source of truth — not scattered across files",
+      "how_to_test": "Check for magic numbers, duplicated string constants, or the same business rule implemented in multiple places.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "coupling-low",
+      "category": "coupling",
+      "criterion": "Modules have low coupling — changing one module does not require cascading changes across unrelated modules",
+      "how_to_test": "Check import graphs — flag modules with 8+ imports from different modules, or circular import chains.",
+      "severity": "high",
+      "evidence_type": "dependency_analysis"
+    },
+    {
+      "id": "cohesion-high",
+      "category": "coupling",
+      "criterion": "Classes and modules have high cohesion — all methods/functions within relate to the same responsibility",
+      "how_to_test": "Check if all methods in a class use the same instance variables. Flag classes where methods split into unrelated groups.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "error-handling-explicit",
+      "category": "error-handling",
+      "criterion": "Errors are handled explicitly — no bare except/catch-all, no swallowed exceptions, no silent failures",
+      "how_to_test": "Find try/except or try/catch blocks. Flag bare 'except:', 'except Exception:', or empty catch blocks. Errors should be logged or re-raised.",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "error-handling-boundaries",
+      "category": "error-handling",
+      "criterion": "Error handling happens at boundaries (API layer, I/O), not scattered through business logic",
+      "how_to_test": "Check domain/application layer for try/except blocks. Business logic should raise domain exceptions; boundaries catch and translate them.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "type-safety",
+      "category": "coupling",
+      "criterion": "Type hints/annotations are used for function signatures and complex data structures — no 'any' types without justification",
+      "how_to_test": "Check function signatures — flag missing type hints on public functions. Flag use of Any/any/Object without a comment explaining why.",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "test-coverage-critical",
+      "category": "testing",
+      "criterion": "Critical business logic has test coverage — happy path + at least 2 edge cases per critical function",
+      "how_to_test": "Identify core business functions. Check for corresponding test files. Flag untested critical paths.",
+      "severity": "high",
+      "evidence_type": "test_analysis"
+    }
+  ]
+}
