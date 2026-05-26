@@ -17,11 +17,6 @@ REFRESH_TOKEN_EXPIRATION_SECONDS: int = 7 * 24 * 3600
 DEFAULT_EXPIRATION_SECONDS: int = ACCESS_EXPIRATION_SECONDS
 
 
-def is_token_expired(exp: int) -> bool:
-    """Return True when the JWT exp claim is at or past the current time."""
-    return exp <= int(time.time())
-
-
 def hash_password(password: str) -> str:
     """Return a salted password hash."""
     return generate_password_hash(password)
@@ -43,10 +38,12 @@ def generate_refresh_token() -> str:
 
 
 def _b64url_encode(data: bytes) -> str:
+    """Return base64url-encoded text without padding."""
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
 def _b64url_decode(data: str) -> bytes:
+    """Decode base64url-encoded text, adding padding when needed."""
     padding = "=" * (-len(data) % 4)
     return base64.urlsafe_b64decode(data + padding)
 

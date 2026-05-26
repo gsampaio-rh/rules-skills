@@ -8,7 +8,12 @@ import json
 import time
 from typing import Any, TypedDict
 
-from src.auth import SECRET, _b64url_decode, _b64url_encode, is_token_expired
+from src.auth import SECRET, _b64url_decode, _b64url_encode
+
+
+def is_token_expired(exp: int) -> bool:
+    """Return True when the JWT exp claim is at or past the current time."""
+    return exp <= int(time.time())
 
 
 class ValidTokenBody(TypedDict):
