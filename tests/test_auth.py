@@ -23,6 +23,13 @@ def test_expired_token_returns_401() -> None:
     assert body == {"error": "token_expired"}
 
 
+def test_token_expires_when_exp_reached() -> None:
+    token = create_token("user1", exp_offset=0)
+    status, body = verify_token(token)
+    assert status == 401
+    assert body == {"error": "token_expired"}
+
+
 def test_invalid_token_returns_401() -> None:
     status, body = verify_token("not.a.jwt")
     assert status == 401

@@ -17,6 +17,11 @@ REFRESH_TOKEN_EXPIRATION_SECONDS: int = 7 * 24 * 3600
 DEFAULT_EXPIRATION_SECONDS: int = ACCESS_EXPIRATION_SECONDS
 
 
+def is_token_expired(exp: int) -> bool:
+    """Return True when the JWT exp claim is at or past the current time."""
+    return exp <= int(time.time())
+
+
 def hash_password(password: str) -> str:
     """Return a salted password hash."""
     return generate_password_hash(password)

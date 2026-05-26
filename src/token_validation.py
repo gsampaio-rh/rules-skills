@@ -8,7 +8,7 @@ import json
 import time
 from typing import Any, TypedDict
 
-from src.auth import SECRET, _b64url_decode, _b64url_encode
+from src.auth import SECRET, _b64url_decode, _b64url_encode, is_token_expired
 
 
 class ValidTokenBody(TypedDict):
@@ -38,7 +38,7 @@ def verify_token(token: str, *, expected_type: str = "access") -> VerifyTokenRes
             return 401, {"error": "invalid_token"}
 
         payload: dict[str, Any] = json.loads(_b64url_decode(payload_b64))
-        if payload.get("exp", 0) < int(time.time()):
+        if is_token_expired(payload.get("exp", 0)):
             return 401, {"error": "token_expired"}
         token_type = payload.get("typ", "access")
         if token_type != expected_type:
