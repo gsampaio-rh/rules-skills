@@ -3,7 +3,11 @@
 .reference-repos/
 old_cursor_files/
 tests/eval/responses/
+tests/eval/history/runs/
+tests/eval/history/trends.json
 .cursor/harness/
 .cursor/breadcrumbs.jsonl
 .cursor/hooks.log
 .cursor/hooks/.commit-approved
+backend/data/
+backend/uploads/
