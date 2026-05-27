@@ -20,12 +20,14 @@ Usage: $(basename "$0") [OPTIONS]
 Sync .cursor/ config (rules, skills, hooks, references) from rules-skills
 to all projects under ~/redhat.
 
-Strategy: add new files + update changed files. Never deletes project-specific extras.
+Strategy: add new files, update changed files, delete stale files in managed
+directories (rules/, hooks/, references/). Project-specific extras outside
+managed dirs are never touched.
 
 Options:
-  --dry-run   Show what would change without copying
+  --dry-run   Show what would change without modifying anything
   --yes       Skip confirmation prompt
-  --verbose   Show per-file diffs for changed files
+  --verbose   Show per-file detail for new/changed/stale files
   -h, --help  Show this help
 EOF
     exit 0
@@ -43,10 +45,13 @@ done
 
 BOLD="\033[1m"
 DIM="\033[2m"
+RED="\033[31m"
 GREEN="\033[32m"
 YELLOW="\033[33m"
 CYAN="\033[36m"
 RESET="\033[0m"
+
+MANAGED_DIRS=(rules hooks references)
 
 SOURCE_FILES_LIST="$TMPDIR_SYNC/source_files"
 find "$SOURCE_CURSOR" -type f \
@@ -85,8 +90,10 @@ compare_project() {
     local new_count=0
     local changed_count=0
     local uptodate_count=0
+    local stale_count=0
     local new_files=""
     local changed_files=""
+    local stale_files=""
 
     while IFS= read -r src_file; do
         local target_file
@@ -105,9 +112,26 @@ compare_project() {
         fi
     done < "$SOURCE_FILES_LIST"
 
-    echo "$new_count $changed_count $uptodate_count" > "$TMPDIR_SYNC/counts_$(echo "$rel" | tr '/' '_')"
-    printf "%s" "$new_files" > "$TMPDIR_SYNC/new_$(echo "$rel" | tr '/' '_')"
-    printf "%s" "$changed_files" > "$TMPDIR_SYNC/changed_$(echo "$rel" | tr '/' '_')"
+    for managed in "${MANAGED_DIRS[@]}"; do
+        local target_dir="$target_cursor/$managed"
+        [[ -d "$target_dir" ]] || continue
+
+        while IFS= read -r target_file; do
+            local rel_in_managed="${target_file#$target_cursor/}"
+            local src_equivalent="$SOURCE_CURSOR/$rel_in_managed"
+            if [[ ! -f "$src_equivalent" ]]; then
+                stale_count=$((stale_count + 1))
+                stale_files="${stale_files}  - ${rel_in_managed}\n"
+            fi
+        done < <(find "$target_dir" -type f ! -name '.DS_Store' | sort)
+    done
+
+    local key
+    key="$(echo "$rel" | tr '/' '_')"
+    echo "$new_count $changed_count $uptodate_count $stale_count" > "$TMPDIR_SYNC/counts_$key"
+    printf "%s" "$new_files" > "$TMPDIR_SYNC/new_$key"
+    printf "%s" "$changed_files" > "$TMPDIR_SYNC/changed_$key"
+    printf "%s" "$stale_files" > "$TMPDIR_SYNC/stale_$key"
 }
 
 sync_project() {
@@ -115,7 +139,6 @@ sync_project() {
     local target_cursor="$SEARCH_ROOT/$rel/.cursor"
     local target_harness="$SEARCH_ROOT/$rel/.harness"
 
-    # Ensure .harness/ directory exists in target
     mkdir -p "$target_harness/evals" "$target_harness/audits"
 
     while IFS= read -r src_file; do
@@ -127,6 +150,21 @@ sync_project() {
             cp "$src_file" "$target_file"
         fi
     done < "$SOURCE_FILES_LIST"
+
+    for managed in "${MANAGED_DIRS[@]}"; do
+        local target_dir="$target_cursor/$managed"
+        [[ -d "$target_dir" ]] || continue
+
+        while IFS= read -r target_file; do
+            local rel_in_managed="${target_file#$target_cursor/}"
+            local src_equivalent="$SOURCE_CURSOR/$rel_in_managed"
+            if [[ ! -f "$src_equivalent" ]]; then
+                rm "$target_file"
+            fi
+        done < <(find "$target_dir" -type f ! -name '.DS_Store' | sort)
+
+        find "$target_dir" -type d -empty -delete 2>/dev/null || true
+    done
 }
 
 sync_global() {
@@ -163,13 +201,105 @@ sync_global() {
                 $VERBOSE && printf "  ${YELLOW}~ %s${RESET}\n" "$rel_file"
             fi
         done < "$file_list"
+
+        local target_dir="$global_cursor/$subdir"
+        if [[ -d "$target_dir" ]]; then
+            while IFS= read -r target_file; do
+                rel_file="${target_file#$global_cursor/}"
+                src_file="$SOURCE_CURSOR/$rel_file"
+                if [[ ! -f "$src_file" ]]; then
+                    if ! $DRY_RUN; then
+                        rm "$target_file"
+                    fi
+                    $VERBOSE && printf "  ${RED}- %s${RESET}\n" "$rel_file"
+                fi
+            done < <(find "$target_dir" -type f ! -name '.DS_Store' | sort)
+
+            if ! $DRY_RUN; then
+                find "$target_dir" -type d -empty -delete 2>/dev/null || true
+            fi
+        fi
     done
 
-    echo -e "  ${CYAN}~/.cursor/${RESET}: agents + skills synced"
+    echo -e "  ${CYAN}~/.cursor/${RESET}: agents + skills synced (add/update/cleanup)"
+    echo ""
+}
+
+migrate_harness() {
+    echo -e "${BOLD}Migrating harness state from .cursor/ → .harness/ ...${RESET}"
+
+    local targets_file="$TMPDIR_SYNC/migrate_targets"
+    find "$SEARCH_ROOT" -maxdepth 5 -name ".cursor" -type d 2>/dev/null \
+        | sort \
+        | while IFS= read -r cursor_dir; do
+            local project_dir
+            project_dir="$(dirname "$cursor_dir")"
+            [[ "$project_dir" == "$SCRIPT_DIR" ]] && continue
+
+            local needs_migration=false
+            [[ -d "$cursor_dir/harness" ]] && needs_migration=true
+            [[ -f "$cursor_dir/breadcrumbs.jsonl" ]] && needs_migration=true
+            [[ -f "$cursor_dir/hooks.log" ]] && needs_migration=true
+
+            if $needs_migration; then
+                echo "${project_dir#$SEARCH_ROOT/}"
+            fi
+        done > "$targets_file"
+
+    local migrate_count
+    migrate_count=$(wc -l < "$targets_file" | tr -d ' ')
+
+    if [[ $migrate_count -eq 0 ]]; then
+        echo -e "  ${DIM}No projects need harness migration.${RESET}"
+        echo ""
+        return
+    fi
+
+    echo -e "  Found ${BOLD}$migrate_count${RESET} projects with harness state in .cursor/"
+
+    while IFS= read -r rel; do
+        local cursor_dir="$SEARCH_ROOT/$rel/.cursor"
+        local harness_dir="$SEARCH_ROOT/$rel/.harness"
+        local moved=0
+
+        if [[ -d "$cursor_dir/harness" ]]; then
+            local file_count
+            file_count=$(find "$cursor_dir/harness" -type f | wc -l | tr -d ' ')
+
+            if ! $DRY_RUN; then
+                mkdir -p "$harness_dir"
+                # Move contents, preserving subdirectory structure
+                find "$cursor_dir/harness" -type f | while IFS= read -r f; do
+                    local rel_path="${f#$cursor_dir/harness/}"
+                    mkdir -p "$(dirname "$harness_dir/$rel_path")"
+                    mv "$f" "$harness_dir/$rel_path"
+                done
+                find "$cursor_dir/harness" -type d -empty -delete 2>/dev/null || true
+                rmdir "$cursor_dir/harness" 2>/dev/null || true
+            fi
+            moved=$((moved + file_count))
+        fi
+
+        for loose_file in breadcrumbs.jsonl hooks.log; do
+            if [[ -f "$cursor_dir/$loose_file" ]]; then
+                if ! $DRY_RUN; then
+                    mkdir -p "$harness_dir"
+                    mv "$cursor_dir/$loose_file" "$harness_dir/$loose_file"
+                fi
+                moved=$((moved + 1))
+            fi
+        done
+
+        local label="moved"
+        $DRY_RUN && label="to move"
+        printf "  ${CYAN}↳${RESET} %-50s %d files %s\n" "$rel" "$moved" "$label"
+    done < "$targets_file"
+
     echo ""
 }
 
 main() {
+    migrate_harness
     sync_global
 
     echo -e "${BOLD}Scanning $SEARCH_ROOT for .cursor/ directories...${RESET}"
@@ -195,6 +325,7 @@ main() {
     : > "$changes_file"
     local total_new=0
     local total_changed=0
+    local total_stale=0
 
     while IFS= read -r rel; do
         compare_project "$rel"
@@ -203,14 +334,16 @@ main() {
         key="$(echo "$rel" | tr '/' '_')"
         local counts
         counts="$(cat "$TMPDIR_SYNC/counts_$key")"
-        local new_count changed_count
+        local new_count changed_count stale_count
         new_count="$(echo "$counts" | awk '{print $1}')"
         changed_count="$(echo "$counts" | awk '{print $2}')"
+        stale_count="$(echo "$counts" | awk '{print $4}')"
 
-        if [[ $new_count -gt 0 || $changed_count -gt 0 ]]; then
+        if [[ $new_count -gt 0 || $changed_count -gt 0 || $stale_count -gt 0 ]]; then
             echo "$rel" >> "$changes_file"
             total_new=$((total_new + new_count))
             total_changed=$((total_changed + changed_count))
+            total_stale=$((total_stale + stale_count))
         fi
     done < "$targets_file"
 
@@ -225,32 +358,36 @@ main() {
     local uptodate_projects=$((target_count - changes_count))
 
     echo ""
-    printf "  ${BOLD}%-50s %5s %9s %11s${RESET}\n" "Project" "New" "Changed" "Up-to-date"
-    echo "  $(printf '%.0s─' $(seq 1 78))"
+    printf "  ${BOLD}%-46s %5s %9s %7s %11s${RESET}\n" "Project" "New" "Changed" "Stale" "Up-to-date"
+    echo "  $(printf '%.0s─' $(seq 1 82))"
 
     while IFS= read -r rel; do
         local key
         key="$(echo "$rel" | tr '/' '_')"
         local counts
         counts="$(cat "$TMPDIR_SYNC/counts_$key")"
-        local new_c changed_c uptodate_c
+        local new_c changed_c uptodate_c stale_c
         new_c="$(echo "$counts" | awk '{print $1}')"
         changed_c="$(echo "$counts" | awk '{print $2}')"
         uptodate_c="$(echo "$counts" | awk '{print $3}')"
+        stale_c="$(echo "$counts" | awk '{print $4}')"
 
-        local new_color="" changed_color=""
+        local new_color="" changed_color="" stale_color=""
         [[ $new_c -gt 0 ]] && new_color="$GREEN"
         [[ $changed_c -gt 0 ]] && changed_color="$YELLOW"
+        [[ $stale_c -gt 0 ]] && stale_color="$RED"
 
-        printf "  %-50s ${new_color}%5d${RESET} ${changed_color}%9d${RESET} %11d\n" \
-            "$rel" "$new_c" "$changed_c" "$uptodate_c"
+        printf "  %-46s ${new_color}%5d${RESET} ${changed_color}%9d${RESET} ${stale_color}%7d${RESET} %11d\n" \
+            "$rel" "$new_c" "$changed_c" "$stale_c" "$uptodate_c"
 
         if $VERBOSE; then
-            local new_files changed_files
+            local new_files changed_files stale_files
             new_files="$(cat "$TMPDIR_SYNC/new_$key" 2>/dev/null || true)"
             changed_files="$(cat "$TMPDIR_SYNC/changed_$key" 2>/dev/null || true)"
+            stale_files="$(cat "$TMPDIR_SYNC/stale_$key" 2>/dev/null || true)"
             [[ -n "$new_files" ]] && printf "${GREEN}${new_files}${RESET}\n"
             [[ -n "$changed_files" ]] && printf "${YELLOW}${changed_files}${RESET}\n"
+            [[ -n "$stale_files" ]] && printf "${RED}${stale_files}${RESET}\n"
         fi
     done < "$changes_file"
 
@@ -262,6 +399,7 @@ main() {
     echo -e "  Projects to update: ${BOLD}${changes_count}${RESET}"
     echo -e "  Files to add:       ${GREEN}${total_new}${RESET}"
     echo -e "  Files to update:    ${YELLOW}${total_changed}${RESET}"
+    echo -e "  Files to delete:    ${RED}${total_stale}${RESET}"
     echo ""
 
     if $DRY_RUN; then
@@ -283,12 +421,13 @@ main() {
         key="$(echo "$rel" | tr '/' '_')"
         local counts
         counts="$(cat "$TMPDIR_SYNC/counts_$key")"
-        local new_c changed_c
+        local new_c changed_c stale_c
         new_c="$(echo "$counts" | awk '{print $1}')"
         changed_c="$(echo "$counts" | awk '{print $2}')"
+        stale_c="$(echo "$counts" | awk '{print $4}')"
 
         sync_project "$rel"
-        printf "  ${CYAN}✓${RESET} %-50s +%d ~%d\n" "$rel" "$new_c" "$changed_c"
+        printf "  ${CYAN}✓${RESET} %-50s +%d ~%d -%d\n" "$rel" "$new_c" "$changed_c" "$stale_c"
     done < "$changes_file"
 
     echo ""
