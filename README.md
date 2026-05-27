@@ -1,179 +1,192 @@
 # Cursor Rules & Skills
 
-A curated set of AI coding assistant rules and skills for Cursor, built for data science, ML, full-stack development, and research workflows.
+A curated library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code.
 
-## What's Inside
+## Architecture
 
-### Rules (`.cursor/rules/`)
+This repo separates three concerns:
 
-Passive, always-on constraints that shape how the AI agent writes code and communicates.
+| Layer | Location | Purpose |
+|-------|----------|---------|
+| **Project state** | `.harness/` | Tracked harness state — contracts, evals, breadcrumbs, specs |
+| **IDE config** | `.cursor/` | Symlinks to `library/cursor/` + lean hooks for development |
+| **Product library** | `library/` | The distributable rules, skills, hooks, agents, references |
+
+```
+rules-skills/
+├── .harness/                    # This project's harness state (git-tracked)
+├── .cursor/                     # IDE config (symlinks → library/cursor/)
+│   ├── rules/ → library/cursor/rules/
+│   ├── skills/ → library/cursor/skills/
+│   ├── agents/ → library/cursor/agents/
+│   ├── references/ → library/cursor/references/
+│   ├── hooks/ → library/cursor/hooks/
+│   ├── hooks.json → hooks.lean.json
+│   ├── hooks.lean.json
+│   └── hooks.full.json
+├── library/
+│   ├── cursor/                  # Cursor config library
+│   │   ├── rules/              # 16 .mdc rule files
+│   │   ├── skills/             # 14 skill workflows
+│   │   ├── agents/             # Planner + evaluator definitions
+│   │   ├── hooks/              # 11 enforcement scripts
+│   │   └── references/         # Patterns, design, rubrics
+│   └── claude/                  # Claude Code config (parallel port)
+├── scripts/                     # Dev tooling
+├── tests/eval/                  # Behavioral eval pipeline
+└── sync-cursor.sh               # Distribute to other projects
+```
+
+## Quick Start
+
+### Developing rules/skills (working on this repo)
+
+```bash
+git clone <this-repo>
+# Lean profile is default — no harness enforcement fires
+# Edit library/cursor/rules/*.mdc, library/cursor/skills/*/SKILL.md directly
+```
+
+The symlinks in `.cursor/` mean Cursor loads rules/skills from `library/cursor/` automatically. Edits are reflected immediately.
+
+### Installing in your project
+
+```bash
+# Automated (syncs rules, hooks, references to all ~/redhat projects)
+./sync-cursor.sh
+
+# Manual (single project)
+cp -R library/cursor/rules/ /path/to/project/.cursor/rules/
+cp -R library/cursor/hooks/ /path/to/project/.cursor/hooks/
+cp -R library/cursor/references/ /path/to/project/.cursor/references/
+cp .cursor/hooks.full.json /path/to/project/.cursor/hooks.json
+mkdir -p /path/to/project/.harness/{evals,audits}
+```
+
+## Rules (`library/cursor/rules/`)
 
 | Rule | Activation | What it does |
-|---|---|---|
-| `agent_behavior` | Always on | Communication style, change management, information handling |
-| `autonomous_execution` | Always on | Act without asking permission, fix errors autonomously, pause on destructive ops |
-| `code_standards` | Always on | Explicit > implicit, single responsibility, naming, DRY |
-| `critical_thinking` | Always on | Analyze requests, challenge assumptions, improve vague prompts |
-| `development_workflow` | Always on | PLAN + CHANGELOG core workflow, optional ADRs/PRD/architecture docs |
-| `planning_discipline` | Always on | Plan before code, structured task tracking, thread hygiene |
-| `prompt_coaching` | Always on | Coach users toward more effective prompts when requests are vague |
-| `verification` | Always on | Require verification after code changes — tests, lint, or build |
-| `security` | Always on | Input validation, data protection, dependency scanning |
-| `architecture` | `*.py, *.ts, *.tsx` | SOLID, dependency direction, pattern selection with trade-off reasoning |
-| `python_ml` | `*.py, *.ipynb` | Type hints, pandas patterns, ML conventions, notebook standards |
-| `testing` | `**/test*.py` | Pytest conventions, ML testing, contract testing |
-| `research_standards` | `experiments/**` | Pre-registration, statistical rigor, honest reporting |
-| `causal_rigor` | `experiments/**` | 5-test framework to avoid circular/obvious findings |
-| `design_principles` | Intelligent load | Dieter Rams, BJ Fogg, Steve Jobs, Jony Ive — design philosophy |
+|------|-----------|--------------|
+| `agent_behavior` | Always on | Communication style, change management |
+| `autonomous_execution` | Always on | Act without asking, fix errors, pause on destructive ops |
+| `code_standards` | Always on | Explicit > implicit, SRP, naming, DRY |
+| `critical_thinking` | Always on | Analyze requests, challenge assumptions |
+| `planning_discipline` | Always on | Structured task tracking, thread hygiene |
+| `progress_tracking` | Always on | Breadcrumbs, TodoWrite for multi-file work |
+| `prompt_coaching` | Always on | Coach users toward effective prompts |
+| `security` | Always on | Input validation, secrets, supply chain |
+| `verification` | Always on | Test/lint/build after every code change |
+| `adversarial_harness` | `src/**,app/**,lib/**,...` | Planner/evaluator workflow for non-trivial features |
+| `architecture` | `*.py, *.ts, *.tsx` | SOLID, dependency direction, pattern trade-offs |
+| `python_ml` | `*.py, *.ipynb` | Type hints, pandas, ML conventions |
+| `testing` | `**/test*.py` | Pytest conventions, contract testing |
+| `research_standards` | `experiments/**` | Pre-registration, statistical rigor |
+| `causal_rigor` | `experiments/**` | 5-test framework for non-circular findings |
+| `design_principles` | Agent-loaded | Dieter Rams, BJ Fogg, Jony Ive design philosophy |
 
-### Skills (`.cursor/skills/`)
+## Skills (`library/cursor/skills/`)
 
-Active, task-driven workflows the agent loads when relevant.
+| Skill | What it does |
+|-------|-------------|
+| `adversarial-harness` | Multi-agent planner/builder/evaluator workflow |
+| `code-review` | Multi-category review with severity model |
+| `commit` | Conventional commits with pre-flight checks |
+| `experiment-workflow` | 6-phase experiment lifecycle |
+| `data-science-analysis` | Hypothesis generation, feature engineering |
+| `architecture-audit` | DDD, Clean Architecture, Hexagonal compliance |
+| `code-quality-audit` | SOLID, complexity, coupling analysis |
+| `design-audit` | Accessibility, design tokens, visual hierarchy |
+| `organization-audit` | File structure, module boundaries, cohesion |
+| `iac-templates` | Infrastructure-as-Code template management |
+| `project-scaffolding` | Multi-mode project structure generation |
+| `info-architecture` | Information architecture patterns |
+| `tech-writing` | Technical writing page patterns |
 
-| Skill | Trigger | What it does |
-|---|---|---|
-| `code-review` | Auto | Multi-category review with severity model and architecture opportunities |
-| `commit` | Manual | Conventional commits with staging logic and pre-flight checks |
-| `experiment-workflow` | Auto | 6-phase experiment lifecycle from design to findings report |
-| `data-science-analysis` | Auto | Hypothesis generation, feature engineering, storytelling frameworks |
-| `spec-driven-dev` | Auto | Write specs before coding — design, approve, then implement |
-| `sprint-planning` | Manual | Agile project kickoff, sprint planning, review/retro |
-| `project-scaffolding` | Manual | Multi-mode project structure (ML, full-stack, API, library) |
-| `iac-templates` | Auto | Reuse, update, or create IaC templates from centralized repo |
-| `sus-deep-dive` | Auto | Brazilian public health (SUS/DATASUS) investigation workflow |
-
-### Shared References (`.cursor/references/`)
-
-Deep knowledge loaded on demand by rules and skills.
-
-- **`patterns/`** — Architecture patterns (clean architecture, DDD, hexagonal, event-driven, microservices, CQRS) with when-to-use, when-not-to-use, trade-offs, and evolution paths
-- **`design/`** — Design thinking, UX research methods, data visualization principles, design systems
-
-### Hooks (`.cursor/hooks/`)
-
-Enforcement hooks for the adversarial harness workflow and agent guardrails.
+## Hooks (`library/cursor/hooks/`)
 
 | Hook | Event | What it does |
-|---|---|---|
-| `harness-context.sh` | `sessionStart` | Injects current harness state into conversation context |
-| (LLM-as-judge) | `beforeSubmitPrompt` | Blocks prompts requesting multi-hour features without harness |
-| `dedup-server.sh` | `beforeShellExecution` | Prevents duplicate dev servers on the same port |
-| `chain-evaluator.sh` | `subagentStop` | Routes between negotiation, building, and evaluation phases |
-| `verify-harness.sh` | `stop` | Blocks agent completion if contract is unverified |
-| `enforce-progress.sh` | `stop` | Enforces breadcrumb logging and harness usage |
-| `validate-hooks.sh` | (manual) | Validates all hooks are configured, executable, and functional |
+|------|-------|-------------|
+| `harness-context.sh` | `sessionStart` | Injects harness state into conversation |
+| `harness-gate.sh` | `beforeSubmitPrompt` | Fast-path routing for complexity |
+| (LLM prompt) | `beforeSubmitPrompt` | Classifies non-trivial work |
+| `contract-gate.sh` | `preToolUse` (Write) | Blocks impl writes without a contract |
+| `evaluator-guard.sh` | `preToolUse` (Write) | Sandboxes evaluator to harness paths |
+| `dedup-server.sh` | `beforeShellExecution` | Prevents duplicate dev servers |
+| `pre-commit-harness.sh` | `beforeShellExecution` | Requires commit approval |
+| `verify-harness.sh` | `stop` | Blocks completion if contract unverified |
+| `enforce-progress.sh` | `stop` | Enforces breadcrumbs + harness usage |
+| `context-health.sh` | `stop` | Detects session fatigue signals |
+| (LLM prompt) | `stop` | Checks harness compliance |
+| `chain-evaluator.sh` | `subagentStop` | Routes between harness phases |
+| `validate-hooks.sh` | (manual) | Validates hook configuration |
 
-### Authoring Standards
+## Hook Profiles
 
-Internal quality contracts at the repo root (not loaded by the agent):
+Two profiles control which hooks are active:
 
-- [`RULES_STANDARD.md`](RULES_STANDARD.md) — how to write `.mdc` rules
-- [`SKILLS_STANDARD.md`](SKILLS_STANDARD.md) — how to write `SKILL.md` skills
+| Profile | Use case | Active hooks |
+|---------|----------|-------------|
+| **lean** (default here) | Rules/skills development | dedup-server, enforce-progress (Tier 1), context-health |
+| **full** | Real projects, dogfooding | All 11 scripts + 2 LLM prompt hooks |
 
-## Project Structure
-
-```
-.cursor/
-├── references/
-│   ├── patterns/
-│   │   ├── clean-architecture.md
-│   │   ├── cqrs.md
-│   │   ├── ddd.md
-│   │   ├── event-driven.md
-│   │   ├── hexagonal.md
-│   │   └── microservices.md
-│   └── design/
-│       ├── design-thinking/
-│       ├── ux-research/
-│       ├── data-visualization/
-│       └── design-systems/
-├── hooks/
-│   ├── harness-context.sh
-│   ├── harness-gate.sh
-│   ├── chain-evaluator.sh
-│   ├── verify-harness.sh
-│   ├── enforce-progress.sh
-│   └── validate-hooks.sh
-├── hooks.json
-├── rules/
-│   ├── agent_behavior.mdc
-│   ├── architecture.mdc
-│   ├── autonomous_execution.mdc
-│   ├── causal_rigor.mdc
-│   ├── code_standards.mdc
-│   ├── critical_thinking.mdc
-│   ├── design_principles.mdc
-│   ├── development_workflow.mdc
-│   ├── planning_discipline.mdc
-│   ├── prompt_coaching.mdc
-│   ├── python_ml.mdc
-│   ├── research_standards.mdc
-│   ├── security.mdc
-│   ├── testing.mdc
-│   └── verification.mdc
-└── skills/
-    ├── code-review/
-    ├── commit/
-    ├── data-science-analysis/
-    ├── experiment-workflow/
-    ├── iac-templates/
-    ├── project-scaffolding/
-    ├── spec-driven-dev/
-    ├── sprint-planning/
-    └── sus-deep-dive/
+```bash
+scripts/hooks-profile.sh lean     # no harness enforcement
+scripts/hooks-profile.sh full     # full enforcement
+scripts/hooks-profile.sh status   # show current
 ```
 
-## How It Works
+## Harness Workflow (`.harness/`)
 
-**Rules** are loaded automatically based on their frontmatter:
-- `alwaysApply: true` — active on every task
-- `globs: "*.py"` — active when working on matching files
-- `description: "keywords"` — loaded when the agent detects relevance
+The adversarial harness is a structured build/verify cycle:
 
-**Skills** are loaded when the user's request matches the skill's `description` keywords. Skills with `disable-model-invocation: true` must be explicitly invoked.
+1. **Plan** — `/planner` decomposes work into spec + features
+2. **Negotiate** — Builder proposes contract, evaluator challenges
+3. **Build** — Implement one feature at a time
+4. **Verify** — `/evaluator` tests against contract with evidence
+5. **Commit** — Only after evaluator passes
+
+State lives in `.harness/` (git-tracked):
+- `state.json` — feature list with statuses
+- `contract.json` — negotiated acceptance criteria
+- `breadcrumbs.jsonl` — append-only decision trace
+- `evals/` — evaluator reports (quality evidence)
+- `audits/` — rubric audit results
 
 ## Eval Pipeline (`tests/eval/`)
 
-Behavioral testing framework that verifies rules and skills actually change agent behavior.
-
-### Quick Start
+Behavioral testing that verifies rules actually change agent behavior.
 
 ```bash
 pip install -r tests/eval/requirements.txt
-export CURSOR_API_KEY="cursor_..."      # for automated capture
-export OPENAI_API_KEY="sk-..."          # for LLM-as-judge eval
+export CURSOR_API_KEY="cursor_..."
+export OPENAI_API_KEY="sk-..."
 
-make pipeline                           # validate → capture → eval
+python tests/eval/auto_capture.py --dry-run    # preview
+python tests/eval/auto_capture.py              # capture responses
+python tests/eval/run_eval.py                  # judge with hybrid evaluator
 ```
 
-### Components
+| Component | Purpose |
+|-----------|---------|
+| `dataset.yaml` | 87 test cases with prompts and rubrics |
+| `auto_capture.py` | SDK-based capture with context injection |
+| `hybrid_judge.py` | Structural checks (Tier 1) + LLM fallback (Tier 2) |
+| `local_judge.py` | Orchestrates evaluation runs |
 
-| File | Purpose |
-|---|---|
-| `dataset.yaml` | 40 test cases with prompts, expected/anti-expected behaviors |
-| `auto_capture.py` | Automated response capture via Cursor SDK `Agent.prompt()` |
-| `capture.py` | Manual capture fallback (paste responses into `.md` files) |
-| `run_eval.py` | LLM-as-judge evaluator (OpenAI or Anthropic) |
+## Sync (`sync-cursor.sh`)
 
-### Makefile Targets
+Distributes `library/cursor/` content to all projects under `~/redhat`:
 
-| Target | Description |
-|---|---|
-| `make validate` | Check rules/skills against authoring standards |
-| `make capture` | Capture responses via Cursor SDK (skips existing) |
-| `make eval` | Run LLM-as-judge on captured responses |
-| `make pipeline` | Full pipeline: validate, capture, eval |
-| `make compare` | Compare response availability across models |
-| `make status` | Show capture progress |
-| `make dry-run` | Preview what would be captured/evaluated |
+```bash
+./sync-cursor.sh              # interactive sync
+./sync-cursor.sh --dry-run    # preview changes
+./sync-cursor.sh --yes        # skip confirmation
+```
 
-Use `MODEL=auto make capture` to capture with a different model. Responses are stored in `responses/<model>/` for side-by-side comparison.
+**Per-project** (`.cursor/`): rules, references, hooks (scripts + full hooks.json)
+**Global** (`~/.cursor/`): agents, skills
 
-## Adding New Rules or Skills
+## Authoring Standards
 
-Follow the conventions in `RULES_STANDARD.md` and `SKILLS_STANDARD.md`. Key principles:
-
-- Rules are passive constraints (under 200 lines). Skills are procedural workflows (under 300 lines).
-- Rules say "always do X". Skills say "when asked to do Y, follow these steps".
-- Reference shared knowledge in `references/` instead of duplicating it.
-- Every rule needs valid frontmatter. Every skill needs `name`, `description`, and `disable-model-invocation`.
+- [`RULES_STANDARD.md`](RULES_STANDARD.md) — how to write `.mdc` rules
+- [`SKILLS_STANDARD.md`](SKILLS_STANDARD.md) — how to write `SKILL.md` skills

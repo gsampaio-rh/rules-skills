@@ -2,7 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE_CURSOR="$SCRIPT_DIR/.cursor"
+SOURCE_CURSOR="$SCRIPT_DIR/library/cursor"
+HOOKS_FULL="$SCRIPT_DIR/.cursor/hooks.full.json"
 SEARCH_ROOT="$HOME/redhat"
 
 DRY_RUN=false
@@ -50,13 +51,33 @@ RESET="\033[0m"
 SOURCE_FILES_LIST="$TMPDIR_SYNC/source_files"
 find "$SOURCE_CURSOR" -type f \
     ! -name '.DS_Store' \
-    ! -path '*/plans/*' \
-    ! -path '*/harness/*' \
     ! -path '*/agents/*' \
     ! -path '*/skills/*' \
-    ! -name 'breadcrumbs.jsonl' \
-    ! -name 'hooks.log' \
+    ! -name '.evaluator-active' \
+    ! -name '.commit-approved' \
     | sort > "$SOURCE_FILES_LIST"
+
+# Add hooks.full.json as the hooks.json for targets (full enforcement)
+echo "$HOOKS_FULL" >> "$SOURCE_FILES_LIST"
+
+resolve_target_path() {
+    local src_file="$1"
+    local target_cursor="$2"
+    if [[ "$src_file" == "$HOOKS_FULL" ]]; then
+        echo "$target_cursor/hooks.json"
+    else
+        echo "$target_cursor/${src_file#$SOURCE_CURSOR/}"
+    fi
+}
+
+resolve_rel_path() {
+    local src_file="$1"
+    if [[ "$src_file" == "$HOOKS_FULL" ]]; then
+        echo "hooks.json (full enforcement)"
+    else
+        echo "${src_file#$SOURCE_CURSOR/}"
+    fi
+}
 
 compare_project() {
     local rel="$1"
@@ -68,8 +89,10 @@ compare_project() {
     local changed_files=""
 
     while IFS= read -r src_file; do
-        local rel_file="${src_file#$SOURCE_CURSOR/}"
-        local target_file="$target_cursor/$rel_file"
+        local target_file
+        target_file="$(resolve_target_path "$src_file" "$target_cursor")"
+        local rel_file
+        rel_file="$(resolve_rel_path "$src_file")"
 
         if [[ ! -f "$target_file" ]]; then
             new_count=$((new_count + 1))
@@ -90,10 +113,14 @@ compare_project() {
 sync_project() {
     local rel="$1"
     local target_cursor="$SEARCH_ROOT/$rel/.cursor"
+    local target_harness="$SEARCH_ROOT/$rel/.harness"
+
+    # Ensure .harness/ directory exists in target
+    mkdir -p "$target_harness/evals" "$target_harness/audits"
 
     while IFS= read -r src_file; do
-        local rel_file="${src_file#$SOURCE_CURSOR/}"
-        local target_file="$target_cursor/$rel_file"
+        local target_file
+        target_file="$(resolve_target_path "$src_file" "$target_cursor")"
 
         if [[ ! -f "$target_file" ]] || ! diff -q "$src_file" "$target_file" > /dev/null 2>&1; then
             mkdir -p "$(dirname "$target_file")"

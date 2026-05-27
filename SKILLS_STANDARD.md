@@ -19,11 +19,17 @@ disable-model-invocation: false     # true for dangerous ops (deploy, commit, de
 ## Directory Structure
 
 ```
-.cursor/skills/<skill-name>/
+library/cursor/skills/<skill-name>/
 ├── SKILL.md           # Under 10KB — workflow, decisions, actions
 ├── references/        # Deep knowledge, loaded on demand (optional)
 └── templates/         # User-fillable templates (optional)
 ```
+
+Cursor accesses skills via symlink: `.cursor/skills/` → `library/cursor/skills/`.
+
+Skills that reference harness state use `.harness/` paths (e.g., `.harness/breadcrumbs.jsonl`, `.harness/contract.json`).
+
+For Claude Code distribution, mirror skills in `library/claude/skills/` with adapted paths.
 
 ## SKILL.md Structure
 

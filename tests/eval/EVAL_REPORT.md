@@ -258,7 +258,7 @@ The `local_judge.py` scores via keyword matching (e.g., "found 0/5 key terms"). 
 
 Many eval criteria test behaviors that only manifest through tool calls in a real interactive session:
 - "Creates a TodoWrite plan" → requires the `TodoWrite` tool
-- "Appends breadcrumbs to `.cursor/breadcrumbs.jsonl`" → requires file writes
+- "Appends breadcrumbs to `.harness/breadcrumbs.jsonl`" → requires file writes
 - "Launches the planner" → requires subagent invocation
 - "Asks before committing" → requires a multi-turn interaction
 

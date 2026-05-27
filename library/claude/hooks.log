@@ -1,0 +1,88 @@
+[2026-05-26T20:15:07] verify-harness: triggered
+[2026-05-26T20:15:07] enforce-progress: triggered
+[2026-05-26T20:15:08] verify-harness: no contract, skipping
+[2026-05-26T20:15:08] enforce-progress: 2 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-26T20:15:38] enforce-progress: triggered
+[2026-05-26T20:15:38] verify-harness: triggered
+[2026-05-26T20:15:39] verify-harness: no contract, skipping
+[2026-05-26T20:15:39] enforce-progress: 2 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:03:22] enforce-progress: triggered
+[2026-05-27T11:03:22] verify-harness: triggered
+[2026-05-27T11:03:23] verify-harness: no contract, skipping
+[2026-05-27T11:03:23] enforce-progress: 2 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:03:37] verify-harness: triggered
+[2026-05-27T11:03:37] enforce-progress: triggered
+[2026-05-27T11:03:38] verify-harness: no contract, skipping
+[2026-05-27T11:03:38] enforce-progress: 2 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:04:26] enforce-progress: triggered
+[2026-05-27T11:04:26] verify-harness: triggered
+[2026-05-27T11:04:26] verify-harness: no contract, skipping
+[2026-05-27T11:04:27] enforce-progress: 2 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:04:40] verify-harness: triggered
+[2026-05-27T11:04:40] enforce-progress: triggered
+[2026-05-27T11:04:40] verify-harness: no contract, skipping
+[2026-05-27T11:04:40] enforce-progress: 1 files changed, below threshold
+[2026-05-27T11:04:40] harness-context: triggered
+[2026-05-27T11:04:40] harness-context: no harness state, skipping
+[2026-05-27T11:05:34] verify-harness: triggered
+[2026-05-27T11:05:34] enforce-progress: triggered
+[2026-05-27T11:05:35] verify-harness: no contract, skipping
+[2026-05-27T11:05:35] enforce-progress: passed (2 files, breadcrumbs fresh)
+[2026-05-27T11:07:13] verify-harness: triggered
+[2026-05-27T11:07:13] enforce-progress: triggered
+[2026-05-27T11:07:14] verify-harness: no contract, skipping
+[2026-05-27T11:07:14] enforce-progress: passed (2 files, breadcrumbs fresh)
+[2026-05-27T11:12:25] harness-context: triggered
+[2026-05-27T11:12:25] harness-context: no harness state, skipping
+[2026-05-27T11:12:26] enforce-progress: triggered
+[2026-05-27T11:12:26] verify-harness: triggered
+[2026-05-27T11:12:26] verify-harness: no contract, skipping
+[2026-05-27T11:12:26] enforce-progress: passed (2 files, breadcrumbs fresh)
+[2026-05-27T11:12:57] enforce-progress: triggered
+[2026-05-27T11:12:57] verify-harness: triggered
+[2026-05-27T11:12:58] verify-harness: no contract, skipping
+[2026-05-27T11:12:58] enforce-progress: passed (2 files, breadcrumbs fresh)
+[2026-05-27T11:26:53] verify-harness: triggered
+[2026-05-27T11:26:53] enforce-progress: triggered
+[2026-05-27T11:26:54] verify-harness: no contract, skipping
+[2026-05-27T11:26:54] enforce-progress: 14 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:27:36] enforce-progress: triggered
+[2026-05-27T11:27:36] verify-harness: triggered
+[2026-05-27T11:27:37] verify-harness: no contract, skipping
+[2026-05-27T11:27:37] enforce-progress: 14 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:28:25] verify-harness: triggered
+[2026-05-27T11:28:25] enforce-progress: triggered
+[2026-05-27T11:28:26] verify-harness: no contract, skipping
+[2026-05-27T11:28:26] enforce-progress: 14 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:35:19] verify-harness: triggered
+[2026-05-27T11:35:19] enforce-progress: triggered
+[2026-05-27T11:35:19] verify-harness: no contract, skipping
+[2026-05-27T11:35:19] enforce-progress: 17 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:36:23] subagent-gate: triggered
+[2026-05-27T11:36:24] subagent-gate: no harness state, skipping
+[2026-05-27T11:36:24] subagent-gate: triggered
+[2026-05-27T11:36:24] subagent-gate: no harness state, skipping
+[2026-05-27T11:36:54] subagent-gate: triggered
+[2026-05-27T11:36:55] subagent-gate: no harness state, skipping
+[2026-05-27T11:36:55] subagent-gate: triggered
+[2026-05-27T11:36:55] subagent-gate: no harness state, skipping
+[2026-05-27T11:40:17] enforce-progress: triggered
+[2026-05-27T11:40:17] verify-harness: triggered
+[2026-05-27T11:40:17] verify-harness: no contract, skipping
+[2026-05-27T11:40:17] enforce-progress: 17 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:45:04] verify-harness: triggered
+[2026-05-27T11:45:04] enforce-progress: triggered
+[2026-05-27T11:45:04] verify-harness: no contract, skipping
+[2026-05-27T11:45:04] enforce-progress: 17 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:46:35] subagent-gate: triggered
+[2026-05-27T11:46:35] subagent-gate: no harness state, skipping
+[2026-05-27T11:46:36] subagent-gate: triggered
+[2026-05-27T11:46:36] subagent-gate: no harness state, skipping
+[2026-05-27T11:46:46] enforce-progress: triggered
+[2026-05-27T11:46:46] verify-harness: triggered
+[2026-05-27T11:46:47] verify-harness: no contract, skipping
+[2026-05-27T11:46:47] enforce-progress: 17 files, no fresh breadcrumbs — breadcrumbs required
+[2026-05-27T11:56:18] enforce-progress: triggered
+[2026-05-27T11:56:18] verify-harness: triggered
+[2026-05-27T11:56:19] verify-harness: no contract, skipping
+[2026-05-27T11:56:19] enforce-progress: 17 files, no fresh breadcrumbs — breadcrumbs required

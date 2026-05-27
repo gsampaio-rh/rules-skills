@@ -1,0 +1,177 @@
+{
+  "domain": "code-quality",
+  "timestamp": "2026-05-26T12:00:00Z",
+  "scope": ["src/", "tests/"],
+  "language": "python",
+  "metrics": {
+    "total_functions": 77,
+    "functions_over_30_lines": 14,
+    "functions_over_50_lines": 6,
+    "max_complexity": 26,
+    "max_complexity_location": "tests/eval/report.py:generate_report",
+    "max_nesting_depth": 5,
+    "max_nesting_location": "tests/eval/run_eval.py:print_report",
+    "files_over_200_lines": 4,
+    "files_over_300_lines": 0,
+    "type_coverage_percent": 100
+  },
+  "overall_score": "C",
+  "summary": "Core auth modules (src/) are small, typed, and well-tested, but the eval harness duplicates utilities across files, contains god functions, and mixes transport concerns with domain logic. Two broad except Exception handlers and duplicated JWT signing weaken maintainability.",
+  "criteria_results": [
+    {
+      "id": "srp-functions",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "tests/eval/report.py:generate_report (163 lines) builds summary, histogram, category/difficulty tables, regressions, clusters, recommendations, and failure details in one function. tests/eval/run_eval.py:print_report (87 lines) duplicates overlapping reporting responsibilities.",
+      "fix_suggestion": "Extract report sections into focused builders (SummarySection, CategoryTable, FailureDetails) and compose them in generate_report."
+    },
+    {
+      "id": "srp-classes",
+      "result": "NOT_APPLICABLE",
+      "severity": "high",
+      "evidence": "src/ has no classes. Eval dataclasses (JudgeResult, CriterionResult) are cohesive.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "ocp-extension",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "tests/eval/judge.py:call_llm uses if/elif for two providers — acceptable at current scale. No growing switch chains in src/.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "lsp-substitution",
+      "result": "NOT_APPLICABLE",
+      "severity": "medium",
+      "evidence": "No inheritance hierarchies in project source.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "isp-interfaces",
+      "result": "NOT_APPLICABLE",
+      "severity": "medium",
+      "evidence": "No Protocol/ABC interfaces defined.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "dip-abstractions",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "src/token_validation.py:11 imports private _b64url_decode/_b64url_encode and SECRET from src.auth. tests/eval/judge.py:call_llm directly instantiates OpenAI/Anthropic clients with no injectable abstraction.",
+      "fix_suggestion": "Extract jwt_utils.py with public encode/decode/sign helpers; inject secret via config. Introduce a JudgeClient protocol for LLM calls to enable testing without network."
+    },
+    {
+      "id": "function-size",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "6 functions exceed 50 lines: generate_report (163), print_report (87), auto_capture.main (70), generate_recommendations (55), check_regressions (55), capture.main (55). src/ functions all under 20 lines.",
+      "fix_suggestion": "Split generate_report and print_report into section helpers; keep CLI main() as thin orchestration."
+    },
+    {
+      "id": "file-size",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "4 files flagged over 200 lines (run_eval.py 242, judge.py 243, report.py 263, stats.py 227). None exceed 300-line fail threshold.",
+      "fix_suggestion": "Consider extracting shared eval utilities to reduce file size drift."
+    },
+    {
+      "id": "cyclomatic-complexity",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "generate_report has ~26 decision points (threshold 10). print_report and check_regressions also elevated.",
+      "fix_suggestion": "Decompose generate_report into pure functions per section; use early returns to flatten branching."
+    },
+    {
+      "id": "nesting-depth",
+      "result": "FAIL",
+      "severity": "medium",
+      "evidence": "print_report reaches 5 indentation levels (tests/eval/run_eval.py:215-221 nested loops over failures/criteria).",
+      "fix_suggestion": "Extract failure detail printing into a helper; use guard clauses at loop start."
+    },
+    {
+      "id": "naming-descriptive",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "Names are clear throughout (verify_token, hash_password, cluster_failures). No ambiguous single-letter identifiers outside loop counters.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "naming-consistent",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "Consistent load_* / show_* / generate_* conventions in eval tooling.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "dry-no-duplication",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "load_dataset() duplicated in run_eval.py, capture.py, auto_capture.py. filter_dataset duplicated in run_eval.py and auto_capture.py. load_baseline/load_latest_run duplicated in report.py and stats.py. JWT HMAC signing duplicated in auth.create_token and token_validation.verify_token. Reporting logic duplicated between run_eval.print_report and report.generate_report.",
+      "fix_suggestion": "Create tests/eval/common.py with shared dataset/response/history loaders; extract jwt signing to shared helper."
+    },
+    {
+      "id": "dry-single-source-of-truth",
+      "result": "FAIL",
+      "severity": "medium",
+      "evidence": "REGRESSION_THRESHOLD=0.10 in stats.py but inline -0.10 in report.py:251. EVAL_DIR/HISTORY_DIR path constants repeated across 5 eval files. SECRET hardcoded in src/auth.py:13.",
+      "fix_suggestion": "Centralize paths and thresholds in eval/config.py; load SECRET from environment with dev default."
+    },
+    {
+      "id": "coupling-low",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "token_validation depends on auth private symbols. Eval modules cross-copy logic instead of importing shared module, increasing cascade risk when response layout changes.",
+      "fix_suggestion": "Public jwt module boundary; single shared eval utilities module."
+    },
+    {
+      "id": "cohesion-high",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "src/auth.py and src/token_validation.py are focused. Eval files are cohesive per script purpose despite internal bloat.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "error-handling-explicit",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "except Exception in tests/eval/judge.py:301 and tests/eval/auto_capture.py:154. src/token_validation.py correctly catches (ValueError, KeyError, json.JSONDecodeError).",
+      "fix_suggestion": "Catch specific LLM/network/JSON errors in judge; log and re-raise unexpected errors in auto_capture."
+    },
+    {
+      "id": "error-handling-boundaries",
+      "result": "FAIL",
+      "severity": "medium",
+      "evidence": "verify_token returns HTTP status tuples (401/200) mixing validation with transport layer (src/token_validation.py:27-43).",
+      "fix_suggestion": "Return domain result (ValidToken | InvalidToken); map to HTTP at API boundary."
+    },
+    {
+      "id": "type-safety",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "100% type coverage on public functions in src/ and tests/. TypedDict used for token bodies. dict[str, Any] only on parsed JWT payload (justified).",
+      "fix_suggestion": null
+    },
+    {
+      "id": "test-coverage-critical",
+      "result": "PASS",
+      "severity": "high",
+      "evidence": "tests/test_auth.py covers valid token, expired token, invalid token, and password hash round-trip (4 tests, multiple edge cases for auth critical paths).",
+      "fix_suggestion": "Add tests for signature tampering and missing sub claim in verify_token."
+    }
+  ],
+  "score_breakdown": {
+    "high_pass": 2,
+    "high_fail": 6,
+    "medium_pass": 4,
+    "medium_fail": 4,
+    "low_pass": 0,
+    "low_fail": 0
+  },
+  "top_recommendations": [
+    "Extract tests/eval/common.py to deduplicate load_dataset, filter_dataset, load_baseline, and response discovery",
+    "Split generate_report (163 lines, complexity 26) into composable section functions",
+    "Create src/jwt_crypto.py with shared signing/verification; stop importing private _b64url_* from auth",
+    "Replace except Exception with specific error types in judge.py and auto_capture.py",
+    "Decouple verify_token from HTTP status codes — return typed domain results instead"
+  ]
+}

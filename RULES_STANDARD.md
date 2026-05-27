@@ -1,6 +1,6 @@
 # Rules Authoring Standard
 
-Internal quality contract for every `.mdc` file in `.cursor/rules/`. Not loaded by the agent.
+Internal quality contract for every `.mdc` file in `library/cursor/rules/`. Not loaded by the agent.
 
 ## Frontmatter Contract
 
@@ -64,7 +64,21 @@ alwaysApply: <true/false>
 - Reference files, don't copy their contents (prevents staleness)
 - Don't duplicate what linters already enforce
 - Each section must have at least one concrete, actionable instruction
-- Point to `.cursor/references/` for deep knowledge when appropriate
+- Point to `references/` for deep knowledge when appropriate (resolves to `library/cursor/references/` via symlink)
+
+## Harness State References
+
+Rules that reference harness state use `.harness/` (project root), not `.cursor/harness/`:
+- `.harness/state.json` — feature list
+- `.harness/contract.json` — active contract
+- `.harness/breadcrumbs.jsonl` — decision trace
+
+If a rule references harness state, scope it with `globs` targeting implementation code so it doesn't fire when editing the rule itself:
+
+```yaml
+globs: "src/**,app/**,lib/**,backend/**,frontend/**,services/**"
+alwaysApply: false
+```
 
 ## Anti-Patterns
 

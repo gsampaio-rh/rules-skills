@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/dedup-server.sh",
+        "matcher": "npm|yarn|pnpm|vite|next|flask|uvicorn|gunicorn|cargo run|go run|python.*http",
+        "timeout": 5
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/enforce-progress.sh",
+        "timeout": 5,
+        "loop_limit": 2
+      },
+      {
+        "command": ".cursor/hooks/context-health.sh",
+        "timeout": 5,
+        "loop_limit": 1
+      }
+    ]
+  }
+}

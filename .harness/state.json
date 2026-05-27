@@ -1,0 +1,13 @@
+{
+  "project": "multi-tenant-billing",
+  "created": "2026-05-26T16:59:32Z",
+  "spec": "Multi-tenant billing platform with usage metering, invoice generation, Stripe payments, and admin dashboard",
+  "features": [
+    { "id": "feat-1", "name": "Multi-Tenant Identity and Tenancy Foundation", "status": "pending" },
+    { "id": "feat-2", "name": "Usage Tracking and Metering", "status": "pending" },
+    { "id": "feat-3", "name": "Invoice Generation", "status": "pending" },
+    { "id": "feat-4", "name": "Stripe Payment Processing", "status": "pending" },
+    { "id": "feat-5", "name": "Admin Dashboard", "status": "pending" },
+    { "id": "feat-profile", "name": "User Profile Settings", "status": "building" }
+  ]
+}
