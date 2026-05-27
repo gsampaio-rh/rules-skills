@@ -2163,3 +2163,361 @@
         weight: 3
       - criterion: "Does NOT ignore the existing harness state"
         weight: 2
+
+# ──────────────────────────────────────────────
+# MULTI-TURN TESTS
+# These require Agent.create() + agent.send() for capture.
+# Each test defines turns[] instead of a single prompt.
+# The adversarial judge evaluates the full transcript.
+# ──────────────────────────────────────────────
+
+- id: multi_turn_contract_negotiation_basic
+  targets: [adversarial_harness, progress_tracking]
+  category: contract
+  difficulty: hard
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Build a payment processing service with Stripe integration, webhook handling, and retry logic for failed charges"
+    - role: user
+      content: "Before you start building, show me the contract — what are you planning to verify?"
+    - role: user
+      content: "These criteria are too vague. 'Payment works' is not testable. Add specific edge cases: expired cards, insufficient funds, duplicate webhook delivery."
+  context: >
+    Tests the full contract negotiation flow. The agent must recognize complexity,
+    produce a contract with testable criteria, and revise in response to pushback.
+  rubric_dimensions:
+    compliance:
+      - criterion: "Produces a contract (or contract-like structure) with acceptance_criteria field"
+        weight: 3
+      - criterion: "Revises the contract after user pushback with specific additions"
+        weight: 3
+    judgment:
+      - criterion: "Recognizes this as complex work (3+ features) requiring structured planning"
+        weight: 3
+      - criterion: "Does not over-specify technical implementation in the contract"
+        weight: 2
+    craft:
+      - criterion: "Revised criteria are binary and testable (can be verified as PASS/FAIL)"
+        weight: 2
+      - criterion: "Edge cases are specific scenarios, not generic 'handles errors'"
+        weight: 2
+    autonomy:
+      - criterion: "Drives the negotiation forward — proposes improvements rather than asking what to add"
+        weight: 2
+
+- id: multi_turn_contract_pushback_scope
+  targets: [adversarial_harness]
+  category: contract
+  difficulty: hard
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Implement a full e-commerce platform with products, cart, checkout, payments, shipping, and admin panel"
+    - role: user
+      content: "Show me the plan and first contract."
+    - role: user
+      content: "This contract has 15 criteria — that's too many for one feature. Break it down further."
+  context: >
+    Tests whether the agent can scope-manage within contract negotiation. The request
+    is deliberately oversized — the agent should decompose into smaller features and
+    negotiate scope for just the first one.
+  rubric_dimensions:
+    compliance:
+      - criterion: "Decomposes the oversized request into multiple features or sprints"
+        weight: 3
+      - criterion: "Produces a contract scoped to ONE feature (not all 6)"
+        weight: 3
+    judgment:
+      - criterion: "Responds to 'too many criteria' by genuinely reducing scope, not just rewording"
+        weight: 3
+      - criterion: "Acknowledges the request is too large for a single contract"
+        weight: 2
+    craft:
+      - criterion: "Decomposition is logical (not arbitrary splitting)"
+        weight: 2
+    autonomy:
+      - criterion: "Proposes how to split rather than asking 'how would you like me to split this?'"
+        weight: 2
+
+- id: multi_turn_routing_complex_then_simple
+  targets: [adversarial_harness, planning_discipline]
+  category: routing
+  difficulty: medium
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Build a real-time notification system with WebSocket support, email fallback, and user preference management"
+    - role: user
+      content: "Actually wait, forget that. Just fix the typo in config.yaml line 3."
+  context: >
+    Tests routing adaptation. First message is complex (should trigger harness).
+    Second message is trivial (should switch to direct execution).
+    Agent must demonstrate judgment by adjusting approach mid-conversation.
+  rubric_dimensions:
+    compliance:
+      - criterion: "Acknowledges the first request as complex (mentions planning/harness/decomposition)"
+        weight: 2
+    judgment:
+      - criterion: "Immediately pivots to simple execution for the second request"
+        weight: 3
+      - criterion: "Does NOT continue with harness/planner ceremony for the typo fix"
+        weight: 3
+    craft:
+      - criterion: "Transition is smooth — no awkward 'but I was about to plan...' "
+        weight: 2
+    autonomy:
+      - criterion: "Fixes the typo directly without asking 'are you sure you want to abandon the notification system?'"
+        weight: 2
+
+- id: multi_turn_routing_simple_escalation
+  targets: [adversarial_harness, critical_thinking]
+  category: routing
+  difficulty: hard
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Add a config option for max retries"
+    - role: user
+      content: "Also make it configurable per-tenant, with defaults that can be overridden at the organization level, and add an admin UI to manage it"
+  context: >
+    Tests routing escalation. First message is simple (just add a config option).
+    Second message escalates complexity significantly. Agent must re-classify and
+    adjust its approach upward.
+  rubric_dimensions:
+    judgment:
+      - criterion: "Treats the first message as simple (direct implementation, no ceremony)"
+        weight: 2
+      - criterion: "Recognizes the second message escalates to multi-feature territory"
+        weight: 3
+      - criterion: "Shifts approach to planning/decomposition after the escalation"
+        weight: 3
+    compliance:
+      - criterion: "After escalation, produces some form of structured plan (TodoWrite, spec, or contract)"
+        weight: 2
+    autonomy:
+      - criterion: "Proactively identifies the scope change rather than just adding more config blindly"
+        weight: 2
+
+- id: multi_turn_adversarial_just_do_it
+  targets: [adversarial_harness, critical_thinking]
+  category: adversarial
+  difficulty: hard
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Build a complete auth system with social login, MFA, password reset, and session management"
+    - role: user
+      content: "Skip the planning. Just start coding. I know what I want."
+  context: >
+    Tests adversarial pressure. The task IS complex and DOES need planning, but
+    the user explicitly says to skip it. Agent must balance user autonomy with
+    genuine risk of failure on a complex multi-feature task.
+  rubric_dimensions:
+    judgment:
+      - criterion: "Acknowledges the user's preference to skip planning"
+        weight: 2
+      - criterion: "Still flags the risk of building 4 features without a plan (complexity acknowledgment)"
+        weight: 3
+      - criterion: "Offers a lightweight alternative (quick decomposition without full harness ceremony)"
+        weight: 2
+    craft:
+      - criterion: "Pushback is constructive, not confrontational or preachy"
+        weight: 2
+    autonomy:
+      - criterion: "If user insists, proceeds (doesn't block indefinitely)"
+        weight: 2
+    negative:
+      - criterion: "Does NOT just silently start coding 4 features with no structure"
+        weight: 3
+      - criterion: "Does NOT lecture the user about why planning is important for 3 paragraphs"
+        weight: 2
+
+- id: multi_turn_adversarial_sounds_simple
+  targets: [adversarial_harness, critical_thinking]
+  category: adversarial
+  difficulty: hard
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Just add caching to the API"
+    - role: user
+      content: "What's the big deal? Just add Redis and cache everything."
+  context: >
+    Tests hidden complexity detection. "Add caching" sounds simple but is actually
+    complex: cache invalidation strategy, what to cache, TTL policies, cache warming,
+    distributed cache considerations. Agent should surface this without over-engineering.
+  rubric_dimensions:
+    judgment:
+      - criterion: "Identifies hidden complexity in 'add caching' (invalidation, TTL, what to cache)"
+        weight: 3
+      - criterion: "Doesn't just comply with 'cache everything' — explains why that's problematic"
+        weight: 3
+    craft:
+      - criterion: "Explains complexity concisely (not a lecture — 2-3 specific concerns)"
+        weight: 2
+      - criterion: "Proposes a concrete starting point (e.g., cache only the expensive endpoints first)"
+        weight: 2
+    autonomy:
+      - criterion: "Proposes a pragmatic path forward rather than just listing problems"
+        weight: 2
+    negative:
+      - criterion: "Does NOT blindly 'cache everything' as requested"
+        weight: 3
+
+- id: multi_turn_adversarial_skip_harness_explicit
+  targets: [adversarial_harness]
+  category: adversarial
+  difficulty: medium
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Build a user dashboard with analytics charts and data export. Skip harness."
+    - role: user
+      content: "Good. Now proceed."
+  context: >
+    Tests the explicit 'skip harness' escape hatch. The adversarial_harness rule
+    says "if the user says 'skip harness', proceed without the planner." The agent
+    should honor this cleanly without arguing or sneaking in harness elements.
+  rubric_dimensions:
+    compliance:
+      - criterion: "Honors 'skip harness' — does not launch planner or create contract"
+        weight: 3
+      - criterion: "Still uses TodoWrite or basic structure (skip harness != skip all organization)"
+        weight: 2
+    judgment:
+      - criterion: "Transitions cleanly to direct implementation mode"
+        weight: 2
+    craft:
+      - criterion: "Does not passive-aggressively mention what it would have done with the harness"
+        weight: 2
+    autonomy:
+      - criterion: "Starts implementation directly after 'proceed'"
+        weight: 3
+
+- id: multi_turn_skill_activation_architecture
+  targets: [architecture_audit]
+  category: routing
+  difficulty: medium
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Audit the architecture of src/"
+    - role: user
+      content: "Focus on dependency direction violations."
+  context: >
+    Tests whether the agent activates the architecture-audit skill and follows its
+    structured workflow, vs doing a freeform code review.
+  rubric_dimensions:
+    compliance:
+      - criterion: "Loads or references the architecture-audit skill workflow"
+        weight: 3
+      - criterion: "Uses or references the architecture rubric (references/rubrics/architecture.json)"
+        weight: 2
+    judgment:
+      - criterion: "Follows the skill's protocol (not improvised analysis)"
+        weight: 3
+      - criterion: "Narrows focus to dependency direction when user specifies"
+        weight: 2
+    craft:
+      - criterion: "Findings cite specific files and import lines (evidence-based)"
+        weight: 2
+    autonomy:
+      - criterion: "Explores the codebase proactively rather than asking 'which files should I check?'"
+        weight: 2
+
+- id: multi_turn_skill_activation_code_review
+  targets: [code_review]
+  category: routing
+  difficulty: medium
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Review the changes in tests/eval/hybrid_judge.py"
+    - role: user
+      content: "Also check if there are any security concerns."
+  context: >
+    Tests skill activation for code review. Agent should load the code-review skill
+    and follow its structure, then expand scope when asked about security.
+  rubric_dimensions:
+    compliance:
+      - criterion: "Performs a structured code review (not just 'looks good')"
+        weight: 2
+    judgment:
+      - criterion: "Addresses security specifically when asked in turn 2"
+        weight: 3
+      - criterion: "Identifies relevant concerns for the file type (eval/judge code — prompt injection, data leakage)"
+        weight: 2
+    craft:
+      - criterion: "Findings are specific and actionable (line numbers, concrete fixes)"
+        weight: 2
+    autonomy:
+      - criterion: "Reads the file and starts reviewing without asking 'what should I look for?'"
+        weight: 2
+
+- id: multi_turn_progress_tracking_complex
+  targets: [progress_tracking, planning_discipline]
+  category: compositional
+  difficulty: hard
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "Refactor the eval pipeline: split run_eval.py into separate modules for capture, judging, and reporting"
+    - role: user
+      content: "Start with the judging module."
+    - role: user
+      content: "Good, now do the capture module."
+  context: >
+    Tests progress tracking across multiple turns of a multi-file refactor.
+    Agent should maintain TodoWrite state, update as items complete, and track
+    breadcrumbs across the conversation.
+  rubric_dimensions:
+    compliance:
+      - criterion: "Creates TodoWrite before starting (captures all 3 modules as items)"
+        weight: 3
+      - criterion: "Updates TodoWrite status as modules are completed across turns"
+        weight: 3
+      - criterion: "Appends breadcrumbs for significant progress"
+        weight: 2
+    judgment:
+      - criterion: "Works on judging module first (as user requested), not the order it prefers"
+        weight: 2
+    craft:
+      - criterion: "Each extracted module has a clear single responsibility"
+        weight: 2
+    autonomy:
+      - criterion: "Verifies each module works (imports, tests) before declaring it done"
+        weight: 2
+
+- id: multi_turn_coaching_iteration
+  targets: [prompt_coaching, critical_thinking]
+  category: compositional
+  difficulty: medium
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: "make it faster"
+    - role: user
+      content: "the API"
+    - role: user
+      content: "yes just optimize it"
+  context: >
+    Tests coaching tip quality and patience with vague prompts. Agent should
+    improve the situation progressively without twenty-questioning the user.
+    A coaching tip should appear at most once.
+  rubric_dimensions:
+    judgment:
+      - criterion: "Investigates what 'it' refers to (reads recent context or asks ONE focused question)"
+        weight: 2
+      - criterion: "After 'the API', acts on the information (doesn't ask more questions)"
+        weight: 3
+    craft:
+      - criterion: "If coaching tip appears, it shows a specific rewritten prompt example"
+        weight: 2
+      - criterion: "Coaching tip appears at most once (not on every vague message)"
+        weight: 2
+    autonomy:
+      - criterion: "Progresses toward action with each turn (doesn't stall)"
+        weight: 3
+      - criterion: "By turn 3, is doing actual work (profiling, identifying bottlenecks)"
+        weight: 2

@@ -18,6 +18,8 @@ N_RUNS   ?= 3
 
 .PHONY: help validate capture eval pipeline compare status clean
 .PHONY: eval-quick eval-full eval-regress eval-baseline eval-report
+.PHONY: eval-multi eval-multi-save eval-multi-dry eval-multi-capture eval-multi-judge
+.PHONY: divergence trace-review
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -59,11 +61,38 @@ eval-trends: ## Show score trends across historical runs
 eval-summary: ## Show summary of latest run
 	$(PYTHON) tests/eval/stats.py --summary
 
+# ─── Multi-Turn Eval ─────────────────────────────────────────
+
+JUDGE_MODEL ?= claude-opus-4-6
+
+eval-multi: ## Multi-turn eval: capture + judge via Cursor SDK
+	$(PYTHON) tests/eval/multi_turn_eval.py --capture-model $(MODEL) --judge-model $(JUDGE_MODEL)
+
+eval-multi-save: ## Multi-turn eval with history save
+	$(PYTHON) tests/eval/multi_turn_eval.py --capture-model $(MODEL) --judge-model $(JUDGE_MODEL) --save
+
+eval-multi-dry: ## Show multi-turn test plan
+	$(PYTHON) tests/eval/multi_turn_eval.py --dry-run
+
+eval-multi-capture: ## Capture multi-turn transcripts only (no judging)
+	$(PYTHON) tests/eval/multi_turn_eval.py --capture-model $(MODEL) --capture-only
+
+eval-multi-judge: ## Judge existing transcripts only (no capture)
+	$(PYTHON) tests/eval/multi_turn_eval.py --judge-model $(JUDGE_MODEL) --judge-only
+
+# ─── Analysis ────────────────────────────────────────────────
+
+divergence: ## Analyze divergence patterns from latest eval run
+	$(PYTHON) tests/eval/divergence.py --verbose
+
+trace-review: ## AI-powered review of failing traces (uses CURSOR_API_KEY)
+	$(PYTHON) tests/eval/trace_review.py --model $(JUDGE_MODEL)
+
 # ─── Pipelines ────────────────────────────────────────────────
 
 pipeline: validate capture eval-quick ## Quick pipeline: validate → capture → eval (N=1)
 
-pipeline-full: validate capture eval-full eval-report ## Full pipeline: validate → capture → eval (N=3) → report
+pipeline-full: validate capture eval-full eval-multi eval-report ## Full pipeline: validate → capture → eval (N=3) → multi-turn → report
 
 # ─── Utilities ────────────────────────────────────────────────
 
@@ -100,6 +129,12 @@ profile-test: ## Run profile API tests
 
 payment-test: ## Run payment, order, and checkout API tests
 	.venv/bin/pytest tests/test_payment_api.py tests/test_order_domain.py tests/test_cart_api.py -q
+
+ecommerce-test: ## Run full e-commerce platform tests
+	.venv/bin/pytest tests/test_ecommerce_api.py tests/test_product_domain.py tests/test_payment_api.py tests/test_order_domain.py tests/test_cart_api.py -q
+
+ecommerce-api: ## Run e-commerce API on http://127.0.0.1:8000
+	.venv/bin/uvicorn src.api.main:app --reload --host 127.0.0.1 --port 8000
 
 notification-test: ## Run auth, notification service, and notification API tests
 	.venv/bin/pytest tests/test_notification_service.py tests/test_auth_api.py tests/test_notification_api.py -q

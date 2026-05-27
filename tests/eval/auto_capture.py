@@ -31,36 +31,11 @@ import sys
 import time
 from pathlib import Path
 
-import yaml
+from capture import has_response, save_response
+from common import filter_dataset, load_dataset
 
 EVAL_DIR = Path(__file__).parent
-DATASET_PATH = EVAL_DIR / "dataset.yaml"
 REPO_ROOT = EVAL_DIR.parent.parent
-
-
-def load_dataset() -> list[dict]:
-    with open(DATASET_PATH) as f:
-        return yaml.safe_load(f)
-
-
-def responses_dir(model: str) -> Path:
-    return EVAL_DIR / "responses" / model
-
-
-def has_response(test_id: str, model: str) -> bool:
-    path = responses_dir(model) / f"{test_id}.md"
-    if not path.exists():
-        return False
-    text = path.read_text().strip()
-    return bool(text) and not text.startswith("<!-- Response for:")
-
-
-def save_response(test_id: str, model: str, response: str) -> Path:
-    out_dir = responses_dir(model)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{test_id}.md"
-    path.write_text(response)
-    return path
 
 
 # ─── Context Injection ────────────────────────────────────────────────────────
@@ -212,29 +187,22 @@ def build_injected_prompt(test_case: dict, inject_context: bool) -> str:
 def capture_one(prompt: str, model: str, api_key: str) -> str:
     from cursor_sdk import Agent, AgentOptions, LocalAgentOptions
 
-    result = Agent.prompt(
-        prompt,
-        AgentOptions(
-            api_key=api_key,
-            model=model,
-            local=LocalAgentOptions(cwd=str(REPO_ROOT)),
-        ),
-    )
+    from sandbox import CaptureWorkspace
+
+    with CaptureWorkspace() as ws:
+        result = Agent.prompt(
+            prompt,
+            AgentOptions(
+                api_key=api_key,
+                model=model,
+                local=LocalAgentOptions(cwd=str(ws.path)),
+            ),
+        )
 
     if result.status == "error":
         raise RuntimeError(f"Agent run failed (id={result.id}): status={result.status}")
 
     return result.result or ""
-
-
-def filter_dataset(dataset: list[dict], pattern: str) -> list[dict]:
-    f = pattern.lower()
-    return [
-        t for t in dataset
-        if f in t["id"].lower()
-        or f in t.get("category", "").lower()
-        or any(f in tgt.lower() for tgt in t.get("targets", []))
-    ]
 
 
 def show_status(dataset: list[dict], model: str) -> None:

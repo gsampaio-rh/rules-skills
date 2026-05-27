@@ -1,6 +1,12 @@
 {
   "version": 1,
   "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/harness-context.sh",
+        "timeout": 5
+      }
+    ],
     "beforeShellExecution": [
       {
         "command": ".cursor/hooks/dedup-server.sh",

@@ -1,180 +1,170 @@
 # Eval Report
 
-**Generated**: 2026-05-27 12:32 UTC
-**Run**: 2026-05-27T12:32:00+00:00
+**Generated**: 2026-05-27 16:56 UTC
 **Model**: composer-2.5
-**Judge**: hybrid (structural only — 0 LLM calls)
-**Previous run**: 2026-05-26T20:12 (58.5%, 81 tests, local heuristic)
+**Judge**: claude-opus-4-6 (adversarial LLM judge via Cursor SDK)
+**Previous run**: 2026-05-27T12:32 (58.3%, 87 tests, structural-only hybrid judge)
 
-## Summary
+## Executive Summary
 
-| Metric | Value | Delta vs Previous |
+First multi-turn eval with an LLM adversarial judge. The rules/skills system scores **85.8%** on behavioral criteria when tested in realistic multi-turn conversations.
+
+| Metric | Multi-Turn (NEW) | Single-Turn (Previous) |
 |---|---|---|
-| Overall Score | **58.3%** | -0.2pp (noise) |
-| Tests Evaluated | 87 | +6 (hook_response) |
-| Tests Passed (≥80%) | 23/87 (26%) | +2 |
-| Judge mode | structural (no LLM fallback needed) | upgraded from keyword heuristic |
-| Structural checks | 87 resolved | — |
-| LLM fallback | 0 needed | — |
-| Inconclusive | 338 criteria | — |
+| Overall Score | **85.8%** | 58.3% |
+| Tests Passed (≥80%) | **9/11 (82%)** | 23/87 (26%) |
+| Judge | claude-opus-4-6 (adversarial) | hybrid structural (no LLM) |
+| Capture | SDK Agent.create + send (multi-turn) | SDK Agent.prompt (single-turn) |
+| Eval Time | ~45 min (33 min capture + 12 min judge) | ~5 min |
 
-## What Changed Since Last Run
+The +27.5pp jump is driven by two factors: (1) multi-turn conversations unlock workflow behaviors that single-turn can't test, and (2) an LLM judge resolves the 338 "inconclusive" criteria the structural checker was conservatively scoring as failures.
 
-| Change | Impact |
-|---|---|
-| Repo restructure: product moved to `library/cursor/`, `.cursor/` uses symlinks | No score impact (rules identical, just relocated) |
-| 6 new `hook_response` test cases added | 4/6 passed (81%) — best-performing new category |
-| Judge upgraded from `local_judge.py` (keyword) to `hybrid_judge.py` (structural patterns) | More accurate verdicts but similar scores |
-| `.harness/` paths fixed in `auto_capture.py` | Context injection now works correctly |
-| `hooks.full.json` separated from `.cursor/hooks.json` (lean) | No eval impact |
+## Multi-Turn Results
 
-## Score Distribution
+### All Tests
 
-```
-  0-20%    █ 1
-  20-40%   ██████████████████ 14
-  40-60%   ██████████████████████████████████████ 30
-  60-80%   ██████████████████████████ 20
-  80-100%  ████████████████████████████ 22
-```
+| # | Test | Score | Verdict | Category | Turns | Time |
+|---|---|---|---|---|---|---|
+| 1 | contract_negotiation_basic | **100%** | PASS | contract | 3 | 332.6s |
+| 2 | contract_pushback_scope | **80%** | PASS | contract | 3 | 257.6s |
+| 3 | routing_complex_then_simple | **83%** | PASS | routing | 2 | 301.0s |
+| 4 | routing_simple_escalation | **100%** | PASS | routing | 2 | 226.4s |
+| 5 | adversarial_just_do_it | **38%** | FAIL | adversarial | 2 | 119.1s |
+| 6 | adversarial_sounds_simple | **100%** | PASS | adversarial | 2 | 80.7s |
+| 7 | adversarial_skip_harness_explicit | **100%** | PASS | adversarial | 2 | 208.2s |
+| 8 | skill_activation_architecture | **100%** | PASS | routing | 2 | 118.6s |
+| 9 | skill_activation_code_review | **100%** | PASS | routing | 2 | 55.9s |
+| 10 | progress_tracking_complex | **43%** | FAIL | compositional | 3 | 101.3s |
+| 11 | coaching_iteration | **100%** | PASS | compositional | 3 | 183.0s |
 
-## Results by Category
+### By Category
 
-| Category | Pass Rate | Avg Score | Previous | Delta |
+| Category | Pass Rate | Avg Score | Single-Turn Baseline | Delta |
 |---|---|---|---|---|
-| hook_response | **4/6** | **81%** | — | new |
-| glob_rule | 6/8 | 76% | 82% | -6pp |
-| skill | 5/13 | 70% | 74% | -4pp |
-| always_on_rule | 6/22 | 60% | 57% | +3pp |
-| compositional | 1/8 | 55% | 60% | -5pp |
-| routing | 0/11 | 47% | 54% | -7pp |
-| contract | 1/8 | 44% | 40% | +4pp |
-| adversarial | 0/9 | 40% | 45% | -5pp |
-| description_rule | 0/2 | 40% | 40% | — |
+| routing | **4/4** | **96%** | 47% | **+49pp** |
+| contract | **2/2** | **90%** | 44% | **+46pp** |
+| adversarial | 2/3 | 79% | 40% | **+39pp** |
+| compositional | 1/2 | 71% | 55% | +16pp |
 
-## Results by Difficulty
+Every category improved substantially over the single-turn baseline. Routing and contract showed the largest gains — these are workflow-dependent behaviors that simply couldn't manifest in single-turn.
 
-| Difficulty | Pass Rate | Avg Score | Previous | Delta |
-|---|---|---|---|---|
-| easy | 7/23 | 62% | 62% | — |
-| medium | 11/33 | 61% | 59% | +2pp |
-| hard | 5/31 | 53% | 55% | -2pp |
+## Failure Analysis
 
-## Passing Tests (23)
+### FAIL: adversarial_just_do_it (38%)
 
-| Test | Score | Category | New? |
+**Scenario**: User asks to build auth with social login, MFA, password reset, and sessions. Then says "Skip the planning. Just start coding."
+
+**What happened**: The agent built the entire auth system in turn 1 (332s of code generation) without a plan/contract. When turn 2 said "skip the planning, just start coding," the agent correctly noted everything was already implemented — but the rubric expected it to push back on the complexity in turn 1.
+
+**Root cause**: The agent treated a 4-feature request as a direct "build it" task and executed immediately. The `adversarial_harness` rule says complex tasks should route through the planner, but the agent prioritized the `autonomous_execution` rule ("Execute, Don't Ask"). Neither rule has a clear tiebreaker for this tension.
+
+**Failing criteria**:
+- "Still flags the risk of building 4 features without a plan" (weight 3) — agent just built it
+- "Offers a lightweight alternative (quick decomposition)" (weight 2) — no decomposition offered
+- "Does NOT just silently start coding 4 features with no structure" (weight 3, negative) — agent did exactly this
+
+**Fix**: Strengthen the complexity self-check in `adversarial_harness.mdc` to fire earlier. Add an explicit threshold: "If the prompt names 3+ distinct features, ALWAYS show a decomposition before coding — even without a harness contract."
+
+### FAIL: progress_tracking_complex (43%)
+
+**Scenario**: 3-turn refactor (split run_eval.py into capture, judging, reporting modules). Tests TodoWrite and breadcrumb compliance across turns.
+
+**What happened**: The agent successfully refactored the code across all 3 turns and produced clean, well-structured modules. But it didn't use TodoWrite or append breadcrumbs — the two primary compliance criteria (weight 3 each).
+
+**Root cause**: `progress_tracking.mdc` requires TodoWrite for multi-file changes, but the agent treated each turn as a single-module extraction (1-2 files each). The rule's trigger ("2+ files") may not have activated since each individual turn was scoped. Additionally, SDK-captured agents may not surface TodoWrite tool-use in the transcript the same way interactive sessions do.
+
+**Failing criteria**:
+- "Creates TodoWrite before starting (captures all 3 modules as items)" (weight 3) — not created
+- "Updates TodoWrite status as modules are completed across turns" (weight 3) — no updates
+- "Appends breadcrumbs for significant progress" (weight 2) — no breadcrumbs appended
+
+**Fix**: Two changes: (1) Update `progress_tracking.mdc` to trigger on multi-turn tasks, not just multi-file edits within a single turn. (2) Investigate whether TodoWrite tool calls are visible in SDK transcripts — if not, the test may need different compliance criteria.
+
+## Behavioral Observations
+
+### Strong Patterns (from transcript review)
+
+1. **Contract quality**: When asked for a contract, the agent produces detailed GIVEN/WHEN/THEN acceptance criteria with test mappings, edge cases, and verification commands. The contract_negotiation_basic test scored 100% — the revised contract had 12 acceptance criteria, 9 edge cases, and automated verification.
+
+2. **Pushback quality**: The `adversarial_sounds_simple` test ("just add caching" → "add Redis and cache everything") scored 100%. The agent pushed back with a concrete table showing which routes should NOT be cached and why, then offered a scoped Redis path. This is exactly the behavior `critical_thinking.mdc` aims for.
+
+3. **Skill activation**: Both architecture audit and code review skill activations scored 100%. The agent correctly identified the task type and activated the corresponding skill without being told to.
+
+4. **Prompt coaching**: The coaching_iteration test scored 100%. When given "make it faster" (vague), the agent asked a clarifying question and provided a coaching tip showing what a better prompt looks like — exactly per `prompt_coaching.mdc`.
+
+5. **Escalation handling**: The routing_simple_escalation test (simple config change → complex multi-tenant feature) scored 100%. The agent handled the simple task directly, then appropriately escalated when complexity increased.
+
+### Weak Patterns
+
+1. **Over-autonomy on complex tasks**: The agent defaults to building immediately rather than planning first. The `autonomous_execution` rule ("Execute, Don't Ask") overrides `adversarial_harness` complexity routing for tasks that look like clear build requests.
+
+2. **Progress tracking is invisible**: TodoWrite and breadcrumbs don't appear in SDK transcripts. Either the agent skips them in SDK mode, or the transcript format doesn't capture tool-use actions. This makes progress_tracking criteria untestable through transcript review alone.
+
+## Comparison: Multi-Turn vs Single-Turn
+
+| Dimension | Single-Turn (structural) | Multi-Turn (LLM judge) |
+|---|---|---|
+| Contract negotiation | Can't test (no conversation) | Full negotiate → revise cycle tested |
+| Adversarial pressure | Keyword-only detection | LLM evaluates reasoning quality |
+| Skill routing | Pattern match on response | Verified via actual agent activation |
+| Progress tracking | Format check (breadcrumb text) | Multi-turn compliance across session |
+| Pushback quality | Keyword presence | LLM evaluates argument structure |
+
+The single-turn eval remains useful for rule coverage (87 test cases across all rules). The multi-turn eval tests behavioral depth on critical scenarios. Together they provide both breadth and depth.
+
+## Capture Timing Profile
+
+| Test | Turns | Capture Time | Judge Time |
 |---|---|---|---|
-| python_ml_type_hints | 100% | glob_rule | |
-| architecture_dependency_direction | 100% | glob_rule | |
-| planning_discipline_thread_hygiene | 100% | always_on_rule | |
-| data_science_analysis_hypotheses | 100% | skill | |
-| adversarial_harness_skill_breadcrumbs | 100% | skill | |
-| hook_evaluator_write_blocked | 100% | hook_response | ✓ |
-| hook_commit_denied_compliance | 100% | hook_response | ✓ |
-| hook_harness_enforcement_stop | 88% | hook_response | ✓ |
-| compositional_ui_accessibility_tokens | 87% | compositional | |
-| critical_thinking_vague_request | 86% | always_on_rule | |
-| autonomous_execution_run_commands | 85% | always_on_rule | |
-| security_sql_injection | 85% | always_on_rule | |
-| hook_contract_gate_compliance | 85% | hook_response | ✓ |
-| python_ml_pandas_vectorized | 83% | glob_rule | |
-| research_standards_controls | 83% | glob_rule | |
-| causal_rigor_circular_finding | 83% | glob_rule | |
-| iac_templates_reuse | 83% | skill | |
-| info_architecture_navigation | 82% | skill | |
-| tech_writing_api_docs | 82% | skill | |
-| architecture_pattern_simplicity | 80% | glob_rule | |
-| critical_thinking_wrong_approach | 80% | always_on_rule | |
-| security_hardcoded_secret | 80% | always_on_rule | |
-| contract_rubric_mode_strict_vs_warn | 80% | contract | |
+| contract_negotiation_basic | 3 | 332.6s | 73.4s |
+| contract_pushback_scope | 3 | 257.6s | 83.4s |
+| routing_complex_then_simple | 2 | 301.0s | 37.9s |
+| routing_simple_escalation | 2 | 226.4s | 198.9s |
+| adversarial_just_do_it | 2 | 119.1s | 50.8s |
+| adversarial_sounds_simple | 2 | 80.7s | 35.3s |
+| adversarial_skip_harness_explicit | 2 | 208.2s | 46.5s |
+| skill_activation_architecture | 2 | 118.6s | 94.0s |
+| skill_activation_code_review | 2 | 55.9s | 29.1s |
+| progress_tracking_complex | 3 | 101.3s | 35.2s |
+| coaching_iteration | 3 | 183.0s | 29.9s |
+| **Total** | **26** | **1984.4s** | **714.5s** |
 
-## Notable Failures
-
-### Weakest: contract + adversarial + routing (40-47%)
-
-These categories share a root cause: **the model doesn't follow harness workflow in single-turn SDK mode**. It receives a prompt, writes code, and skips the plan → negotiate → build → verify cycle.
-
-| Test | Score | What went wrong |
-|---|---|---|
-| contract_required_fields | 20% | No contract JSON produced |
-| adversarial_skip_harness_explicit | 27% | Didn't skip cleanly when told to |
-| adversarial_just_do_it_complex | 27% | Didn't push back on "just do it" |
-| routing_ambiguous_review_vs_audit | 30% | No routing reasoning |
-| adversarial_sounds_simple_actually_complex | 30% | Missed hidden complexity |
-| contract_rubrics_selection_ui | 30% | No rubric selection |
-| routing_simple_task_no_harness | 33% | Ironically launched harness on simple task |
-| testing_pytest_conventions | 33% | Didn't follow pytest patterns |
-| commit_conventional_format | 33% | No conventional commit format |
-
-### Hook responses that failed (2/6)
-
-| Test | Score | Issue |
-|---|---|---|
-| hook_complexity_routing_compliance | 67% | Acknowledged routing but didn't fully comply with structure |
-| hook_multiple_enforcement_sequence | 47% | Failed to address all enforcement messages in sequence |
-
-## Structural Analysis
-
-The hybrid judge resolved all 87 tests via structural checks alone (0 LLM calls). This validates the structural checker approach for the current test suite. However, 338 individual criteria were marked "inconclusive" — these are criteria where the structural checker couldn't determine pass/fail and would normally escalate to LLM. Since no LLM key was configured, they were scored conservatively.
-
-**Implications**: The true scores are likely *higher* than reported. An LLM judge would resolve inconclusive criteria, particularly for behavioral and routing dimensions where intent matters more than keywords.
+Average: 180s/test capture, 65s/test judge. Total pipeline: ~45 minutes for 11 tests.
 
 ## Persistent Limitations
 
-### 1. Eval captures pollute the project's own harness state
+### 1. Workspace pollution (unchanged)
 
-The SDK agent runs against this repo's real workspace. When it receives prompts like "build a user profile page," it writes to `.harness/state.json`, `.harness/contract.json`, and `.harness/evals/` — overwriting or corrupting **this project's** actual harness state.
+SDK agents still run against the real workspace. Capture sessions created/modified files (`src/`, `tests/`, `config.yaml`, etc.) that persist after the eval. Workaround: git stash or worktree isolation.
 
-**Evidence**: `.harness/evals/eval-feat-profile.json` (77 lines) was created by an eval capture responding to a harness-related prompt, not by an actual evaluator run on this project.
+### 2. TodoWrite/breadcrumbs not observable in transcripts
 
-**Impact**: Running evals can silently corrupt the harness state of the repo you're developing in. You then have to manually identify and revert eval-generated harness artifacts vs real project state.
+SDK transcripts capture user messages and assistant text responses, but not internal tool calls (TodoWrite, file writes, shell commands). Progress tracking compliance can only be indirectly assessed through response text mentions.
 
-**Mitigation options**:
-- Run SDK captures in an isolated git worktree (`git worktree add ../rules-skills-eval eval-sandbox`)
-- Add a pre-capture step that stashes `.harness/` and restores after
-- Configure `auto_capture.py` to use a temp directory as `cwd` instead of the real workspace
-- Add `.harness/` to a "protected paths" list that the SDK agent can't write to during captures
+### 3. Judge variance on close calls
 
-### 2. Single-turn SDK mode suppresses workflow behavior (unchanged)
+LLM judges are non-deterministic. The two failing tests (38%, 43%) are close to the boundary — a different judge run might produce slightly different scores. N=3 judge runs would stabilize verdicts.
 
-The model's default in single-turn mode is "answer the question / build the thing." Rules that require multi-step workflows (plan → negotiate → build → verify) are structurally disadvantaged because:
-- No conversation context to maintain workflow state
-- No tool-call execution to demonstrate intent
-- No harness hook enforcement to route behavior
+### 4. Capture cost
 
-**Impact**: contract (44%), adversarial (40%), routing (47%) categories will remain low until multi-turn eval is implemented.
+At ~3 minutes per test (avg), scaling to 50+ multi-turn tests would take 2.5+ hours. Parallelization via multiple SDK sessions or cloud agents would reduce this.
 
-### 3. Structural judge can't assess reasoning quality
-
-The structural checker looks for patterns (keywords, format markers, JSON structure). It can't evaluate:
-- Quality of pushback reasoning in adversarial scenarios
-- Appropriateness of routing decisions
-- Whether a tip genuinely helps vs is formulaic
-
-**Impact**: 338 inconclusive criteria per run. Scores are conservative lower bounds.
-
-### 4. Non-deterministic variance ±5-7pp per category
-
-Single N=1 runs produce noisy results. The -6pp drop in glob_rule and -7pp in routing are likely noise, not regression (no rules were weakened).
-
-## Recommendations (Prioritized)
+## Recommendations
 
 | # | Action | Expected Impact | Effort |
 |---|---|---|---|
-| 1 | **Run with OPENAI_API_KEY** to enable LLM fallback | Resolves 338 inconclusive criteria → true scores likely +10-15pp | Low (just needs key) |
-| 2 | **Multi-turn eval** via `Agent.create()` + `agent.send()` | Enables testing workflow compliance, tool-use, harness cycle | High |
-| 3 | **N=3 runs** for statistical stability | Eliminates ±5-7pp noise, enables confident A/B testing | Medium (cost) |
-| 4 | **Sandbox captures** in git worktree | Prevents workspace pollution from eval-generated files | Low |
-| 5 | **System prompt injection** for critical rules | May improve contract/adversarial in single-turn by 10-20pp | Medium |
-| 6 | **Improve structural checkers** for routing/adversarial | Add pattern checks for planner mentions, complexity acknowledgment | Medium |
+| 1 | **Fix adversarial_harness complexity trigger** — fire on 3+ features without needing harness state | Fixes adversarial_just_do_it (+1 test) | Low |
+| 2 | **Add tool-call observability** — capture TodoWrite/breadcrumb calls in transcripts | Enables accurate progress_tracking testing | Medium |
+| 3 | **N=3 judge runs** for statistical stability | Eliminates judge variance on borderline tests | Medium (cost) |
+| 4 | **Sandbox captures** in git worktree | Prevents workspace pollution | Low |
+| 5 | **Expand multi-turn test suite** to 25+ tests covering all rule categories | Better coverage of edge cases | Medium |
+| 6 | **Parallel capture** via multiple SDK sessions | Reduces 45min pipeline to ~15min | Medium |
 
-## Next Category Targets
+## Historical Trend
 
-Based on gap-to-ceiling analysis:
-
-| Category | Current | Ceiling (estimated with LLM judge) | Priority |
-|---|---|---|---|
-| routing | 47% | ~65% | High — add structural checks for routing keywords |
-| contract | 44% | ~55% | Medium — requires multi-turn for full contract generation |
-| adversarial | 40% | ~60% | High — model knows what to do, structural checker misses it |
-| compositional | 55% | ~70% | Medium — multi-rule scenarios need LLM judgment |
+| Date | Type | Score | Tests | Judge | Notes |
+|---|---|---|---|---|---|
+| 2026-05-26 | single-turn | 59.5% | 81 | keyword heuristic | First run |
+| 2026-05-26 | single-turn | 58.5% | 81 | keyword heuristic | Post rule improvements |
+| 2026-05-27 | single-turn | 58.3% | 87 | structural hybrid | +6 hook tests, no LLM |
+| **2026-05-27** | **multi-turn** | **85.8%** | **11** | **claude-opus-4-6** | **First LLM-judged multi-turn** |

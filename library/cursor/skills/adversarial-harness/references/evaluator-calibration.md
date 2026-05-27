@@ -113,6 +113,74 @@ Pay special attention to:
 - Instructions that contradict other instructions in the same system
 - Missing files that are referenced but not created
 
+### Rules & Skills (Agent Behavior)
+
+When evaluating an agent's compliance with rules and skills, grade on four dimensions:
+**Compliance** (did it follow the rule?), **Judgment** (did it apply it at the right time?),
+**Craft** (is the output professional?), **Autonomy** (did it act decisively?).
+
+Pay special attention to:
+- Rule compliance that's technically present but wrong timing (harness for a typo fix = FAIL on Judgment)
+- Routing decisions that mention the right skill but don't actually follow its workflow
+- Breadcrumbs/TodoWrite that exist but are formulaic or useless (box-ticking, not real tracking)
+- Coaching tips that are generic ("be more specific") vs actionable (shows a rewritten prompt)
+- Pushback that's confrontational vs constructive (with evidence and alternatives)
+- Over-engineering simple tasks (harness/planner for 1-file changes)
+- Under-engineering complex tasks (starts coding multi-service features without planning)
+
+#### PASS — Correct Judgment (routing)
+
+```json
+{
+  "criterion": "Agent routes complex request to planner before building",
+  "result": "PASS",
+  "evidence": "Prompt was 'Build user auth with JWT, OAuth, and MFA support'. Agent identified multi-feature scope (3 auth mechanisms), stated 'This is non-trivial work requiring planning', and launched /planner with the full request context. Did not write any implementation code."
+}
+```
+
+#### PASS — Correct Judgment (no over-engineering)
+
+```json
+{
+  "criterion": "Agent handles simple tasks without unnecessary ceremony",
+  "result": "PASS",
+  "evidence": "Prompt was 'fix the typo in README.md line 4'. Agent read the file, made the 1-character fix, ran no TodoWrite, appended no breadcrumbs, did not mention the harness. Total response: 3 lines. Appropriate for a trivial single-file change."
+}
+```
+
+#### FAIL — Over-Engineering
+
+```json
+{
+  "criterion": "Agent handles simple tasks without unnecessary ceremony",
+  "result": "FAIL",
+  "evidence": "Prompt was 'rename variable x to user_count in utils.py'. Agent created a TodoWrite with 3 items ('1. Read file, 2. Rename variable, 3. Verify'), appended a breadcrumb, then made a 1-line change. The ceremony-to-work ratio was 10:1.",
+  "fix_suggestion": "planning_discipline.mdc already exempts single-file trivial changes from progress tracking. The agent should check: 'Is this 1 file, <3 steps?' before reaching for TodoWrite."
+}
+```
+
+#### FAIL — Formulaic Compliance
+
+```json
+{
+  "criterion": "Coaching tip is specific and actionable",
+  "result": "FAIL",
+  "evidence": "Agent's tip was '> **Tip:** Be more specific in your prompts for better results.' This is generic advice that could apply to any prompt. A good tip shows the rewritten version: '> **Tip:** Try: \"Fix the JWT expiration check in src/auth.py — return 401 when expired.\"'",
+  "fix_suggestion": "The prompt_coaching.mdc rule explicitly says 'show the improved version, don't just say be more specific'. The agent read the rule but produced the exact anti-pattern it prohibits."
+}
+```
+
+#### FAIL — Rubber-Stamp Routing
+
+```json
+{
+  "criterion": "Agent activates correct skill for architecture audit request",
+  "result": "FAIL",
+  "evidence": "Prompt was 'audit the architecture of src/'. Agent said 'I'll perform an architecture audit' and then manually listed files and assessed coupling — without loading the architecture-audit skill or following its structured workflow. The skill defines a specific sequence: load rubric → scan imports → check dependency direction → produce JSON report. Agent did freeform analysis instead.",
+  "fix_suggestion": "Agent should have read .cursor/skills/architecture-audit/SKILL.md and followed its protocol, not improvised."
+}
+```
+
 ## Calibration Checklist
 
 Before submitting your evaluation, verify:
