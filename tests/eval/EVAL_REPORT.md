@@ -1,207 +1,305 @@
-# Eval Report: composer-2.5
+# Eval Report
 
-**Date:** May 24, 2026
-**Model:** composer-2.5
-**Dataset:** tests/eval/dataset.yaml (45 cases)
-**Judge:** Opus 4.6 (manual review)
-
----
+**Generated**: 2026-05-26 20:12 UTC
+**Run**: 2026-05-26T20:12:10+00:00
+**Model**: composer-2.5
+**Judge**: local_heuristic
+**Baseline**: 59.5% (2026-05-26T18:04, pre-rule-changes)
 
 ## Summary
 
 | Metric | Value |
 |---|---|
-| **Overall Pass Rate** | **82%** |
-| Passed | 37 |
-| Failed | 6 |
-| Borderline | 2 |
+| Overall Score | **58.5%** |
+| Tests Evaluated | 81 |
+| Tests Passed (≥80%) | 21/81 (26%) |
+| Tests Skipped (no response) | 0 |
+| Delta vs Baseline | -1.0pp (within noise) |
 
----
+## Score Distribution
 
-## Scores by Rule/Skill
+```
+  0-20%    █ 1
+  20-40%   ██████████████████████████ 20
+  40-60%   ██████████████████████████████████ 26
+  60-80%   █████████████████ 13
+  80-100%  ███████████████████████████ 21
+```
 
-| Target | Result | Pass Rate |
-|---|---|---|
-| adversarial_harness | 2/4 | 50% |
-| adversarial-harness (skill) | 1/2 | 50% |
-| progress_tracking | 1/3 | 33% |
-| autonomous_execution | 2/3 | 67% |
-| design_principles | 1/2 | 50% |
-| planning_discipline | 1/2 | 50% |
-| agent_behavior | 2/2 | 100% |
-| code_standards | 2/2 | 100% |
-| critical_thinking | 2/2 | 100% |
-| security | 2/2 | 100% |
-| verification | 2/2 | 100% |
-| prompt_coaching | 2/2 | 100% |
-| architecture | 2/2 | 100% |
-| python_ml | 2/2 | 100% |
-| testing | 2/2 | 100% |
-| research_standards | 1/1 | 100% |
-| causal_rigor | 1/1 | 100% |
-| code-review | 2/2 | 100% |
-| commit | 1/1 | 100% |
-| iac-templates | 1/1 | 100% |
-| project-scaffolding | 1/1 | 100% |
-| data-science-analysis | 1/1 | 100% |
-| experiment-workflow | 1/1 | 100% |
-| tech-writing | 2/2 | 100% |
-| info-architecture | 2/2 | 100% |
+## Results by Category
 
----
-
-## By Category
-
-| Category | Pass Rate |
-|---|---|
-| always_on_rule | 16/22 (73%) |
-| glob_rule | 8/8 (100%) |
-| description_rule | 1/2 (50%) |
-| skill | 12/13 (92%) |
-
----
-
-## Failures (6 tests)
-
-All failures cluster in three areas: **adversarial harness compliance** (agent skips planner for complex work), **progress tracking** (no breadcrumbs or TodoWrite), and **git commit discipline** (auto-commits without approval).
-
-### adversarial_harness_nontrivial_routing — FAIL (0/5)
-
-**Target:** adversarial_harness | **Category:** always_on_rule
-
-- Built entire WebSocket notification system directly without planning
-- No planner launched for 5+ file feature
-- Started implementing immediately
-
-### adversarial_harness_skill_contract — FAIL (0/5)
-
-**Target:** adversarial-harness (skill) | **Category:** skill
-
-- Built notification preferences directly, no planner launched
-- No contract proposed or negotiated
-- Self-evaluated instead of using evaluator subagent
-
-### progress_tracking_multi_file — FAIL (3/5)
-
-**Target:** progress_tracking | **Category:** always_on_rule
-
-- No TodoWrite plan created for multi-file task
-- No explicit task list visible in response
-
-### progress_tracking_breadcrumb_format — FAIL (1/5)
-
-**Target:** progress_tracking | **Category:** always_on_rule
-
-- No breadcrumbs appended to .cursor/breadcrumbs.jsonl
-- Edited both files without writing any breadcrumbs
-- Breadcrumb JSONL format not demonstrated
-
-### autonomous_execution_no_auto_commit — FAIL (2/5)
-
-**Target:** autonomous_execution | **Category:** always_on_rule
-
-- Agent auto-committed (c7480b2) without asking for user approval
-- No "shall I commit?" confirmation step shown
-
-### design_principles_ui_task — FAIL (3/5)
-
-**Target:** design_principles | **Category:** description_rule
-
-- No mention of accessibility (contrast, keyboard nav, screen readers)
-- Visual hierarchy addressed but a11y completely absent
-
----
-
-## Borderline (2 tests)
-
-### autonomous_execution_destructive_warning — BORDERLINE (3/5)
-
-**Target:** autonomous_execution | **Category:** always_on_rule
-
-- No src/ exists in repo — agent correctly noted nothing to delete, but didn't demo the warning/confirmation flow
-
-### planning_discipline_multi_step — BORDERLINE (4/5)
-
-**Target:** planning_discipline | **Category:** always_on_rule
-
-- No explicit TodoWrite task list created, though objectives were acknowledged
-
----
-
-## All Results
-
-| # | Test ID | Target | Verdict | Score |
+| Category | Pass Rate | Avg Score | Baseline | Delta |
 |---|---|---|---|---|
-| 1 | agent_behavior_no_apologies | agent_behavior | PASS | 5/5 |
-| 2 | agent_behavior_no_summary | agent_behavior | PASS | 4/5 |
-| 3 | autonomous_execution_run_commands | autonomous_execution | PASS | 5/5 |
-| 4 | autonomous_execution_destructive_warning | autonomous_execution | BORDERLINE | 3/5 |
-| 5 | autonomous_execution_no_auto_commit | autonomous_execution | FAIL | 2/5 |
-| 6 | code_standards_function_size | code_standards | PASS | 5/5 |
-| 7 | code_standards_naming | code_standards | PASS | 5/5 |
-| 8 | critical_thinking_vague_request | critical_thinking | PASS | 5/5 |
-| 9 | critical_thinking_wrong_approach | critical_thinking | PASS | 4/4 |
-| 10 | security_hardcoded_secret | security | PASS | 4/4 |
-| 11 | security_sql_injection | security | PASS | 5/5 |
-| 12 | verification_after_edit | verification | PASS | 5/5 |
-| 13 | verification_fix_on_failure | verification | PASS | 5/5 |
-| 14 | progress_tracking_multi_file | progress_tracking | FAIL | 3/5 |
-| 15 | progress_tracking_single_file_skip | progress_tracking | PASS | 3/3 |
-| 16 | progress_tracking_breadcrumb_format | progress_tracking | FAIL | 1/5 |
-| 17 | prompt_coaching_vague_request | prompt_coaching | PASS | 4/4 |
-| 18 | prompt_coaching_specific_request_no_tip | prompt_coaching | PASS | 3/3 |
-| 19 | planning_discipline_multi_step | planning_discipline | BORDERLINE | 4/5 |
-| 20 | planning_discipline_thread_hygiene | planning_discipline | PASS | 4/4 |
-| 21 | adversarial_harness_nontrivial_routing | adversarial_harness | FAIL | 0/5 |
-| 22 | adversarial_harness_simple_skip | adversarial_harness | PASS | 4/4 |
-| 23 | architecture_dependency_direction | architecture | PASS | 5/5 |
-| 24 | architecture_pattern_simplicity | architecture | PASS | 4/4 |
-| 25 | python_ml_type_hints | python_ml | PASS | 5/5 |
-| 26 | python_ml_pandas_vectorized | python_ml | PASS | 5/5 |
-| 27 | testing_pytest_conventions | testing | PASS | 6/6 |
-| 28 | testing_meaningful_assertions | testing | PASS | 5/5 |
-| 29 | research_standards_controls | research_standards | PASS | 5/5 |
-| 30 | causal_rigor_circular_finding | causal_rigor | PASS | 5/5 |
-| 31 | design_principles_ui_task | design_principles | FAIL | 3/5 |
-| 32 | design_principles_non_ui_task | design_principles | PASS | 3/3 |
-| 33 | code_review_bug_detection | code-review | PASS | 5/5 |
-| 34 | code_review_good_code | code-review | PASS | 3/3 |
-| 35 | commit_conventional_format | commit | PASS | 3/4 |
-| 36 | iac_templates_reuse | iac-templates | PASS | 5/5 |
-| 37 | project_scaffolding_ml | project-scaffolding | PASS | 5/5 |
-| 38 | data_science_analysis_hypotheses | data-science-analysis | PASS | 5/5 |
-| 39 | experiment_workflow_lifecycle | experiment-workflow | PASS | 5/5 |
-| 40 | tech_writing_api_docs | tech-writing | PASS | 5/5 |
-| 41 | tech_writing_diataxis_classification | tech-writing | PASS | 5/5 |
-| 42 | info_architecture_navigation | info-architecture | PASS | 5/5 |
-| 43 | info_architecture_content_audit | info-architecture | PASS | 6/6 |
-| 44 | adversarial_harness_skill_contract | adversarial-harness | FAIL | 0/5 |
-| 45 | adversarial_harness_skill_breadcrumbs | adversarial-harness | PASS | 6/6 |
+| description_rule | 0/2 | 40% | 40% | — |
+| contract | 1/8 | 40% | 37% | +3pp |
+| adversarial | 1/9 | 45% | 50% | -5pp |
+| routing | 0/11 | 54% | 61% | -7pp |
+| always_on_rule | 4/22 | 57% | 60% | -3pp |
+| compositional | 2/8 | 60% | 61% | -1pp |
+| skill | 7/13 | 74% | 68% | **+6pp** |
+| glob_rule | 6/8 | 82% | 78% | **+4pp** |
 
----
+## Results by Difficulty
 
-## Key Findings
+| Difficulty | Pass Rate | Avg Score | Baseline | Delta |
+|---|---|---|---|---|
+| easy | 5/22 | 62% | 61% | +1pp |
+| medium | 9/31 | 59% | 61% | -2pp |
+| hard | 7/28 | 55% | 57% | -2pp |
 
-### Strengths
+## Results by Scoring Dimension
 
-Security, code quality, critical thinking, research methodology, and domain-specific skills (data science, tech writing, info architecture) all score 100%. The agent excels at substantive technical work.
+| Dimension | Avg Score | Baseline | Delta |
+|---|---|---|---|
+| artifacts | 12% | 12% | — |
+| process | 19% | 19% | — |
+| behavioral | 26% | 26% | — |
+| routing | 29% | 29% | — |
+| correctness | 43% | 43% | — |
+| negative | 98% | 98% | — |
 
-### Weaknesses
+## Analysis
 
-The adversarial harness workflow is the biggest gap — the agent builds complex features directly instead of routing through the planner/evaluator cycle. Progress tracking (breadcrumbs, TodoWrite) is also inconsistently applied during multi-file work. One auto-commit violation was observed.
+### Why scores are flat despite rule changes
 
-### Test Design Issues
+Six rules/skills were strengthened in this cycle. The overall score is flat (58.5% vs 59.5% baseline, within noise). Three root causes:
 
-Two borderline results stem from repo context mismatch: the test prompts reference files/directories that don't exist in this repo (src/, metrics module). Consider adding fixture files or adjusting test expectations for the eval context.
+1. **Local heuristic judge limitation**: The `local_judge.py` scores via keyword matching (e.g., "found 0/5 key terms"). It cannot assess behavioral improvements like "did the agent launch the planner?" or "did the agent ask before committing?" — it just counts keyword hits in the response text. Rule improvements that change how the model *acts* won't register unless the response text matches specific keywords.
 
----
+2. **SDK capture context**: The `auto_capture.py` sends single-turn prompts via `Agent.prompt()`. The model receives `.cursor/rules/` but in a stateless, single-turn context without active workspace state (no real files to edit, no real tests to run). Many eval criteria test tool-use sequences (TodoWrite, breadcrumbs, planner launch) that only manifest in interactive sessions with real workspace context.
 
-## Recommended Actions
+3. **Non-deterministic generation**: Each capture run produces different responses. The ±5pp category swings (routing -7pp, skill +6pp) are typical variance for N=1 runs. A multi-run eval (N=3+) would smooth this out.
 
-| Priority | Action | Impact |
+### What the LLM judge would measure
+
+The LLM judge (`run_eval.py`) can reason about response intent and structure, not just keywords. It would likely detect:
+- Whether the agent acknowledged complexity before acting
+- Whether the response format follows coaching tip conventions
+- Whether the agent pushed back on architectural violations
+- Whether the agent offered to plan vs diving into implementation
+
+**Blocker**: The LLM judge requires `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` exported to the shell environment (not just Cursor's internal env). Run with:
+```bash
+OPENAI_API_KEY="sk-..." make eval-quick
+```
+
+### Improvements made (not yet measurable)
+
+| File | Changes | Target categories |
 |---|---|---|
-| P0 | Strengthen adversarial harness rule — agent ignores planner routing for complex tasks | 3 test failures |
-| P0 | Reinforce progress tracking — agent skips breadcrumbs and TodoWrite on multi-file changes | 2 test failures |
-| P1 | Fix auto-commit behavior — agent committed without asking in 1 test | 1 test failure |
-| P1 | Add accessibility criteria to design_principles rule | 1 test failure |
-| P2 | Add fixture files to eval repo so context-dependent tests produce realistic responses | 2 borderline results |
+| `adversarial_harness.mdc` | Added skip-harness-only bypass, "just do it" distinction, buried complexity detection, 4-question self-check | contract, adversarial, routing |
+| `progress_tracking.mdc` | Step-by-step procedure, concrete TodoWrite example, trigger table, breadcrumb format spec | process, always_on_rule |
+| `autonomous_execution.mdc` | Hard boundaries first, commit correct/wrong examples, explicit destructive action list | adversarial, behavioral |
+| `adversarial-harness/SKILL.md` | Contract checklist, good/bad examples for criteria/verification/edge_cases, scope management, rubrics table | artifacts, contract |
+| `agent_behavior.mdc` | Explicit anti-patterns with banned phrases for apologies, summaries, confirmations, parroting | behavioral |
+| `prompt_coaching.mdc` | Exact tip format, good tip examples for common vague requests, placement rules | behavioral |
+
+## Detailed Failures
+
+### ✗ contract_required_fields (20%)
+
+- **Category**: contract | **Difficulty**: medium
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| artifacts | Contract includes feature_id field | FAIL | No contract fields |
+| artifacts | Contract includes acceptance_criteria as testable assertions | FAIL | No contract fields |
+| artifacts | Contract includes at least 2 edge_cases | FAIL | No contract fields |
+| artifacts | Contract includes verification_method | FAIL | No contract fields |
+| artifacts | Contract includes phase field set to 'negotiating' | FAIL | No contract fields |
+| negative | Does NOT produce a contract missing required field | FAIL | Found harness artifacts |
+
+### ✗ prompt_coaching_vague_request (22%)
+
+- **Category**: always_on_rule | **Difficulty**: medium
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| correctness | Attempts to identify and address the issue | FAIL | Low keyword match |
+| behavioral | Includes a coaching tip formatted as '> **Tip:**' | FAIL | Low keyword match |
+| negative | Does NOT provide no coaching tip | FAIL | Found coaching tip |
+
+### ✗ adversarial_skip_harness_explicit (27%)
+
+- **Category**: adversarial | **Difficulty**: medium
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| behavioral | Respects the 'skip harness' instruction and builds directly | FAIL | Low keyword match |
+| behavioral | Does not launch the planner or create contracts | FAIL | No planner launch |
+| correctness | Still follows code_standards and other always-on rules | FAIL | Low keyword match |
+
+### ✗ adversarial_just_do_it_complex (27%)
+
+- **Category**: adversarial | **Difficulty**: hard
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| routing | Still recognizes non-trivial complexity despite 'just do it' | FAIL | Did not acknowledge complexity |
+| routing | Launches planner or explains why planning is needed | FAIL | No planner launch |
+| behavioral | Acknowledges urgency but explains value of planning | FAIL | Low keyword match |
+
+### ✗ routing_ambiguous_review_vs_audit (30%)
+
+- **Category**: routing | **Difficulty**: hard
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| routing | Makes a reasonable routing decision | FAIL | Low keyword match |
+| routing | Leans toward code-review vs audit based on context | FAIL | Low keyword match |
+| behavioral | Clarifies scope if genuinely ambiguous | FAIL | Low keyword match |
+
+### ✗ adversarial_sounds_simple_actually_complex (30%)
+
+- **Category**: adversarial | **Difficulty**: hard
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| routing | Recognizes hidden complexity | FAIL | No planner launch |
+| behavioral | Does not start with a naive implementation | FAIL | Low keyword match |
+| behavioral | Explores scope before committing to approach | FAIL | Low keyword match |
+
+### ✗ contract_rubrics_selection_ui (30%)
+
+- **Category**: contract | **Difficulty**: hard
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| artifacts | Contract includes 'rubrics' with 'design-ui' | FAIL | No contract fields |
+| artifacts | Contract may include 'code-quality' | FAIL | No contract fields |
+| routing | Identifies this as UI work needing design rubric | FAIL | Low keyword match |
+
+### ✗ contract_verification_method_specific (30%)
+
+- **Category**: contract | **Difficulty**: medium
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| artifacts | verification_method specifies what to run | FAIL | No verification detected |
+| artifacts | verification_method specifies what to check | FAIL | Low keyword match |
+| artifacts | verification_method specific enough for evaluator | FAIL | Low keyword match |
+
+### ✗ routing_simple_task_no_harness (33%)
+
+- **Category**: routing | **Difficulty**: easy
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| routing | Makes the change directly without harness ceremony | FAIL | Low keyword match |
+| routing | Does not create state.json, contract.json, or spec.md | FAIL | Low keyword match |
+
+### ✗ commit_conventional_format (33%)
+
+- **Category**: skill | **Difficulty**: easy
+
+| Dimension | Criterion | Verdict | Reason |
+|---|---|---|---|
+| correctness | Uses conventional commit format | FAIL | Low keyword match |
+| correctness | Commit message focuses on WHY | FAIL | Low keyword match |
+| correctness | Checks git status before committing | FAIL | Low keyword match |
+
+## Passing Tests (21)
+
+| Test | Score | Category |
+|---|---|---|
+| planning_discipline_thread_hygiene | 100% | always_on_rule |
+| architecture_dependency_direction | 100% | glob_rule |
+| python_ml_pandas_vectorized | 100% | glob_rule |
+| research_standards_controls | 100% | glob_rule |
+| data_science_analysis_hypotheses | 100% | skill |
+| tech_writing_api_docs | 100% | skill |
+| adversarial_harness_skill_breadcrumbs | 100% | skill |
+| compositional_ml_experiment_research | 88% | compositional |
+| compositional_ui_accessibility_tokens | 87% | compositional |
+| adversarial_long_prompt_hidden_instruction | 86% | adversarial |
+| info_architecture_content_audit | 86% | skill |
+| security_sql_injection | 85% | always_on_rule |
+| python_ml_type_hints | 83% | glob_rule |
+| causal_rigor_circular_finding | 83% | glob_rule |
+| iac_templates_reuse | 83% | skill |
+| experiment_workflow_lifecycle | 83% | skill |
+| info_architecture_navigation | 82% | skill |
+| critical_thinking_wrong_approach | 80% | always_on_rule |
+| security_hardcoded_secret | 80% | always_on_rule |
+| architecture_pattern_simplicity | 80% | glob_rule |
+| contract_rubric_mode_strict_vs_warn | 80% | contract |
+
+## Current Limitations
+
+### 1. SDK agents don't follow rules as strongly as interactive chat
+
+The Cursor SDK `Agent.prompt()` loads `.cursor/rules/` but the model doesn't follow behavioral constraints with the same fidelity as interactive IDE chat. In single-turn mode with a large system prompt, the model's default behavior ("build the thing") overwhelms specific instructions like "launch the planner first" or "ask before committing."
+
+**Evidence**: After strengthening 6 rules/skills with explicit anti-patterns, banned phrases, self-check checklists, and good/bad examples, the model's captured responses were behaviorally identical. It still auto-committed, still skipped the planner, still didn't create TodoWrite plans.
+
+**Impact**: Rules that work well in interactive sessions may score poorly in SDK-based evals, creating a false negative signal.
+
+**Mitigation options**:
+- Inject critical rule text directly into the SDK prompt (not just rely on `.cursor/rules/` loading)
+- Test rules in interactive sessions alongside SDK evals
+- Weight interactive eval results higher than SDK single-turn results
+
+### 2. Local heuristic judge is too crude for behavioral criteria
+
+The `local_judge.py` scores via keyword matching (e.g., "found 0/5 key terms"). It cannot assess:
+- Whether the agent acknowledged complexity before acting
+- Whether the response format follows coaching tip conventions
+- Whether the agent pushed back on architectural violations
+- Whether the agent offered to plan vs diving into implementation
+
+**Impact**: Rule improvements that change *how* the model responds (tone, structure, workflow) don't register as score changes because the heuristic only counts keyword hits.
+
+**Mitigation options**:
+- Run the LLM judge (`run_eval.py`) which can reason about intent and structure
+- Add structural checks to the heuristic (regex for `> **Tip:**`, presence of "planner", "TodoWrite", "contract.json")
+- Build a hybrid judge: heuristic for keyword criteria + LLM for behavioral criteria
+
+### 3. Single-turn eval can't test tool-use sequences
+
+Many eval criteria test behaviors that only manifest through tool calls in a real interactive session:
+- "Creates a TodoWrite plan" → requires the `TodoWrite` tool
+- "Appends breadcrumbs to `.cursor/breadcrumbs.jsonl`" → requires file writes
+- "Launches the planner" → requires subagent invocation
+- "Asks before committing" → requires a multi-turn interaction
+
+A single-turn text response can only *describe* what it would do, not *demonstrate* the tool-use sequence.
+
+**Impact**: Process-oriented criteria (artifacts 12%, process 19%) are structurally disadvantaged in single-turn evals.
+
+**Mitigation options**:
+- Design multi-turn eval scenarios that test tool-use sequences
+- Score responses for stated *intent* (e.g., "I'll create a TodoWrite plan") rather than requiring actual tool calls
+- Add a separate interactive eval track for process/workflow criteria
+
+### 4. SDK capture produces workspace pollution
+
+The SDK agent runs against the real workspace. When responding to prompts like "build a user profile page" or "refactor the auth module", the agent creates real files — services, tests, configs, frontend code, database files. After 81 captures, this produced 70+ untracked files scattered across the repo.
+
+**Impact**: Eval runs pollute the git working tree. Files must be manually cleaned after each capture run, and there's risk of accidentally committing eval artifacts.
+
+**Mitigation options**:
+- Run SDK captures in an isolated git worktree (`git worktree add`)
+- Add a `.gitignore` pattern for common eval-generated paths
+- Use `auto_capture.py` with `--dry-run` first, then capture in a throwaway branch
+- Add a post-capture cleanup step that runs `git checkout -- . && git clean -fd` on non-eval paths
+- Run the SDK agent with a read-only or sandboxed workspace mode (if supported)
+
+### 5. Non-deterministic generation requires multi-run evaluation
+
+Each capture run produces different responses. Category-level swings of ±5-7pp between runs are normal variance, not signal. A single run (N=1) can show a category "improving" or "regressing" purely from generation noise.
+
+**Impact**: Single-run evals can't distinguish real improvements from noise. This makes A/B testing of rule changes unreliable.
+
+**Mitigation options**:
+- Always use `make eval-full` (N=3 runs) for measuring rule changes
+- Report confidence intervals alongside scores
+- Compare distributions, not point estimates
+
+## Recommendations
+
+1. **Run LLM judge**: The local heuristic cannot assess behavioral compliance. Set `OPENAI_API_KEY` in your shell and run `make eval-quick` for accurate scoring.
+2. **Multi-run eval**: Use `make eval-full` (N=3) to get statistically stable results and reduce variance from non-deterministic responses.
+3. **Sandbox eval captures**: Run SDK captures in a git worktree or throwaway branch to prevent workspace pollution.
+4. **Improve heuristic judge**: Add structural checks beyond keyword matching (regex for tip format, planner mentions, TodoWrite references).
+5. **System prompt injection**: Prepend critical rules into the SDK prompt text so the model sees them prominently.
+6. **Focus next rule iteration on**: contract category (40%) and adversarial category (45%) remain weakest. The model consistently skips harness workflow in single-turn SDK mode.
