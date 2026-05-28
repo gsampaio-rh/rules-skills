@@ -1,12 +1,12 @@
 #!/bin/bash
-# preToolUse hook (matcher: Write): Denies writes to implementation paths
+# preToolUse hook (matcher: Write): Denies writes to product files
 # when state.json exists (harness active) but no contract.json has been negotiated.
 #
 # Design:
 #   - No state.json → allow (simple task, no harness)
-#   - Contract exists → allow (negotiation done)
-#   - State exists + no contract → deny impl writes, allow harness/docs writes
-#   - Staleness check: if state.json is older than 24h and no activity, warn but allow
+#   - Contract exists → allow (negotiation done, builder working)
+#   - State exists + no contract → allow ONLY .harness/ and .cursor/hooks/ writes
+#     (builder must write a contract before touching anything else)
 
 input=$(cat)
 
@@ -46,9 +46,12 @@ if [ -z "$target_path" ]; then
   exit 0
 fi
 
-# Always allow writes to harness, breadcrumbs, docs, config, and meta files
-if echo "$target_path" | grep -qE '\.cursor/|breadcrumbs|\.md$|\.mdc$|\.json$|\.yaml$|\.yml$|\.toml$|__pycache__|\.gitignore|\.env|Makefile|hooks\.log'; then
-  echo '['"$(date -u +%Y-%m-%dT%H:%M:%S)"'] contract-gate: allowed path (harness/docs/config): '"$target_path" >> "$HOOK_LOG" 2>/dev/null
+# No contract yet — only allow writes to harness state and hook transient files.
+# Everything else (including .md, .mdc, .yaml product files) is blocked until
+# a contract is negotiated. This prevents the builder from skipping negotiation
+# in repos where the product IS markdown/YAML/JSON.
+if echo "$target_path" | grep -qE '\.harness/|\.cursor/hooks/'; then
+  echo '['"$(date -u +%Y-%m-%dT%H:%M:%S)"'] contract-gate: allowed path (harness/hook state): '"$target_path" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi
