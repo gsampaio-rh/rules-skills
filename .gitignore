@@ -5,8 +5,6 @@ tests/eval/responses/
 tests/eval/transcripts/
 tests/eval/history/runs/
 tests/eval/history/trends.json
-backend/data/
-backend/uploads/
 
 # Transient hook state (not project state)
 .cursor/hooks/.evaluator-active

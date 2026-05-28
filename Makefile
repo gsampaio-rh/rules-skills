@@ -115,32 +115,3 @@ clean: ## Remove all captured responses (all models)
 clean-history: ## Remove all eval history (runs + trends)
 	rm -rf tests/eval/history/runs/
 	rm -rf tests/eval/history/trends.json
-
-# ─── Profile app ──────────────────────────────────────────────
-
-profile-api: ## Run profile API on http://127.0.0.1:8000
-	.venv/bin/uvicorn backend.src.api.main:app --reload --host 127.0.0.1 --port 8000
-
-profile-ui: ## Run profile frontend on http://127.0.0.1:5173
-	cd frontend && npm run dev
-
-profile-test: ## Run profile API tests
-	.venv/bin/pytest tests/test_profile_api.py -q
-
-payment-test: ## Run payment, order, and checkout API tests
-	.venv/bin/pytest tests/test_payment_api.py tests/test_order_domain.py tests/test_cart_api.py -q
-
-ecommerce-test: ## Run full e-commerce platform tests
-	.venv/bin/pytest tests/test_ecommerce_api.py tests/test_product_domain.py tests/test_payment_api.py tests/test_order_domain.py tests/test_cart_api.py -q
-
-ecommerce-api: ## Run e-commerce API on http://127.0.0.1:8000
-	.venv/bin/uvicorn src.api.main:app --reload --host 127.0.0.1 --port 8000
-
-notification-test: ## Run auth, notification service, and notification API tests
-	.venv/bin/pytest tests/test_notification_service.py tests/test_auth_api.py tests/test_notification_api.py -q
-
-search-test: ## Run unified search API tests
-	.venv/bin/pytest tests/test_search_api.py -q
-
-weekly-digest: ## Send weekly digest emails to eligible users
-	.venv/bin/python -m backend.src.jobs.send_weekly_digests
