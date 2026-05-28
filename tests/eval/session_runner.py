@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Tier 3: Session scenario runner.
 
-Gives a real task to a Cursor agent in an isolated worktree, lets it work
-autonomously, then captures the full transcript + workspace artifacts for
+Runs real tasks against a Cursor agent in an isolated temp workspace
+(via CursorClient.launch_bridge). Captures transcript + artifacts for
 post-hoc judging.
 
 Usage:
     python tests/eval/session_runner.py                           # run all scenarios
     python tests/eval/session_runner.py --filter todo              # matching scenarios
-    python tests/eval/session_runner.py --scenario build-cli-tool  # specific scenario
+    python tests/eval/session_runner.py --scenario build_cli_tool  # specific scenario
     python tests/eval/session_runner.py --dry-run                  # show plan only
     python tests/eval/session_runner.py --list                     # list available scenarios
     python tests/eval/session_runner.py --timeout 600              # custom timeout (seconds)
@@ -21,7 +21,7 @@ Environment:
 import argparse
 import json
 import os
-import shutil
+import signal
 import sys
 import time
 from datetime import datetime, timezone
@@ -36,6 +36,24 @@ REPO_ROOT = EVAL_DIR.parent.parent
 
 DEFAULT_MODEL = "composer-2.5"
 DEFAULT_TIMEOUT = 300
+
+
+class _Timeout(Exception):
+    pass
+
+
+def _wait_with_timeout(run, timeout_s: int):
+    """Wait for a run to complete, raising _Timeout if it exceeds timeout_s."""
+    def _handler(signum, frame):
+        raise _Timeout(f"Run exceeded {timeout_s}s timeout")
+
+    prev = signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(timeout_s)
+    try:
+        return run.wait()
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, prev)
 
 
 def load_scenarios(filter_str: str | None = None) -> list[dict]:
@@ -56,15 +74,11 @@ def load_scenarios(filter_str: str | None = None) -> list[dict]:
     return scenarios
 
 
-def run_scenario(
-    scenario: dict,
-    model: str,
-    api_key: str,
-    timeout: int,
-) -> dict:
-    """Run a scenario in an isolated workspace, return session result."""
-    from cursor_sdk import Agent, LocalAgentOptions
+def run_scenario(scenario: dict, model: str, api_key: str, timeout: int) -> dict:
+    """Run a scenario in an isolated workspace via dedicated bridge."""
+    from cursor_sdk import CursorClient, LocalAgentOptions
 
+    sys.path.insert(0, str(EVAL_DIR))
     from sandbox import CaptureWorkspace
 
     scenario_id = scenario["id"]
@@ -76,59 +90,27 @@ def run_scenario(
 
     status = "complete"
     completed_prompts = 0
+    artifacts: dict = {}
 
-    with CaptureWorkspace(branch_suffix=f"session-{scenario_id}") as ws:
-        seed = scenario.get("seed_project")
-        if seed:
-            _apply_seed(seed, ws.path)
+    with CaptureWorkspace(prefix=f"eval-{scenario_id}-") as ws:
+        print(f"  Workspace: {ws.path}")
 
         try:
-            with Agent.create(
-                model=model,
-                api_key=api_key,
-                local=LocalAgentOptions(cwd=str(ws.path)),
-            ) as agent:
-                initial = scenario["initial_prompt"]
-                print(f"  Sending initial prompt...")
-                run = agent.send(initial)
-                run.wait(timeout=timeout)
-
-                transcript.append({
-                    "role": "user",
-                    "content": initial,
-                    "response": run.text(),
-                    "elapsed_s": time.time() - start_time,
-                })
-                completed_prompts += 1
-
-                for i, follow_up in enumerate(scenario.get("follow_up_prompts", [])):
-                    remaining = timeout - (time.time() - start_time)
-                    if remaining <= 0:
-                        status = "timeout"
-                        transcript.append({
-                            "role": "system",
-                            "content": f"Timeout: skipped follow-up {i + 1}",
-                        })
-                        break
-
-                    print(f"  Sending follow-up {i + 1}...")
-                    run = agent.send(follow_up)
-                    run.wait(timeout=int(remaining))
-
-                    transcript.append({
-                        "role": "user",
-                        "content": follow_up,
-                        "response": run.text(),
-                        "elapsed_s": time.time() - start_time,
-                    })
-                    completed_prompts += 1
-
+            with CursorClient.launch_bridge(workspace=str(ws.path)) as client:
+                with client.agents.create(
+                    model=model,
+                    api_key=api_key,
+                    local=LocalAgentOptions(cwd=str(ws.path)),
+                ) as agent:
+                    completed_prompts, status, transcript = _drive_conversation(
+                        agent, scenario, timeout, start_time,
+                    )
+        except _Timeout as e:
+            status = "timeout"
+            transcript.append({"role": "system", "content": str(e)})
         except Exception as e:
             status = "error"
-            transcript.append({
-                "role": "system",
-                "content": f"Error: {e}",
-            })
+            transcript.append({"role": "system", "content": f"Error: {e}"})
 
         verify_commands = scenario.get("verify", [])
         artifacts = ws.collect_artifacts(verify_commands or None)
@@ -150,15 +132,48 @@ def run_scenario(
     }
 
 
-def _apply_seed(seed_name: str, workspace: Path):
-    """Copy seed project template into workspace."""
-    seed_dir = EVAL_DIR / "templates" / seed_name
-    if not seed_dir.exists():
-        seed_dir = REPO_ROOT / seed_name
-    if seed_dir.exists():
-        shutil.copytree(seed_dir, workspace, dirs_exist_ok=True)
+def _drive_conversation(agent, scenario: dict, timeout: int, start_time: float):
+    """Send initial + follow-up prompts, return (completed_prompts, status, transcript)."""
+    transcript: list[dict] = []
+    status = "complete"
+    completed_prompts = 0
 
+    initial = scenario["initial_prompt"]
+    print(f"  Sending initial prompt...")
+    run = agent.send(initial)
+    _wait_with_timeout(run, timeout)
 
+    transcript.append({
+        "role": "user",
+        "content": initial,
+        "response": run.text(),
+        "elapsed_s": time.time() - start_time,
+    })
+    completed_prompts += 1
+
+    for i, follow_up in enumerate(scenario.get("follow_up_prompts", [])):
+        remaining = timeout - (time.time() - start_time)
+        if remaining <= 0:
+            status = "timeout"
+            transcript.append({
+                "role": "system",
+                "content": f"Timeout: skipped follow-up {i + 1}",
+            })
+            break
+
+        print(f"  Sending follow-up {i + 1}...")
+        run = agent.send(follow_up)
+        _wait_with_timeout(run, int(remaining))
+
+        transcript.append({
+            "role": "user",
+            "content": follow_up,
+            "response": run.text(),
+            "elapsed_s": time.time() - start_time,
+        })
+        completed_prompts += 1
+
+    return completed_prompts, status, transcript
 
 
 def save_session(result: dict) -> Path:
@@ -172,7 +187,7 @@ def save_session(result: dict) -> Path:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run session scenarios")
+    parser = argparse.ArgumentParser(description="Run session scenarios (isolated workspace)")
     parser.add_argument("--filter", help="Filter scenarios by id/name")
     parser.add_argument("--scenario", help="Run a specific scenario by id")
     parser.add_argument("--model", default=os.environ.get("CAPTURE_MODEL", DEFAULT_MODEL))
@@ -201,6 +216,7 @@ def main() -> int:
         print(f"Session run plan: {len(scenarios)} scenario(s)")
         print(f"  Model: {args.model}")
         print(f"  Timeout: {args.timeout}s")
+        print(f"  Isolation: CursorClient.launch_bridge (temp dir)")
         for s in scenarios:
             prompts = 1 + len(s.get("follow_up_prompts", []))
             print(f"  - {s['id']}: {s['name']} ({prompts} prompt(s))")
@@ -219,7 +235,8 @@ def main() -> int:
         print(f"  Saved: {path}")
         results.append(result)
 
-    print(f"\nCompleted {len(results)} scenario(s)")
+    passed = sum(1 for r in results if r["status"] == "complete")
+    print(f"\nCompleted {len(results)} scenario(s): {passed} complete, {len(results) - passed} other")
     return 0
 
 

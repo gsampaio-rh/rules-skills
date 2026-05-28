@@ -1,17 +1,18 @@
 """Isolated workspace sandbox for eval captures.
 
-The SDK agent needs a workspace with .cursor/rules/ and .cursor/skills/ loaded.
-But if we point it at the real repo, it pollutes .harness/, src/, tests/, etc.
+Creates a fresh temporary git repository for each eval run, copies in
+.cursor/ config (rules, skills) so the agent sees them, and provides
+artifact collection (git diff, file contents, verify commands).
 
-Solution: create a temporary git worktree for each capture run. The worktree
-shares the git database (so the agent sees realistic repo structure) but has
-its own working directory. After capture, we destroy the worktree.
+The workspace is completely independent — no worktrees, no shared .git.
+Destroyed on exit.
 
 Usage:
     with CaptureWorkspace() as ws:
-        # ws.path is a Path to an isolated checkout
-        # .cursor/rules/, .cursor/skills/, .cursor/hooks.json are present
-        Agent.create(..., local=LocalAgentOptions(cwd=str(ws.path)))
+        # ws.path is a Path to an isolated git repo with .cursor/ loaded
+        # Use with CursorClient.launch_bridge(workspace=str(ws.path))
+        ...
+        artifacts = ws.collect_artifacts(verify_commands)
 """
 
 import json
@@ -28,49 +29,41 @@ MAX_TOTAL_CAPTURE = 524_288  # 512KB total
 
 
 class CaptureWorkspace:
-    """Temporary git worktree for capture isolation.
+    """Temporary isolated git repo for eval capture.
 
-    On enter: creates a worktree from HEAD with .cursor/ config copied in.
-    On exit: removes the worktree completely.
+    On enter: creates temp dir, git init, copies .cursor/ config.
+    On exit: deletes everything.
     """
 
-    def __init__(self, *, branch_suffix: str = "eval-sandbox"):
+    def __init__(self, *, prefix: str = "eval-sandbox-"):
         self._tmpdir: tempfile.TemporaryDirectory | None = None
-        self._branch_suffix = branch_suffix
+        self._prefix = prefix
         self.path: Path = Path()
+        self._capture_meta: dict = {}
 
     def __enter__(self) -> "CaptureWorkspace":
-        self._tmpdir = tempfile.TemporaryDirectory(prefix="eval-sandbox-")
-        worktree_dir = Path(self._tmpdir.name) / "workspace"
+        self._tmpdir = tempfile.TemporaryDirectory(prefix=self._prefix)
+        self.path = Path(self._tmpdir.name)
 
         subprocess.run(
-            ["git", "worktree", "add", "--detach", str(worktree_dir), "HEAD"],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            check=True,
+            ["git", "init"],
+            cwd=self.path, capture_output=True, check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "--allow-empty", "-m", "eval-sandbox-init"],
+            cwd=self.path, capture_output=True, check=True,
         )
 
-        self.path = worktree_dir
         self._setup_cursor_config()
         self._setup_clean_harness()
         return self
 
     def __exit__(self, *exc):
-        if self.path.exists():
-            subprocess.run(
-                ["git", "worktree", "remove", "--force", str(self.path)],
-                cwd=REPO_ROOT,
-                capture_output=True,
-            )
         if self._tmpdir:
             self._tmpdir.cleanup()
 
     def _setup_cursor_config(self):
-        """Copy library/cursor/ into the worktree's .cursor/ so rules/skills are active.
-
-        Reads from library/cursor/ (source of truth), not .cursor/ (local copy).
-        This means evals always test the latest edits without needing sync-local.
-        """
+        """Copy library/cursor/ into .cursor/ so rules/skills are active."""
         library_cursor = REPO_ROOT / "library" / "cursor"
         dst_cursor = self.path / ".cursor"
 
@@ -79,21 +72,10 @@ class CaptureWorkspace:
 
         dst_cursor.mkdir(exist_ok=True)
 
-        for item in ("rules", "skills", "agents", "references",
-                      "hooks", "hooks.json", "hooks.lean.json", "hooks.full.json"):
+        for item in ("rules", "skills", "agents", "references"):
             src = library_cursor / item
-            if not src.exists():
-                # hooks.json lives at library/cursor/hooks.lean.json → .cursor/hooks.json
-                if item == "hooks.json":
-                    lean = library_cursor / "hooks.lean.json"
-                    if lean.exists():
-                        shutil.copy2(lean, dst_cursor / "hooks.json")
-                continue
-            dst = dst_cursor / item
-            if src.is_dir():
-                shutil.copytree(src, dst, dirs_exist_ok=True)
-            else:
-                shutil.copy2(src, dst)
+            if src.exists():
+                shutil.copytree(src, dst_cursor / item, dirs_exist_ok=True)
 
     def _setup_clean_harness(self):
         """Create a clean .harness/ so the agent sees a fresh project state."""
@@ -110,10 +92,7 @@ class CaptureWorkspace:
         (harness_dir / "breadcrumbs.jsonl").write_text("")
 
     def collect_artifacts(self, verify_commands: list[dict] | None = None) -> dict:
-        """Collect git diff, changed file contents, harness state, and verify results.
-
-        Must be called BEFORE __exit__ destroys the worktree.
-        """
+        """Collect git diff, changed file contents, harness state, and verify results."""
         artifacts: dict = {
             "files": [],
             "git_diff_stat": "",
@@ -163,12 +142,8 @@ class CaptureWorkspace:
             cwd=self.path, capture_output=True, text=True,
         )
 
-        changed = [
-            f for f in names_result.stdout.strip().splitlines() if f
-        ]
-        new_files = [
-            f for f in untracked.stdout.strip().splitlines() if f
-        ]
+        changed = [f for f in names_result.stdout.strip().splitlines() if f]
+        new_files = [f for f in untracked.stdout.strip().splitlines() if f]
 
         return stat_result.stdout, patch_result.stdout, changed + new_files
 
@@ -235,15 +210,6 @@ class CaptureWorkspace:
                     harness[name] = json.loads(path.read_text())
             except (json.JSONDecodeError, OSError):
                 harness[name] = {"_error": "failed to parse"}
-
-        evals_dir = harness_dir / "evals"
-        if evals_dir.exists():
-            harness["evals"] = []
-            for ep in sorted(evals_dir.glob("eval-*.json")):
-                try:
-                    harness["evals"].append(json.loads(ep.read_text()))
-                except (json.JSONDecodeError, OSError):
-                    continue
 
         return harness
 
