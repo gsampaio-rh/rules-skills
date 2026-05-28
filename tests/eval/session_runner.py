@@ -31,7 +31,8 @@ import yaml
 
 EVAL_DIR = Path(__file__).parent
 SCENARIOS_DIR = EVAL_DIR / "scenarios"
-SESSIONS_DIR = EVAL_DIR / "sessions"
+RESULTS_DIR = EVAL_DIR.parent / "results"
+SESSIONS_DIR = RESULTS_DIR / "sessions"
 REPO_ROOT = EVAL_DIR.parent.parent
 
 DEFAULT_MODEL = "composer-2.5"

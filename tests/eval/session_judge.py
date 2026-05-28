@@ -29,8 +29,9 @@ import yaml
 
 EVAL_DIR = Path(__file__).parent
 SCENARIOS_DIR = EVAL_DIR / "scenarios"
-SESSIONS_DIR = EVAL_DIR / "sessions"
-JUDGMENTS_DIR = EVAL_DIR / "judgments"
+RESULTS_DIR = EVAL_DIR.parent / "results"
+SESSIONS_DIR = RESULTS_DIR / "sessions"
+JUDGMENTS_DIR = RESULTS_DIR / "judgments"
 
 
 def load_scenario(scenario_id: str) -> dict | None:

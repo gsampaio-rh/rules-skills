@@ -11,8 +11,9 @@ from collections import defaultdict
 from pathlib import Path
 
 EVAL_DIR = Path(__file__).parent
-JUDGMENTS_DIR = EVAL_DIR / "judgments"
-SUMMARIES_DIR = EVAL_DIR / "summaries"
+RESULTS_DIR = EVAL_DIR.parent / "results"
+JUDGMENTS_DIR = RESULTS_DIR / "judgments"
+SUMMARIES_DIR = RESULTS_DIR / "summaries"
 
 DIMENSIONS = ["harness", "contract", "artifact", "behavioral", "negotiation"]
 

@@ -1,0 +1,65 @@
+{
+  "scenario_id": "refactor_module",
+  "model": "composer-2.5",
+  "timestamp": "2026-05-28T16:51:31.636356+00:00",
+  "tiers_run": [
+    "structural"
+  ],
+  "results": [
+    {
+      "criterion": "utils/ directory exists as a Python package (has __init__.py)",
+      "result": "PASS",
+      "evidence": "'directory' in utils/files.py",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Separate module files exist (strings.py, dates.py, files.py, validation.py)",
+      "result": "PASS",
+      "evidence": "Extensions found: ['.py', '.py', '.py', '.py']",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Original utils.py no longer exists or is a re-export shim",
+      "result": "FAIL",
+      "evidence": "Keywords ['original', 'utils.py', 'longer'] not found in file contents",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Import statements updated across the project",
+      "result": "PASS",
+      "evidence": "'import' in app/users.py",
+      "tier": "structural"
+    },
+    {
+      "criterion": "No apologies or unnecessary summaries in transcript",
+      "result": "PASS",
+      "evidence": "Pattern-based heuristic",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Agent verified imports work after refactoring",
+      "result": "PASS",
+      "evidence": "Pattern-based heuristic",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Agent used TodoWrite or similar progress tracking for multi-file change",
+      "result": "PASS",
+      "evidence": "Pattern-based heuristic",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Breadcrumbs trace is complete",
+      "result": "UNCERTAIN",
+      "evidence": "Pattern-based heuristic",
+      "tier": "structural"
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "pass": 6,
+    "fail": 1,
+    "skip_or_uncertain": 1,
+    "score": 0.75
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "scenario_id": "build_cli_tool",
+  "model": "composer-2.5",
+  "timestamp": "2026-05-28T16:51:31.633468+00:00",
+  "tiers_run": [
+    "structural"
+  ],
+  "results": [
+    {
+      "criterion": "Main Python file exists with argparse CLI",
+      "result": "PASS",
+      "evidence": "'python' in organize.py; 'argparse' in organize.py",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Script handles --dry-run flag",
+      "result": "PASS",
+      "evidence": "'--dry-run' in organize.py",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Script handles --recursive flag",
+      "result": "PASS",
+      "evidence": "'--recursive' in organize.py",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Error handling for OSError/PermissionError present",
+      "result": "PASS",
+      "evidence": "'error' in organize.py",
+      "tier": "structural"
+    },
+    {
+      "criterion": "No apologies or unnecessary summaries in transcript",
+      "result": "PASS",
+      "evidence": "Pattern-based heuristic",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Agent ran commands autonomously (tests, linting)",
+      "result": "UNCERTAIN",
+      "evidence": "Pattern-based heuristic",
+      "tier": "structural"
+    },
+    {
+      "criterion": "Breadcrumbs trace is complete",
+      "result": "UNCERTAIN",
+      "evidence": "Pattern-based heuristic",
+      "tier": "structural"
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "pass": 5,
+    "fail": 0,
+    "skip_or_uncertain": 2,
+    "score": 0.71
+  }
+}
