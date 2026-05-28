@@ -6,8 +6,5 @@ tests/eval/transcripts/
 tests/eval/history/runs/
 tests/eval/history/trends.json
 
-# Transient hook state (not project state)
-.cursor/hooks/.evaluator-active
-.cursor/hooks/.commit-approved
-.cursor/.hooks-profile
-.cursor/hooks.log
+# Local IDE config (populated by make setup from library/cursor/)
+.cursor/

@@ -19,11 +19,32 @@ N_RUNS   ?= 3
 .PHONY: help validate capture eval pipeline compare status clean
 .PHONY: eval-quick eval-full eval-regress eval-baseline eval-report
 .PHONY: eval-multi eval-multi-save eval-multi-dry eval-multi-capture eval-multi-judge
-.PHONY: divergence trace-review
+.PHONY: divergence trace-review setup sync-local harness-metrics
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+
+# ─── Local Setup ─────────────────────────────────────────────
+
+setup: sync-local ## Initial setup for fresh clone (populates .cursor/ from library/cursor/)
+
+sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents, references)
+	@echo "Syncing library/cursor/ → .cursor/ ..."
+	@mkdir -p .cursor
+	@for dir in rules skills hooks agents references; do \
+		if [ -L ".cursor/$$dir" ]; then rm ".cursor/$$dir"; fi; \
+		if [ -d "library/cursor/$$dir" ]; then \
+			rm -rf ".cursor/$$dir"; \
+			cp -R "library/cursor/$$dir" ".cursor/$$dir"; \
+		fi; \
+	done
+	@rm -f .cursor/hooks.json .cursor/hooks.full.json .cursor/hooks.lean.json
+	@cp library/cursor/hooks.full.json .cursor/hooks.full.json
+	@cp library/cursor/hooks.lean.json .cursor/hooks.lean.json
+	@cp library/cursor/hooks.lean.json .cursor/hooks.json
+	@echo "lean" > .cursor/.hooks-profile
+	@echo "Done. Profile: lean (run scripts/hooks-profile.sh full to switch)"
 
 validate: ## Validate rules and skills against authoring standards
 	$(PYTHON) tests/validate.py
@@ -87,6 +108,14 @@ divergence: ## Analyze divergence patterns from latest eval run
 
 trace-review: ## AI-powered review of failing traces (uses CURSOR_API_KEY)
 	$(PYTHON) tests/eval/trace_review.py --model $(JUDGE_MODEL)
+
+# ─── Harness Metrics ─────────────────────────────────────────
+
+harness-metrics: ## Show harness effectiveness metrics dashboard
+	$(PYTHON) tests/eval/harness_metrics.py
+
+harness-metrics-json: ## Harness metrics as JSON
+	$(PYTHON) tests/eval/harness_metrics.py --json
 
 # ─── Pipelines ────────────────────────────────────────────────
 

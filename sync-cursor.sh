@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_CURSOR="$SCRIPT_DIR/library/cursor"
-HOOKS_FULL="$SCRIPT_DIR/.cursor/hooks.full.json"
+HOOKS_FULL="$SCRIPT_DIR/library/cursor/hooks.full.json"
 SEARCH_ROOT="$HOME/redhat"
 
 DRY_RUN=false

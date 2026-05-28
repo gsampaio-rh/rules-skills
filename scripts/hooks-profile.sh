@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 CURSOR_DIR="$REPO_ROOT/.cursor"
+LIBRARY_DIR="$REPO_ROOT/library/cursor"
 
 usage() {
     echo "Usage: $(basename "$0") <lean|full|status>"
@@ -23,16 +24,14 @@ HOOKS_JSON="$CURSOR_DIR/hooks.json"
 
 case "$PROFILE" in
     lean)
-        rm -f "$HOOKS_JSON"
-        ln -s hooks.lean.json "$HOOKS_JSON"
+        cp "$LIBRARY_DIR/hooks.lean.json" "$HOOKS_JSON"
         echo "lean" > "$PROFILE_FILE"
         echo "Switched to LEAN profile (no harness enforcement)"
         echo "  Active: dedup-server, enforce-progress (Tier 1), context-health"
         echo "  Inactive: contract-gate, evaluator-guard, verify-harness, harness-gate, chain-evaluator, pre-commit-harness"
         ;;
     full)
-        rm -f "$HOOKS_JSON"
-        ln -s hooks.full.json "$HOOKS_JSON"
+        cp "$LIBRARY_DIR/hooks.full.json" "$HOOKS_JSON"
         echo "full" > "$PROFILE_FILE"
         echo "Switched to FULL profile (all harness enforcement active)"
         echo "  Active: ALL hooks including contract-gate, verify-harness, LLM prompt hooks"
@@ -44,9 +43,12 @@ case "$PROFILE" in
         else
             current="lean (default — no .hooks-profile file)"
         fi
-        target=$(readlink "$HOOKS_JSON" 2>/dev/null || echo "not a symlink")
-        echo "Profile: $current"
-        echo "hooks.json → $target"
+        if [[ -f "$HOOKS_JSON" ]]; then
+            echo "Profile: $current"
+            echo "hooks.json: present (copy)"
+        else
+            echo "Profile: not set (run 'make setup' first)"
+        fi
         ;;
     *)
         usage
