@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-05-28T13:22:36.442123+00:00",
+  "project": "rules-skills",
+  "features": {
+    "total": 6,
+    "by_status": {
+      "verified": 6
+    },
+    "features_completed": 6,
+    "features_pending": 0,
+    "completion_rate": 1.0
+  },
+  "breadcrumbs": {
+    "total_entries": 60,
+    "by_role": {
+      "builder": 53,
+      "system": 5,
+      "evaluator": 1,
+      "planner": 1
+    },
+    "by_type": {
+      "negotiate": 1,
+      "build": 37,
+      "verify": 6,
+      "checkpoint": 7,
+      "session_start": 5,
+      "decision": 1,
+      "negotiation": 1,
+      "cleanup": 1,
+      "plan": 1
+    },
+    "negotiation_rounds": 2,
+    "build_evaluate_cycles": 6,
+    "scrap_count": 0,
+    "scrap_rate": 0.0,
+    "features_touched": 10
+  },
+  "contract": {
+    "active": true,
+    "feature_id": "feat-6",
+    "phase": "evaluating",
+    "verified": false,
+    "criteria_count": 6,
+    "edge_case_count": 2,
+    "negotiation_rounds": 0,
+    "has_rubrics": true
+  },
+  "evaluations": {
+    "total_reports": 0
+  }
+}

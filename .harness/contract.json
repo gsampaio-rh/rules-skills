@@ -1,0 +1,24 @@
+{
+  "feature_id": "feat-6",
+  "feature": "Harness eval metrics",
+  "problem": "No unified view of harness effectiveness (planner quality, contract completeness, eval accuracy) or rule compliance trends. Debugging the harness requires manually reading breadcrumbs and eval reports.",
+  "proposed_solution": "Create tests/eval/harness_metrics.py that reads .harness/ state files and produces a structured metrics report. Add make harness-metrics target.",
+  "acceptance_criteria": [
+    "tests/eval/harness_metrics.py exists and runs without errors",
+    "Script reads breadcrumbs.jsonl, state.json, contract.json, and eval reports from .harness/",
+    "Produces metrics for: negotiation rounds, build-evaluate cycles, scrap rate, features completed/pending",
+    "Output is structured JSON saved to .harness/metrics.json",
+    "make harness-metrics target exists and runs the script",
+    "Script handles missing files gracefully (no .harness/ = empty report)"
+  ],
+  "edge_cases": [
+    "Empty .harness/ directory: should produce zeroed metrics without crashing",
+    "Malformed breadcrumbs.jsonl lines: should skip bad lines and continue"
+  ],
+  "verification_method": "Run: python tests/eval/harness_metrics.py (produces .harness/metrics.json), make harness-metrics (same), python -c 'import json; json.load(open(\".harness/metrics.json\"))' (valid JSON)",
+  "rubrics": ["code-quality"],
+  "rubric_mode": "warn",
+  "negotiation_rounds": 0,
+  "phase": "verified",
+  "verified": true
+}

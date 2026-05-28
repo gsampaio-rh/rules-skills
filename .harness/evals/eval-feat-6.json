@@ -1,0 +1,52 @@
+{
+  "feature_id": "feat-6",
+  "feature": "Harness eval metrics",
+  "timestamp": "2026-05-28T13:22:30Z",
+  "criteria_results": [
+    {
+      "criterion": "tests/eval/harness_metrics.py exists and runs without errors",
+      "result": "PASS",
+      "evidence": "Script runs with exit code 0, produces dashboard output"
+    },
+    {
+      "criterion": "Script reads breadcrumbs.jsonl, state.json, contract.json, and eval reports from .harness/",
+      "result": "PASS",
+      "evidence": "Loaders at lines 29-71: load_breadcrumbs, load_state, load_contract, load_eval_reports. Output references data from all files."
+    },
+    {
+      "criterion": "Produces metrics for: negotiation rounds, build-evaluate cycles, scrap rate, features completed/pending",
+      "result": "PASS",
+      "evidence": "JSON output contains negotiation_rounds: 2, build_evaluate_cycles: 6, scrap_rate: 0.0, features_completed: 6, features_pending: 0. Initial eval found missing scrap_rate and features_completed/pending — fixed and re-verified."
+    },
+    {
+      "criterion": "Output is structured JSON saved to .harness/metrics.json",
+      "result": "PASS",
+      "evidence": "python3 -c import json; json.load(open('.harness/metrics.json')) succeeds. Valid JSON confirmed."
+    },
+    {
+      "criterion": "make harness-metrics target exists and runs the script",
+      "result": "PASS",
+      "evidence": "make harness-metrics exits 0, produces same dashboard + save output"
+    },
+    {
+      "criterion": "Script handles missing files gracefully (no .harness/ = empty report)",
+      "result": "PASS",
+      "evidence": "Run from temp dir with no .harness/: exit 0, zeroed JSON (project: unknown, all counts 0)"
+    }
+  ],
+  "edge_case_results": [
+    {
+      "case": "Empty .harness/ directory: should produce zeroed metrics without crashing",
+      "result": "PASS",
+      "evidence": "Temp dir with empty .harness/: exit 0, zeroed JSON output"
+    },
+    {
+      "case": "Malformed breadcrumbs.jsonl lines: should skip bad lines and continue",
+      "result": "PASS",
+      "evidence": "Lines 37-40: try/except json.JSONDecodeError: continue"
+    }
+  ],
+  "overall": "PASS",
+  "recommendation": "proceed",
+  "notes": "First eval round failed criterion 3 (missing scrap_rate and features_completed/pending). Builder fixed by adding explicit fields. Re-test passed all 6 criteria + 2 edge cases."
+}
