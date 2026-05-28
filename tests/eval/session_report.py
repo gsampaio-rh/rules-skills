@@ -96,7 +96,10 @@ def compute_summary(judgments: list[dict]) -> dict:
     total_pass = sum(s["pass_count"] for s in scenarios.values())
     total_checks = sum(s["total_checks"] for s in scenarios.values())
 
+    from datetime import datetime, timezone
+
     return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "scenarios": scenarios,
         "aggregate": {
             "total_scenarios": len(scenarios),

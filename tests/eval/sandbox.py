@@ -40,6 +40,7 @@ class CaptureWorkspace:
         self._prefix = prefix
         self.path: Path = Path()
         self._capture_meta: dict = {}
+        self._base_sha: str = ""
 
     def __enter__(self) -> "CaptureWorkspace":
         self._tmpdir = tempfile.TemporaryDirectory(prefix=self._prefix)
@@ -53,6 +54,10 @@ class CaptureWorkspace:
             ["git", "commit", "--allow-empty", "-m", "eval-sandbox-init"],
             cwd=self.path, capture_output=True, check=True,
         )
+        self._base_sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.path, capture_output=True, text=True, check=True,
+        ).stdout.strip()
 
         self._setup_cursor_config()
         self._setup_clean_harness()
@@ -124,19 +129,22 @@ class CaptureWorkspace:
         return files
 
     def _collect_git_diff(self) -> tuple[str, str, list[str]]:
-        """Get git diff stat, patch, and list of changed file paths."""
+        """Get all changes since sandbox init (handles both committed and uncommitted work)."""
+        # Diff against the initial empty commit to capture everything the agent did
+        base = self._base_sha
         stat_result = subprocess.run(
-            ["git", "diff", "HEAD", "--stat"],
+            ["git", "diff", base, "--stat"],
             cwd=self.path, capture_output=True, text=True,
         )
         patch_result = subprocess.run(
-            ["git", "diff", "HEAD"],
+            ["git", "diff", base],
             cwd=self.path, capture_output=True, text=True,
         )
         names_result = subprocess.run(
-            ["git", "diff", "HEAD", "--name-only"],
+            ["git", "diff", base, "--name-only"],
             cwd=self.path, capture_output=True, text=True,
         )
+        # Also pick up uncommitted untracked files
         untracked = subprocess.run(
             ["git", "ls-files", "--others", "--exclude-standard"],
             cwd=self.path, capture_output=True, text=True,
@@ -145,7 +153,7 @@ class CaptureWorkspace:
         changed = [f for f in names_result.stdout.strip().splitlines() if f]
         new_files = [f for f in untracked.stdout.strip().splitlines() if f]
 
-        return stat_result.stdout, patch_result.stdout, changed + new_files
+        return stat_result.stdout, patch_result.stdout, list(set(changed + new_files))
 
     def _collect_changed_contents(self, paths: list[str]) -> dict[str, str]:
         """Read content of changed/new files, respecting size caps."""
