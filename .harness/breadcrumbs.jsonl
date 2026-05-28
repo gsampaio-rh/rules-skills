@@ -60,3 +60,8 @@
 {"ts":"2026-05-28T13:19:16Z","role":"builder","type":"build","feat":null,"msg":"Harness enforcement fix complete: lean profile now has contract-gate + verify-harness, contract-gate allowlist tightened to .harness/ and .cursor/hooks/ only","result":"pass"}
 {"ts":"2026-05-28T13:23:00Z","role":"builder","type":"build","feat":"feat-6","msg":"Fix missing scrap_rate and features_completed/pending in harness_metrics.py per evaluator feedback","result":"pass"}
 {"ts":"2026-05-28T13:23:10Z","role":"evaluator","type":"verify","feat":"feat-6","msg":"All 6 criteria + 2 edge cases PASS after fix. Contract verified.","result":"pass"}
+{"ts":"2026-05-28T13:35:00Z","role":"builder","type":"build","feat":null,"msg":"Enrich RULES_STANDARD.md with Design Rationale, Hypotheses, Measurement sections","result":"pass"}
+{"ts":"2026-05-28T13:37:00Z","role":"builder","type":"build","feat":null,"msg":"Enrich SKILLS_STANDARD.md with Design Rationale, Hypotheses, Measurement sections","result":"pass"}
+{"ts":"2026-05-28T13:40:00Z","role":"builder","type":"build","feat":null,"msg":"Create HARNESS_STANDARD.md absorbing DESIGN_LINEAGE content + authoring guidelines + hypotheses + measurement","result":"pass"}
+{"ts":"2026-05-28T13:42:00Z","role":"builder","type":"build","feat":null,"msg":"Delete DESIGN_LINEAGE.md, update README.md to reference HARNESS_STANDARD.md","result":"pass"}
+{"ts":"2026-05-28T13:43:00Z","role":"builder","type":"verify","feat":null,"msg":"Validation passes (0 errors), no broken DESIGN_LINEAGE references in product files, sync-local complete","result":"pass"}

@@ -179,11 +179,10 @@ Distributes `library/cursor/` content to all projects under `~/redhat`:
 **Per-project** (`.cursor/`): rules, references, hooks (scripts + full hooks.json)
 **Global** (`~/.cursor/`): agents, skills
 
-## Design Lineage
-
-The harness implements specific patterns from Anthropic ("Build Agents That Run for Hours"), OpenAI, DeepMind, and Fowler's guides/sensors taxonomy. See [`DESIGN_LINEAGE.md`](DESIGN_LINEAGE.md) for the full mapping of concepts to repo artifacts.
-
 ## Authoring Standards
+
+Each standard is a self-contained reference: authoring guidelines, design rationale, hypotheses, and measurement criteria.
 
 - [`RULES_STANDARD.md`](RULES_STANDARD.md) — how to write `.mdc` rules
 - [`SKILLS_STANDARD.md`](SKILLS_STANDARD.md) — how to write `SKILL.md` skills
+- [`HARNESS_STANDARD.md`](HARNESS_STANDARD.md) — harness workflow, state schemas, enforcement hooks

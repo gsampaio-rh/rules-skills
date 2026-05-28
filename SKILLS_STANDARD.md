@@ -98,6 +98,36 @@ Skills can reference shared knowledge in `.cursor/references/`:
 
 Reference with relative paths from the skill's perspective. Load only what's relevant to the current task.
 
+## Design Rationale
+
+Skills are the **augmented LLM** pattern (Anthropic) — they extend the base model with domain-specific workflows that the model wouldn't execute consistently on its own. The design encodes these principles:
+
+- **Multi-mode entry points** — real tasks don't start from a blank slate. "Build from scratch" vs. "optimize existing" mirrors how practitioners approach work. A single linear workflow forces users into a path that rarely matches their starting point.
+- **Practitioner voice** — skills open with "You are an expert in X" to prime the model into a decisive operating mode. Neutral instructions produce neutral (hedging) output. The voice is the cheapest intervention with the highest behavioral impact.
+- **Context-first** — skills check for existing project docs before asking questions. This prevents the 20-questions anti-pattern where the agent interrogates the user for context that's already in the codebase.
+- **Stop conditions as guardrails** — without explicit stop conditions, agents either run too long (attempting tasks beyond their scope) or stop too early (giving up at the first ambiguity). Stop conditions define the boundaries of autonomous behavior.
+- **Output artifacts as contracts** — the "When you ask for... / You get..." table sets expectations. The user knows what deliverable to expect; the agent knows what to produce. This reduces "I thought you'd also do X" friction.
+- **References for depth, SKILL.md for flow** — the 300-line limit forces skills to be workflow-focused. Domain knowledge, rubrics, and templates live in `references/` and `templates/`, loaded on demand. This keeps the primary context lean.
+
+## Hypotheses
+
+- **H1: Multi-mode entry points reduce user friction vs. monolithic workflows.** Users abandon skills that don't match their starting context. Two modes cover 80%+ of entry scenarios. Measurement: skill completion rate across modes.
+- **H2: Practitioner voice produces more decisive agent behavior than neutral tone.** The "You are an expert" framing reduces hedging responses by setting a confident operating mode. Measurement: behavioral eval rubric scores for decisiveness and action-taking.
+- **H3: Stop conditions prevent agent runaway on ambiguous tasks.** Explicit pause points reduce wasted tokens on out-of-scope work and prevent the agent from making assumptions it shouldn't. Measurement: rate of user corrections after skill invocation.
+- **H4: Context-first reduces redundant questions by 50%+.** Checking for existing docs before asking eliminates questions the codebase already answers. Measurement: question count per skill invocation.
+- **H5: The 300-line limit forces better information architecture.** Skills that exceed the limit are trying to do too much. Splitting into SKILL.md + references produces better-organized, more maintainable content. Measurement: `tests/validate.py` line counts.
+
+## Measurement
+
+| Signal | Source | What it tells us |
+|--------|--------|------------------|
+| SKILL.md line count | `tests/validate.py` | Whether skills stay within the 300-line budget |
+| Required sections present | `tests/validate.py` | Whether skills have all standard sections |
+| Frontmatter validity | `tests/validate.py` | Whether name, description, disable-model-invocation are set correctly |
+| Skill activation accuracy | Manual testing | Whether description keywords trigger the right skill |
+| Behavioral eval scores | `tests/eval/` pipeline | Whether skill-guided behavior outperforms baseline |
+| Output artifact completeness | Manual review | Whether skills produce all promised deliverables |
+
 ## Anti-Patterns
 
 - Missing or vague `description` (skill never loads)
