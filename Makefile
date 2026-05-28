@@ -19,6 +19,7 @@ N_RUNS   ?= 3
 .PHONY: help validate capture eval pipeline compare status clean
 .PHONY: eval-quick eval-full eval-regress eval-baseline eval-report
 .PHONY: eval-multi eval-multi-save eval-multi-dry eval-multi-capture eval-multi-judge
+.PHONY: eval-fast eval-behavioral eval-session eval-session-dry eval-session-judge eval-session-report
 .PHONY: divergence trace-review setup sync-local harness-metrics
 
 help: ## Show this help
@@ -116,6 +117,29 @@ harness-metrics: ## Show harness effectiveness metrics dashboard
 
 harness-metrics-json: ## Harness metrics as JSON
 	$(PYTHON) tests/eval/harness_metrics.py --json
+
+# ─── Three-Tier Eval ─────────────────────────────────────────
+
+eval-fast: validate ## Tier 1: fast static checks (seconds, no API keys)
+	$(PYTHON) tests/eval/contract_lint.py
+	$(PYTHON) tests/eval/harness_lint.py
+
+eval-behavioral: eval-quick ## Tier 2: behavioral prompt evals (alias for eval-quick)
+
+eval-session: ## Tier 3: run session scenarios via Cursor SDK
+	$(PYTHON) tests/eval/session_runner.py --model $(MODEL) --timeout 300
+
+eval-session-dry: ## Tier 3: show session scenario plan
+	$(PYTHON) tests/eval/session_runner.py --dry-run
+
+eval-session-judge: ## Tier 3: judge completed sessions (computational + structural)
+	$(PYTHON) tests/eval/session_judge.py --tier computational
+
+eval-session-judge-full: ## Tier 3: judge with all tiers including LLM
+	$(PYTHON) tests/eval/session_judge.py
+
+eval-session-report: ## Tier 3: aggregated report from judgments
+	$(PYTHON) tests/eval/session_report.py --save
 
 # ─── Pipelines ────────────────────────────────────────────────
 

@@ -1,0 +1,43 @@
+id: refactor_module
+name: "Refactor a monolith into modules"
+difficulty: hard
+estimated_duration: 10m
+seed_project: null
+
+initial_prompt: >
+  This project has a single large utils.py file (imagine it exists with 500+
+  lines mixing string helpers, date formatters, file I/O utilities, and
+  validation functions). Refactor it into a proper utils/ package with
+  separate modules: strings.py, dates.py, files.py, and validation.py.
+  Update all imports across the project. Ensure nothing breaks.
+
+follow_up_prompts:
+  - "Add __all__ exports to each module"
+  - "Commit the changes"
+
+verify:
+  - command: "python -c \"import utils\" 2>&1 || true"
+    timeout_s: 10
+  - command: "python -m py_compile $(find . -name '*.py' -not -path './.cursor/*' -not -path './.harness/*' | head -10) 2>&1 || true"
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent created .harness/state.json with features"
+    - "Contract negotiation occurred (breadcrumbs show negotiate type)"
+    - "Evaluator was launched (breadcrumbs show eval type)"
+    - "Contract was verified before commit"
+  artifact_quality:
+    - "utils/ directory exists as a Python package (has __init__.py)"
+    - "Separate module files exist (strings.py, dates.py, files.py, validation.py)"
+    - "Original utils.py no longer exists or is a re-export shim"
+    - "Import statements updated across the project"
+  behavioral:
+    - "No apologies or unnecessary summaries in transcript"
+    - "Agent verified imports work after refactoring"
+    - "Agent used TodoWrite or similar progress tracking for multi-file change"
+    - "Breadcrumbs trace is complete"
+  negotiation_quality:
+    - "Acceptance criteria mention import compatibility"
+    - "Edge cases include circular imports and re-export patterns"
+    - "Verification method includes running tests or import checks"

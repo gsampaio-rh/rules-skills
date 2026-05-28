@@ -155,6 +155,42 @@ The planner stays at user-story level — it doesn't specify implementation deta
 
 ## Measurement
 
+Three evaluation tiers provide progressively deeper signal:
+
+### Tier 1: Fast Static Checks (seconds, no API keys)
+
+| Check | Tool | What it catches |
+|-------|------|-----------------|
+| Contract structure | `contract_lint.py` | Missing fields, vague criteria, insufficient edge cases |
+| Breadcrumb integrity | `harness_lint.py` | Invalid JSON, missing fields, timestamp gaps |
+| State consistency | `harness_lint.py` | Duplicate feature IDs, stuck phases, cross-file mismatches |
+| Rule/skill structure | `validate.py` | Token budget, missing sections, dead rules |
+
+Run: `make eval-fast`
+
+### Tier 2: Behavioral Prompt Evals (minutes, requires API keys)
+
+| Signal | Source | What it tells us |
+|--------|--------|------------------|
+| Negotiation quality | `dataset.yaml` negotiation tests | Whether agents push back on vague criteria and accept strong ones |
+| Builder-evaluator interaction | `dataset.yaml` adversarial tests | Whether builders respond correctly to FAIL/scrap recommendations |
+| Rule compliance | `dataset.yaml` always-on tests | Whether rules actually change agent behavior vs. baseline |
+
+Run: `make eval-behavioral`
+
+### Tier 3: Session Scenario Evals (longer runs, requires Cursor SDK)
+
+| Signal | Source | What it tells us |
+|--------|--------|------------------|
+| Harness workflow compliance | `session_judge.py` computational checks | Whether the full plan-negotiate-build-evaluate cycle occurs |
+| Contract quality | `session_judge.py` computational checks | Whether real-task contracts have binary criteria and edge cases |
+| Artifact quality | `session_judge.py` structural checks | Whether produced code meets scenario requirements |
+| Negotiation judgment | `session_judge.py` LLM tier | Whether acceptance criteria are genuinely testable |
+
+Run: `make eval-session` (capture) → `make eval-session-judge` (judge)
+
+### Harness Metrics Dashboard
+
 | Signal | Source | What it tells us |
 |--------|--------|------------------|
 | Negotiation rounds | `harness_metrics.py` → `breadcrumbs` | Whether contracts converge quickly (1-2 rounds = good) |
@@ -162,9 +198,8 @@ The planner stays at user-story level — it doesn't specify implementation deta
 | Scrap rate | `harness_metrics.py` → `breadcrumbs` | Ratio of scrapped features to total cycles (target: < 20%) |
 | Features completed/pending | `harness_metrics.py` → `state.json` | Overall throughput and backlog |
 | Completion rate | `harness_metrics.py` → `state.json` | Percentage of features reaching "verified" or "committed" |
-| Eval FAIL distribution | `.harness/evals/` reports | Which criteria types fail most often — informs contract template improvements |
 
-Run `make harness-metrics` or `make harness-metrics-json` to generate a report.
+Run: `make harness-metrics` or `make harness-metrics-json`
 
 ## Anti-Patterns
 

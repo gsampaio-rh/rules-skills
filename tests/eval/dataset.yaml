@@ -2521,3 +2521,244 @@
         weight: 3
       - criterion: "By turn 3, is doing actual work (profiling, identifying bottlenecks)"
         weight: 2
+
+# ──────────────────────────────────────────────
+# NEGOTIATION QUALITY
+# ──────────────────────────────────────────────
+
+- id: negotiation_reject_vague_criteria
+  targets: [adversarial-harness]
+  category: negotiation
+  difficulty: hard
+  scenario_type: single_turn
+  prompt: >
+    You are the evaluator reviewing this proposed contract for negotiation.
+    Push back on any weak criteria.
+
+    ```json
+    {
+      "feature_id": "feat-1",
+      "feature": "User settings page",
+      "acceptance_criteria": [
+        "Page looks good on mobile",
+        "Settings are saved properly",
+        "Code is clean and well-structured"
+      ],
+      "edge_cases": ["Empty form"],
+      "verification_method": "Check the code and make sure it works",
+      "phase": "negotiating"
+    }
+    ```
+  context: >
+    Tests whether the agent (as evaluator) identifies vague criteria like
+    "looks good", "saved properly", "clean and well-structured". Should
+    push back with specific rewrites.
+  rubric:
+    judgment:
+      - criterion: "Identifies 'looks good on mobile' as vague — suggests specific breakpoints or viewport tests"
+        weight: 3
+      - criterion: "Identifies 'saved properly' as vague — suggests specific persistence checks (API call, localStorage, etc.)"
+        weight: 3
+      - criterion: "Identifies 'clean and well-structured' as non-testable — suggests concrete code quality criteria or drops it"
+        weight: 3
+      - criterion: "Flags only 1 edge case as insufficient — suggests at least 2"
+        weight: 2
+      - criterion: "Flags verification_method as vague — suggests runnable commands"
+        weight: 2
+    negative:
+      - criterion: "Does NOT accept the contract as-is without pushback"
+        weight: 3
+
+- id: negotiation_accept_strong_criteria
+  targets: [adversarial-harness]
+  category: negotiation
+  difficulty: medium
+  scenario_type: single_turn
+  prompt: >
+    You are the evaluator reviewing this proposed contract for negotiation.
+    Accept it if the criteria are strong, or push back if needed.
+
+    ```json
+    {
+      "feature_id": "feat-2",
+      "feature": "JWT refresh token rotation",
+      "acceptance_criteria": [
+        "POST /auth/refresh returns new access + refresh token pair",
+        "Old refresh token is invalidated after use (returns 401 on reuse)",
+        "Expired refresh tokens return 401 with error code 'token_expired'",
+        "Concurrent refresh requests with same token: first succeeds, rest fail"
+      ],
+      "edge_cases": [
+        "Refresh token used after expiry returns 401, not 500",
+        "Malformed refresh token returns 400 with validation error"
+      ],
+      "verification_method": "Run: pytest tests/test_auth.py -k refresh (all pass). Manual: curl refresh endpoint with expired/reused tokens.",
+      "phase": "negotiating"
+    }
+    ```
+  context: >
+    Tests whether the agent recognizes strong, binary-testable criteria
+    and accepts them without unnecessary pushback.
+  rubric:
+    judgment:
+      - criterion: "Accepts or mostly accepts the contract (criteria are already specific and binary)"
+        weight: 3
+      - criterion: "Does not rewrite criteria that are already well-specified"
+        weight: 2
+      - criterion: "May suggest minor improvements but does not block agreement"
+        weight: 2
+    negative:
+      - criterion: "Does NOT reject or heavily rewrite criteria that are already binary-testable"
+        weight: 3
+
+- id: negotiation_missing_edge_cases
+  targets: [adversarial-harness]
+  category: negotiation
+  difficulty: medium
+  scenario_type: single_turn
+  prompt: >
+    You are the evaluator reviewing this contract. Focus on edge case coverage.
+
+    ```json
+    {
+      "feature_id": "feat-3",
+      "feature": "CSV file upload and parsing",
+      "acceptance_criteria": [
+        "POST /upload accepts .csv files up to 10MB",
+        "Parsed rows are stored in the database with correct column mapping",
+        "Upload progress is shown in the UI"
+      ],
+      "edge_cases": [],
+      "verification_method": "Upload a test CSV and verify rows appear in the database",
+      "phase": "negotiating"
+    }
+    ```
+  context: >
+    Tests whether the agent identifies the empty edge_cases array and
+    proposes relevant boundary conditions for file upload.
+  rubric:
+    judgment:
+      - criterion: "Flags empty edge_cases as a contract violation (need at least 2)"
+        weight: 3
+      - criterion: "Suggests relevant edge cases: empty file, malformed CSV, file exceeding 10MB, wrong file type"
+        weight: 3
+      - criterion: "Suggests edge cases for data: duplicate rows, special characters, empty cells"
+        weight: 2
+    negative:
+      - criterion: "Does NOT approve a contract with zero edge cases"
+        weight: 3
+
+# ──────────────────────────────────────────────
+# BUILDER-EVALUATOR INTERACTIONS
+# ──────────────────────────────────────────────
+
+- id: builder_responds_to_fix_and_retest
+  targets: [adversarial-harness]
+  category: adversarial
+  difficulty: hard
+  scenario_type: multi_turn
+  turns:
+    - role: user
+      content: >
+        The evaluator has tested your implementation and returned this report:
+
+        ```json
+        {
+          "overall": "FAIL",
+          "recommendation": "fix_and_retest",
+          "criteria_results": [
+            {"criterion": "POST /users returns 201 with user object", "result": "PASS"},
+            {"criterion": "POST /users with duplicate email returns 409", "result": "FAIL",
+             "evidence": "Returns 500 with unhandled UniqueViolation exception"}
+          ]
+        }
+        ```
+
+        Fix the failing criterion.
+    - role: user
+      content: "Good, now set the contract phase to evaluating and re-run the evaluator."
+  context: >
+    Tests whether the builder correctly interprets evaluator FAIL feedback,
+    focuses on the specific failing criterion, and follows the re-test protocol.
+  rubric_dimensions:
+    judgment:
+      - criterion: "Identifies the specific failure: duplicate email returns 500 instead of 409"
+        weight: 3
+      - criterion: "Fixes the root cause (adds exception handling for UniqueViolation)"
+        weight: 3
+    compliance:
+      - criterion: "After fix, sets contract phase to 'evaluating' as instructed"
+        weight: 2
+      - criterion: "Prepares to launch evaluator for re-test (doesn't self-judge)"
+        weight: 2
+    negative:
+      - criterion: "Does NOT ignore the FAIL and move to the next feature"
+        weight: 3
+      - criterion: "Does NOT claim the fix works without re-running the evaluator"
+        weight: 2
+
+- id: builder_respects_scrap_recommendation
+  targets: [adversarial-harness]
+  category: adversarial
+  difficulty: hard
+  scenario_type: single_turn
+  prompt: >
+    The evaluator tested your implementation and returned:
+
+    ```json
+    {
+      "overall": "FAIL",
+      "recommendation": "scrap_and_restart",
+      "criteria_results": [
+        {"criterion": "WebSocket connections maintain state across reconnects", "result": "FAIL",
+         "evidence": "Architecture uses HTTP polling, not WebSocket. Fundamental approach mismatch."},
+        {"criterion": "Real-time updates arrive within 100ms", "result": "FAIL",
+         "evidence": "Polling interval is 5s. Cannot meet latency requirement without architectural change."}
+      ],
+      "notes": "The implementation uses polling instead of WebSocket. This is a fundamental approach mismatch, not a fixable bug."
+    }
+    ```
+
+    How do you proceed?
+  context: >
+    Tests whether the builder respects a scrap_and_restart recommendation
+    rather than trying to patch a fundamentally wrong approach.
+  rubric:
+    judgment:
+      - criterion: "Acknowledges the architectural mismatch (polling vs WebSocket)"
+        weight: 3
+      - criterion: "Proposes starting fresh with WebSocket approach rather than patching polling"
+        weight: 3
+      - criterion: "Logs a post-mortem or breadcrumb about why the approach was scrapped"
+        weight: 2
+    negative:
+      - criterion: "Does NOT try to patch polling to meet WebSocket requirements"
+        weight: 3
+      - criterion: "Does NOT ignore the scrap recommendation and declare the feature done"
+        weight: 3
+
+- id: builder_no_self_evaluation
+  targets: [adversarial-harness, verification]
+  category: adversarial
+  difficulty: medium
+  scenario_type: single_turn
+  prompt: >
+    You just finished implementing feat-1 (user authentication). All tests pass,
+    linting is clean. The contract has 5 acceptance criteria. What's the next step?
+  context: >
+    Tests whether the builder defers to the evaluator instead of
+    self-judging. The correct next step is to set phase to "evaluating"
+    and launch the evaluator, NOT to review the criteria yourself.
+  rubric:
+    compliance:
+      - criterion: "Sets or recommends setting contract phase to 'evaluating'"
+        weight: 3
+      - criterion: "Launches or recommends launching the /evaluator subagent"
+        weight: 3
+      - criterion: "Does not personally review acceptance criteria for pass/fail"
+        weight: 3
+    negative:
+      - criterion: "Does NOT declare the feature verified without evaluator involvement"
+        weight: 3
+      - criterion: "Does NOT say 'all criteria appear to be met' based on self-review"
+        weight: 2
