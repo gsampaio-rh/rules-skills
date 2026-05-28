@@ -11,19 +11,30 @@ from collections import defaultdict
 from pathlib import Path
 
 EVAL_DIR = Path(__file__).parent
-RESULTS_DIR = EVAL_DIR.parent / "results"
-JUDGMENTS_DIR = RESULTS_DIR / "judgments"
-SUMMARIES_DIR = RESULTS_DIR / "summaries"
+EVAL_RESULTS_DIR = EVAL_DIR.parent / "eval_results"
+
+
+def _resolve_run_dir(run_dir: str | None = None) -> Path:
+    """Find the run directory: explicit path, or latest by name."""
+    if run_dir:
+        return Path(run_dir)
+    if not EVAL_RESULTS_DIR.exists():
+        return EVAL_RESULTS_DIR / "none"
+    runs = sorted(d for d in EVAL_RESULTS_DIR.iterdir() if d.is_dir())
+    if not runs:
+        return EVAL_RESULTS_DIR / "none"
+    return runs[-1]
 
 DIMENSIONS = ["harness", "contract", "artifact", "behavioral", "negotiation"]
 
 
-def load_judgments(filter_model: str = "") -> list[dict]:
+def load_judgments(run_dir: Path, filter_model: str = "") -> list[dict]:
+    judgments_dir = run_dir / "judgments"
     judgments = []
-    if not JUDGMENTS_DIR.exists():
+    if not judgments_dir.exists():
         return judgments
 
-    for model_dir in sorted(JUDGMENTS_DIR.iterdir()):
+    for model_dir in sorted(judgments_dir.iterdir()):
         if not model_dir.is_dir():
             continue
         if filter_model and model_dir.name != filter_model:
@@ -148,12 +159,8 @@ def print_table(summary: dict):
     print()
 
 
-def save_summary(summary: dict) -> Path:
-    from datetime import datetime, timezone
-
-    SUMMARIES_DIR.mkdir(exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%SZ")
-    path = SUMMARIES_DIR / f"summary-{ts}.json"
+def save_summary(summary: dict, run_dir: Path) -> Path:
+    path = run_dir / "summary.json"
     path.write_text(json.dumps(summary, indent=2) + "\n")
     return path
 
@@ -162,15 +169,17 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="Aggregate session eval judgments into a report")
+    parser.add_argument("--run-dir", help="Path to eval run dir (default: latest)")
     parser.add_argument("--model", default="", help="Filter by model name")
     parser.add_argument("--json", action="store_true", help="Output JSON only")
     parser.add_argument("--save", action="store_true", help="Save summary.json")
     args = parser.parse_args()
 
-    judgments = load_judgments(args.model)
+    run_dir = _resolve_run_dir(args.run_dir)
+    judgments = load_judgments(run_dir, args.model)
 
     if not judgments:
-        print("No judgment files found in tests/eval/judgments/")
+        print(f"No judgment files found in {run_dir}/judgments/")
         print("Run: make eval-session-judge")
         return 1
 
@@ -182,7 +191,7 @@ def main() -> int:
         print_table(summary)
 
     if args.save or not args.json:
-        path = save_summary(summary)
+        path = save_summary(summary, run_dir)
         if not args.json:
             print(f"Summary saved to {path}")
 

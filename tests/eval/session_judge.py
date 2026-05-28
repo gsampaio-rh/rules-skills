@@ -29,9 +29,19 @@ import yaml
 
 EVAL_DIR = Path(__file__).parent
 SCENARIOS_DIR = EVAL_DIR / "scenarios"
-RESULTS_DIR = EVAL_DIR.parent / "results"
-SESSIONS_DIR = RESULTS_DIR / "sessions"
-JUDGMENTS_DIR = RESULTS_DIR / "judgments"
+EVAL_RESULTS_DIR = EVAL_DIR.parent / "eval_results"
+
+
+def _resolve_run_dir(run_dir: str | None = None) -> Path:
+    """Find the run directory: explicit path, or latest by name."""
+    if run_dir:
+        return Path(run_dir)
+    if not EVAL_RESULTS_DIR.exists():
+        return EVAL_RESULTS_DIR / "none"
+    runs = sorted(d for d in EVAL_RESULTS_DIR.iterdir() if d.is_dir())
+    if not runs:
+        return EVAL_RESULTS_DIR / "none"
+    return runs[-1]
 
 
 def load_scenario(scenario_id: str) -> dict | None:
@@ -43,9 +53,12 @@ def load_scenario(scenario_id: str) -> dict | None:
     return None
 
 
-def find_sessions(filter_str: str | None = None) -> list[Path]:
+def find_sessions(run_dir: Path, filter_str: str | None = None) -> list[Path]:
+    sessions_dir = run_dir / "sessions"
     sessions = []
-    for path in sorted(SESSIONS_DIR.rglob("*.json")):
+    if not sessions_dir.exists():
+        return sessions
+    for path in sorted(sessions_dir.rglob("*.json")):
         if filter_str and filter_str not in path.stem:
             continue
         sessions.append(path)
@@ -457,10 +470,10 @@ def judge_session(
     }
 
 
-def save_judgment(judgment: dict) -> Path:
+def save_judgment(judgment: dict, run_dir: Path) -> Path:
     model = judgment.get("model", "unknown")
     scenario_id = judgment.get("scenario_id", "unknown")
-    out_dir = JUDGMENTS_DIR / model
+    out_dir = run_dir / "judgments" / model
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{scenario_id}.json"
     path.write_text(json.dumps(judgment, indent=2) + "\n")
@@ -470,6 +483,7 @@ def save_judgment(judgment: dict) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Judge session scenarios post-hoc")
     parser.add_argument("--session", help="Path to specific session JSON")
+    parser.add_argument("--run-dir", help="Path to eval run dir (default: latest)")
     parser.add_argument("--filter", help="Filter sessions by scenario id")
     parser.add_argument("--tier", choices=["computational", "structural", "llm"],
                         help="Run only this tier")
@@ -478,6 +492,7 @@ def main() -> int:
     args = parser.parse_args()
 
     api_key = os.environ.get("CURSOR_API_KEY", "")
+    run_dir = _resolve_run_dir(args.run_dir)
 
     if args.tier:
         tiers = {args.tier}
@@ -489,10 +504,10 @@ def main() -> int:
     if args.session:
         session_paths = [Path(args.session)]
     else:
-        session_paths = find_sessions(args.filter)
+        session_paths = find_sessions(run_dir, args.filter)
 
     if not session_paths:
-        print("No sessions found. Run session_runner.py first.")
+        print(f"No sessions found in {run_dir}/sessions/. Run session_runner.py first.")
         return 1
 
     all_judgments = []
@@ -507,7 +522,7 @@ def main() -> int:
         rubric_data = load_scenario(scenario_id) or {}
 
         judgment = judge_session(session, rubric_data, tiers, api_key, args.judge_model)
-        path = save_judgment(judgment)
+        path = save_judgment(judgment, run_dir)
         all_judgments.append(judgment)
 
         if not args.json:

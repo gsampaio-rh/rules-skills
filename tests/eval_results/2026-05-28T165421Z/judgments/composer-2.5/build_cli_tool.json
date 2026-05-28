@@ -1,7 +1,7 @@
 {
   "scenario_id": "build_cli_tool",
   "model": "composer-2.5",
-  "timestamp": "2026-05-28T16:51:31.633468+00:00",
+  "timestamp": "2026-05-28T16:57:38.378710+00:00",
   "tiers_run": [
     "structural"
   ],
@@ -9,25 +9,25 @@
     {
       "criterion": "Main Python file exists with argparse CLI",
       "result": "PASS",
-      "evidence": "'python' in organize.py; 'argparse' in organize.py",
+      "evidence": "'python' in file_organizer.py; 'argparse' in file_organizer.py",
       "tier": "structural"
     },
     {
       "criterion": "Script handles --dry-run flag",
       "result": "PASS",
-      "evidence": "'--dry-run' in organize.py",
+      "evidence": "'--dry-run' in file_organizer.py",
       "tier": "structural"
     },
     {
       "criterion": "Script handles --recursive flag",
       "result": "PASS",
-      "evidence": "'--recursive' in organize.py",
+      "evidence": "'--recursive' in file_organizer.py",
       "tier": "structural"
     },
     {
       "criterion": "Error handling for OSError/PermissionError present",
       "result": "PASS",
-      "evidence": "'error' in organize.py",
+      "evidence": "'error' in file_organizer.py",
       "tier": "structural"
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "criterion": "Agent ran commands autonomously (tests, linting)",
-      "result": "UNCERTAIN",
+      "result": "PASS",
       "evidence": "Pattern-based heuristic",
       "tier": "structural"
     },
@@ -51,9 +51,9 @@
   ],
   "summary": {
     "total": 7,
-    "pass": 5,
+    "pass": 6,
     "fail": 0,
-    "skip_or_uncertain": 2,
-    "score": 0.71
+    "skip_or_uncertain": 1,
+    "score": 0.86
   }
 }

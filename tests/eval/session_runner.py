@@ -31,8 +31,7 @@ import yaml
 
 EVAL_DIR = Path(__file__).parent
 SCENARIOS_DIR = EVAL_DIR / "scenarios"
-RESULTS_DIR = EVAL_DIR.parent / "results"
-SESSIONS_DIR = RESULTS_DIR / "sessions"
+EVAL_RESULTS_DIR = EVAL_DIR.parent / "eval_results"
 REPO_ROOT = EVAL_DIR.parent.parent
 
 DEFAULT_MODEL = "composer-2.5"
@@ -177,10 +176,18 @@ def _drive_conversation(agent, scenario: dict, timeout: int, start_time: float):
     return completed_prompts, status, transcript
 
 
-def save_session(result: dict) -> Path:
+def _make_run_dir() -> Path:
+    """Create a timestamped run directory for this eval session."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%SZ")
+    run_dir = EVAL_RESULTS_DIR / ts
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir
+
+
+def save_session(result: dict, run_dir: Path) -> Path:
     model = result["model"]
     scenario_id = result["scenario_id"]
-    out_dir = SESSIONS_DIR / model
+    out_dir = run_dir / "sessions" / model
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{scenario_id}.json"
     path.write_text(json.dumps(result, indent=2) + "\n")
@@ -227,17 +234,20 @@ def main() -> int:
         print("Error: CURSOR_API_KEY not set")
         return 1
 
+    run_dir = _make_run_dir()
     print(f"Session runner: {len(scenarios)} scenario(s)")
+    print(f"  Run dir: {run_dir}")
     results = []
 
     for scenario in scenarios:
         result = run_scenario(scenario, args.model, api_key, args.timeout)
-        path = save_session(result)
+        path = save_session(result, run_dir)
         print(f"  Saved: {path}")
         results.append(result)
 
     passed = sum(1 for r in results if r["status"] == "complete")
     print(f"\nCompleted {len(results)} scenario(s): {passed} complete, {len(results) - passed} other")
+    print(f"Results: {run_dir}")
     return 0
 
 
