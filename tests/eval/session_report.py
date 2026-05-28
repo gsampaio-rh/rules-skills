@@ -12,7 +12,7 @@ from pathlib import Path
 
 EVAL_DIR = Path(__file__).parent
 JUDGMENTS_DIR = EVAL_DIR / "judgments"
-SUMMARY_PATH = EVAL_DIR / "summary.json"
+SUMMARIES_DIR = EVAL_DIR / "summaries"
 
 DIMENSIONS = ["harness", "contract", "artifact", "behavioral", "negotiation"]
 
@@ -148,8 +148,13 @@ def print_table(summary: dict):
 
 
 def save_summary(summary: dict) -> Path:
-    SUMMARY_PATH.write_text(json.dumps(summary, indent=2) + "\n")
-    return SUMMARY_PATH
+    from datetime import datetime, timezone
+
+    SUMMARIES_DIR.mkdir(exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%SZ")
+    path = SUMMARIES_DIR / f"summary-{ts}.json"
+    path.write_text(json.dumps(summary, indent=2) + "\n")
+    return path
 
 
 def main() -> int:
