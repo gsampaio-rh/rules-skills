@@ -9,25 +9,18 @@ This repo separates three concerns:
 | Layer | Location | Purpose |
 |-------|----------|---------|
 | **Project state** | `.harness/` | Tracked harness state — contracts, evals, breadcrumbs, specs |
-| **IDE config** | `.cursor/` | Symlinks to `library/cursor/` + lean hooks for development |
+| **IDE config** | `.cursor/` | Local copies from `library/cursor/` via `make setup` (gitignored) |
 | **Product library** | `library/` | The distributable rules, skills, hooks, agents, references |
 
 ```
 rules-skills/
 ├── .harness/                    # This project's harness state (git-tracked)
-├── .cursor/                     # IDE config (symlinks → library/cursor/)
-│   ├── rules/ → library/cursor/rules/
-│   ├── skills/ → library/cursor/skills/
-│   ├── agents/ → library/cursor/agents/
-│   ├── references/ → library/cursor/references/
-│   ├── hooks/ → library/cursor/hooks/
-│   ├── hooks.json → hooks.lean.json
-│   ├── hooks.lean.json
-│   └── hooks.full.json
+├── .cursor/                     # IDE config (local copies, gitignored)
+│   └── (populated by make setup from library/cursor/)
 ├── library/
 │   ├── cursor/                  # Cursor config library
 │   │   ├── rules/              # 16 .mdc rule files
-│   │   ├── skills/             # 14 skill workflows
+│   │   ├── skills/             # 13 skill workflows
 │   │   ├── agents/             # Planner + evaluator definitions
 │   │   ├── hooks/              # 11 enforcement scripts
 │   │   └── references/         # Patterns, design, rubrics
@@ -47,7 +40,7 @@ git clone <this-repo>
 # Edit library/cursor/rules/*.mdc, library/cursor/skills/*/SKILL.md directly
 ```
 
-The symlinks in `.cursor/` mean Cursor loads rules/skills from `library/cursor/` automatically. Edits are reflected immediately.
+Run `make setup` to populate `.cursor/` with copies from `library/cursor/`. After editing rules/skills, run `make validate` then `make sync-local` to update the IDE config.
 
 ### Installing in your project
 
@@ -59,7 +52,7 @@ The symlinks in `.cursor/` mean Cursor loads rules/skills from `library/cursor/`
 cp -R library/cursor/rules/ /path/to/project/.cursor/rules/
 cp -R library/cursor/hooks/ /path/to/project/.cursor/hooks/
 cp -R library/cursor/references/ /path/to/project/.cursor/references/
-cp .cursor/hooks.full.json /path/to/project/.cursor/hooks.json
+cp library/cursor/hooks.full.json /path/to/project/.cursor/hooks.json
 mkdir -p /path/to/project/.harness/{evals,audits}
 ```
 
@@ -73,8 +66,8 @@ mkdir -p /path/to/project/.harness/{evals,audits}
 | `critical_thinking` | Always on | Analyze requests, challenge assumptions |
 | `planning_discipline` | Always on | Structured task tracking, thread hygiene |
 | `progress_tracking` | Always on | Breadcrumbs, TodoWrite for multi-file work |
-| `prompt_coaching` | Always on | Coach users toward effective prompts |
-| `security` | Always on | Input validation, secrets, supply chain |
+| `prompt_coaching` | Scoped | Coach users toward effective prompts |
+| `security` | Scoped | Input validation, secrets, supply chain |
 | `verification` | Always on | Test/lint/build after every code change |
 | `adversarial_harness` | `src/**,app/**,lib/**,...` | Planner/evaluator workflow for non-trivial features |
 | `architecture` | `*.py, *.ts, *.tsx` | SOLID, dependency direction, pattern trade-offs |
@@ -185,6 +178,10 @@ Distributes `library/cursor/` content to all projects under `~/redhat`:
 
 **Per-project** (`.cursor/`): rules, references, hooks (scripts + full hooks.json)
 **Global** (`~/.cursor/`): agents, skills
+
+## Design Lineage
+
+The harness implements specific patterns from Anthropic ("Build Agents That Run for Hours"), OpenAI, DeepMind, and Fowler's guides/sensors taxonomy. See [`DESIGN_LINEAGE.md`](DESIGN_LINEAGE.md) for the full mapping of concepts to repo artifacts.
 
 ## Authoring Standards
 

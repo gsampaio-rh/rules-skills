@@ -1,6 +1,13 @@
 {
   "project": "rules-skills",
   "created": "2026-05-27T14:00:00Z",
-  "spec": "Cursor rules, skills, hooks, and eval system for AI coding assistant behavior",
-  "features": []
+  "spec": "Bring rules-skills into full compliance with its own authoring standards, fix project hygiene, and document harness design lineage",
+  "features": [
+    { "id": "feat-1", "name": "Local .cursor/ setup and git hygiene", "status": "verified" },
+    { "id": "feat-2", "name": "Always-on rules token budget", "status": "verified" },
+    { "id": "feat-3", "name": "Skill authoring compliance", "status": "verified" },
+    { "id": "feat-4", "name": "Stale reference cleanup", "status": "verified" },
+    { "id": "feat-5", "name": "Harness design lineage documentation", "status": "verified" },
+    { "id": "feat-6", "name": "Harness eval metrics", "status": "verified" }
+  ]
 }
