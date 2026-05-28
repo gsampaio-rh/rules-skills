@@ -101,7 +101,10 @@ def run_scenario(scenario: dict, model: str, api_key: str, timeout: int) -> dict
                 with client.agents.create(
                     model=model,
                     api_key=api_key,
-                    local=LocalAgentOptions(cwd=str(ws.path)),
+                    local=LocalAgentOptions(
+                        cwd=str(ws.path),
+                        setting_sources=["project"],
+                    ),
                 ) as agent:
                     completed_prompts, status, transcript = _drive_conversation(
                         agent, scenario, timeout, start_time,

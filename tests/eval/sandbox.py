@@ -80,7 +80,7 @@ class CaptureWorkspace:
             self._tmpdir.cleanup()
 
     def _setup_cursor_config(self):
-        """Copy library/cursor/ into .cursor/ so rules/skills are active."""
+        """Copy library/cursor/ into .cursor/ so rules/skills/hooks/agents are active."""
         library_cursor = REPO_ROOT / "library" / "cursor"
         dst_cursor = self.path / ".cursor"
 
@@ -89,10 +89,14 @@ class CaptureWorkspace:
 
         dst_cursor.mkdir(exist_ok=True)
 
-        for item in ("rules", "skills", "agents", "references"):
+        for item in ("rules", "skills", "agents", "references", "hooks"):
             src = library_cursor / item
             if src.exists():
                 shutil.copytree(src, dst_cursor / item, dirs_exist_ok=True)
+
+        hooks_src = library_cursor / "hooks.lean.json"
+        if hooks_src.exists():
+            shutil.copy2(hooks_src, dst_cursor / "hooks.json")
 
     def _write_seed_files(self):
         """Write scenario seed files into the workspace."""

@@ -4,6 +4,19 @@ difficulty: medium
 estimated_duration: 5m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "mylib",
+      "features": [
+        {
+          "id": "retry-logic",
+          "name": "API client retry with exponential backoff",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for API client","result":"pass"}
   pyproject.toml: |
     [project]
     name = "mylib"

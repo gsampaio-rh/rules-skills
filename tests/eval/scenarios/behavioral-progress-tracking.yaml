@@ -4,6 +4,19 @@ difficulty: medium
 estimated_duration: 7m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "models-api",
+      "features": [
+        {
+          "id": "serialization-services",
+          "name": "Serialization, type hints, and services layer with cascading deletes",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for models API","result":"pass"}
   src/models/user.py: |
     class User:
         def __init__(self, id, name, email):

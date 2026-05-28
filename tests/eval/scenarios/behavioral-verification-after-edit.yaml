@@ -4,6 +4,19 @@ difficulty: medium
 estimated_duration: 5m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "calculator",
+      "features": [
+        {
+          "id": "new-operations",
+          "name": "Add power, modulo, floor_divide and history feature",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for calculator","result":"pass"}
   calculator.py: |
     def add(a, b):
         return a + b

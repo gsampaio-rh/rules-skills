@@ -7,6 +7,19 @@ seed_files:
   README.md: |
     # URL Shortener
     A simple URL shortener service. Not yet implemented.
+  .harness/state.json: |
+    {
+      "project": "url-shortener",
+      "features": [
+        {
+          "id": "url-shortener-service",
+          "name": "URL shortener with analytics",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for URL shortener","result":"pass"}
 
 initial_prompt: >
   Build a URL shortener with analytics. Requirements:

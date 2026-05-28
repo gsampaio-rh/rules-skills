@@ -4,6 +4,19 @@ difficulty: hard
 estimated_duration: 5m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "items-api",
+      "features": [
+        {
+          "id": "improvements",
+          "name": "App improvements",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for items API","result":"pass"}
   app.py: |
     from flask import Flask, jsonify, request
 

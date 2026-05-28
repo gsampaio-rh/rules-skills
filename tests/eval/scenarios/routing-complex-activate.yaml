@@ -16,6 +16,19 @@ seed_files:
         app.run(debug=True)
   requirements.txt: |
     flask==3.0.0
+  .harness/state.json: |
+    {
+      "project": "rest-api",
+      "features": [
+        {
+          "id": "auth-api",
+          "name": "REST API with JWT auth, rate limiting, and logging",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"init","feat":null,"msg":"Harness initialized for REST API project","result":"pass"}
 
 initial_prompt: >
   Build a REST API with user authentication (JWT), rate limiting (per-IP,

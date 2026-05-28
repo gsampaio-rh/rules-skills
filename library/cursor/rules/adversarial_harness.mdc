@@ -1,7 +1,7 @@
 ---
 description: Adversarial verification harness — planner/builder/evaluator roles, contract negotiation, breadcrumbs tracing, durable file-system state
 globs: "src/**,app/**,lib/**,backend/**,frontend/**,services/**"
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Adversarial Verification Harness

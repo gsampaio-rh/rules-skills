@@ -4,6 +4,19 @@ difficulty: hard
 estimated_duration: 6m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "ecommerce",
+      "features": [
+        {
+          "id": "ecommerce-platform",
+          "name": "E-commerce platform",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for e-commerce","result":"pass"}
   src/app.py: |
     from flask import Flask
     app = Flask(__name__)

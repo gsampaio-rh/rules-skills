@@ -4,6 +4,19 @@ difficulty: medium
 estimated_duration: 6m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "data-pipeline-cli",
+      "features": [
+        {
+          "id": "cli-interface",
+          "name": "CLI interface for data pipeline",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for data pipeline CLI","result":"pass"}
   src/parser.py: |
     def parse_csv(filepath):
         with open(filepath) as f:
@@ -63,7 +76,7 @@ verify:
       import json
       required_fields = {'ts', 'role', 'type', 'msg'}
       valid_roles = {'planner', 'builder', 'evaluator', 'system'}
-      valid_types = {'plan', 'negotiate', 'build', 'verify', 'eval', 'checkpoint', 'decision', 'scrap'}
+      valid_types = {'plan', 'negotiate', 'build', 'verify', 'eval', 'checkpoint', 'decision', 'scrap', 'init', 'session_start'}
       lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
       assert len(lines) >= 2, f'Too few breadcrumbs: {len(lines)}'
       for i, line in enumerate(lines):

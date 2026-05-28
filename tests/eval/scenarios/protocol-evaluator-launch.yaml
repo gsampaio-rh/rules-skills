@@ -7,6 +7,19 @@ seed_files:
   README.md: |
     # Markdown Converter
     Convert Markdown to HTML with a plugin system. Not yet implemented.
+  .harness/state.json: |
+    {
+      "project": "markdown-converter",
+      "features": [
+        {
+          "id": "md-to-html",
+          "name": "Markdown-to-HTML converter with plugin system",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for markdown converter","result":"pass"}
 
 initial_prompt: >
   Build a Markdown-to-HTML converter with a plugin system. Core features:

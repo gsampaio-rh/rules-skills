@@ -4,6 +4,19 @@ difficulty: hard
 estimated_duration: 7m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "datatool-cli",
+      "features": [
+        {
+          "id": "verbose-flag",
+          "name": "Add --verbose flag to CLI with detailed progress",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for datatool CLI","result":"pass"}
   cli/main.py: |
     import argparse
     from cli.commands import process, validate, export

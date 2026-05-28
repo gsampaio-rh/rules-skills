@@ -4,6 +4,19 @@ difficulty: medium
 estimated_duration: 5m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "users-api",
+      "features": [
+        {
+          "id": "api-improvements",
+          "name": "Pagination, filtering, sorting, and input validation",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for users API","result":"pass"}
   src/api.py: |
     from flask import Flask, jsonify, request
     app = Flask(__name__)

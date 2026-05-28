@@ -4,6 +4,19 @@ difficulty: medium
 estimated_duration: 6m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "myapp",
+      "features": [
+        {
+          "id": "dark-mode",
+          "name": "Dark mode with localStorage persistence",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for dark mode feature","result":"pass"}
   src/components/Header.tsx: |
     export function Header() {
       return <header className="bg-white shadow p-4"><h1>MyApp</h1></header>;

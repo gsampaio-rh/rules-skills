@@ -4,6 +4,19 @@ difficulty: hard
 estimated_duration: 7m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "notification-service",
+      "features": [
+        {
+          "id": "notifications",
+          "name": "Notification service with email, SMS, and push",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for notification service","result":"pass"}
   src/notifier.py: |
     class EmailNotifier:
         def __init__(self, smtp_host, smtp_port):

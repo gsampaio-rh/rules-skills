@@ -4,6 +4,19 @@ difficulty: hard
 estimated_duration: 7m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "task-scheduler",
+      "features": [
+        {
+          "id": "robust-scheduler",
+          "name": "Robust task scheduler with cron, persistence, retry, and REST API",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for task scheduler","result":"pass"}
   src/scheduler.py: |
     import time
     from datetime import datetime

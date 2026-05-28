@@ -4,6 +4,19 @@ difficulty: medium
 estimated_duration: 6m
 
 seed_files:
+  .harness/state.json: |
+    {
+      "project": "file-server",
+      "features": [
+        {
+          "id": "file-upload",
+          "name": "File upload endpoint with size limits and extension validation",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for file upload","result":"pass"}
   server.py: |
     from http.server import HTTPServer, BaseHTTPRequestHandler
     import json
