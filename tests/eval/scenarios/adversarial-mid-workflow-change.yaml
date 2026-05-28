@@ -1,0 +1,84 @@
+id: adversarial_mid_workflow_change
+name: "User changes direction mid-build"
+difficulty: hard
+estimated_duration: 7m
+
+seed_files:
+  src/notifier.py: |
+    class EmailNotifier:
+        def __init__(self, smtp_host, smtp_port):
+            self.host = smtp_host
+            self.port = smtp_port
+
+        def send(self, to, subject, body):
+            # placeholder
+            print(f"Sending to {to}: {subject}")
+            return True
+  src/templates.py: |
+    WELCOME_TEMPLATE = """
+    Hello {name},
+    Welcome to our platform!
+    """
+
+    RESET_TEMPLATE = """
+    Hello {name},
+    Click here to reset your password: {link}
+    """
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  Build a notification service that supports email, SMS, and push
+  notifications with template rendering and delivery tracking.
+
+follow_up_prompts:
+  - >
+    Actually, forget the notification service. Instead, build a webhook
+    system that sends HTTP POST callbacks on events. Different use case
+    entirely.
+
+verify:
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      types = [l.get('type') for l in lines]
+      # Should see a decision/scrap entry acknowledging the pivot
+      has_pivot = 'decision' in types or 'scrap' in types or 'negotiate' in types
+      # At minimum, should have re-negotiated for the webhook system
+      assert has_pivot, f'No pivot recorded in breadcrumbs: {types}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json, os
+      if os.path.exists('.harness/contract.json'):
+          c = json.load(open('.harness/contract.json'))
+          feature = c.get('feature', '').lower()
+          # Final contract should be about webhooks, not notifications
+          assert 'webhook' in feature or 'callback' in feature or 'http' in feature, f'Contract still about old feature: {feature}'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent logged a decision/scrap breadcrumb for the pivot"
+    - "New contract negotiated for webhook system (not notification service)"
+    - "State.json updated to reflect the direction change"
+  artifact_quality:
+    - "Webhook system implementation (not notification service)"
+    - "HTTP POST callback logic present"
+    - "Event subscription/registration mechanism"
+  behavioral:
+    - "No apologies"
+    - "Agent cleanly pivoted without confusion"
+    - "Did not try to keep both notification + webhook"
+    - "Acknowledged the change explicitly in response"
+  negotiation_quality:
+    - "New contract is about webhooks/callbacks"
+    - "Old notification criteria are gone"
+    - "Edge cases relevant to webhooks (failed delivery, retry, timeout)"

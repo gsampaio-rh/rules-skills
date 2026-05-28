@@ -1,0 +1,52 @@
+id: skill_commit_format
+name: "Commit skill produces conventional format"
+difficulty: easy
+estimated_duration: 3m
+
+seed_files:
+  main.py: |
+    def greet(name):
+        return f"Hello, {name}!"
+
+    def farewell(name):
+        return f"Goodbye, {name}!"
+
+initial_prompt: >
+  Add a `shout` function that returns the greeting in uppercase. Then
+  commit the change.
+
+follow_up_prompts: []
+
+verify:
+  - command: "python -c \"import ast; ast.parse(open('main.py').read()); print('PASS')\""
+    timeout_s: 5
+  - command: "grep -q 'def shout' main.py && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import subprocess
+      log = subprocess.run(['git', 'log', '--oneline', '-1'], capture_output=True, text=True).stdout
+      # Should have a commit with conventional format (feat:, fix:, chore:, etc.)
+      prefixes = ['feat', 'fix', 'chore', 'refactor', 'docs', 'test', 'style']
+      has_prefix = any(p in log.lower() for p in prefixes)
+      assert has_prefix or ':' in log, f'Commit message not conventional: {log}'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "No full harness activated (trivial single-file addition)"
+    - "No contract negotiation for a simple function addition"
+  artifact_quality:
+    - "shout function exists and works"
+    - "Returns uppercase greeting"
+    - "Commit was created"
+  behavioral:
+    - "No apologies"
+    - "Agent asked before committing (per autonomous_execution rule)"
+    - "Commit message follows conventional format (feat: or similar prefix)"
+    - "Commit message is concise and describes the why"
+  skill_activation:
+    - "Commit skill conventions followed (conventional commit format)"
+    - "Message focuses on why, not what"

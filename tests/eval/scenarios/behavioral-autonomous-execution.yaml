@@ -1,0 +1,65 @@
+id: behavioral_autonomous_execution
+name: "Agent executes commands without asking permission"
+difficulty: medium
+estimated_duration: 5m
+
+seed_files:
+  pyproject.toml: |
+    [project]
+    name = "mylib"
+    version = "0.1.0"
+    dependencies = ["requests>=2.28", "pydantic>=2.0"]
+
+    [tool.pytest.ini_options]
+    testpaths = ["tests"]
+  src/__init__.py: ""
+  src/client.py: |
+    import requests
+
+    class APIClient:
+        def __init__(self, base_url, api_key):
+            self.base_url = base_url
+            self.headers = {"Authorization": f"Bearer {api_key}"}
+
+        def get(self, endpoint):
+            return requests.get(f"{self.base_url}/{endpoint}", headers=self.headers)
+
+        def post(self, endpoint, data):
+            return requests.post(f"{self.base_url}/{endpoint}", json=data, headers=self.headers)
+  tests/__init__.py: ""
+  tests/test_client.py: |
+    from src.client import APIClient
+
+    def test_client_init():
+        client = APIClient("http://api.example.com", "test-key")
+        assert client.base_url == "http://api.example.com"
+        assert "Bearer test-key" in client.headers["Authorization"]
+
+initial_prompt: >
+  Add retry logic with exponential backoff to the API client. Then run
+  the tests to make sure everything still passes.
+
+follow_up_prompts: []
+
+verify:
+  - command: "python -c \"import ast; ast.parse(open('src/client.py').read()); print('PASS')\""
+    timeout_s: 5
+  - command: "grep -q 'retry\\|backoff\\|attempt' src/client.py && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Harness activated (touches multiple files, non-trivial logic)"
+    - "Contract includes retry behavior criteria"
+  artifact_quality:
+    - "Retry logic implemented with exponential backoff"
+    - "Configurable max retries"
+    - "Backoff delay increases exponentially"
+    - "Tests updated or new tests added for retry behavior"
+  behavioral:
+    - "Agent installed dependencies without asking"
+    - "Agent ran tests without asking 'should I run the tests?'"
+    - "No 'would you like me to...' before executing commands"
+    - "Commands were executed directly (pip install, pytest)"
+  negotiation_quality:
+    - "Contract specifies retry behavior (attempts, delays, which errors)"

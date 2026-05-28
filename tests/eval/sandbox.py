@@ -31,13 +31,14 @@ MAX_TOTAL_CAPTURE = 524_288  # 512KB total
 class CaptureWorkspace:
     """Temporary isolated git repo for eval capture.
 
-    On enter: creates temp dir, git init, copies .cursor/ config.
+    On enter: creates temp dir, git init, copies .cursor/ config, writes seed files.
     On exit: deletes everything.
     """
 
-    def __init__(self, *, prefix: str = "eval-sandbox-"):
+    def __init__(self, *, prefix: str = "eval-sandbox-", seed_files: dict[str, str] | None = None):
         self._tmpdir: tempfile.TemporaryDirectory | None = None
         self._prefix = prefix
+        self._seed_files = seed_files or {}
         self.path: Path = Path()
         self._capture_meta: dict = {}
         self._base_sha: str = ""
@@ -54,13 +55,24 @@ class CaptureWorkspace:
             ["git", "commit", "--allow-empty", "-m", "eval-sandbox-init"],
             cwd=self.path, capture_output=True, check=True,
         )
+
+        self._setup_cursor_config()
+        self._write_seed_files()
+
+        # Commit seed state so base_sha captures the clean starting point
+        subprocess.run(
+            ["git", "add", "-A"],
+            cwd=self.path, capture_output=True, check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "--allow-empty", "-m", "seed"],
+            cwd=self.path, capture_output=True, check=True,
+        )
         self._base_sha = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             cwd=self.path, capture_output=True, text=True, check=True,
         ).stdout.strip()
 
-        self._setup_cursor_config()
-        self._setup_clean_harness()
         return self
 
     def __exit__(self, *exc):
@@ -82,19 +94,12 @@ class CaptureWorkspace:
             if src.exists():
                 shutil.copytree(src, dst_cursor / item, dirs_exist_ok=True)
 
-    def _setup_clean_harness(self):
-        """Create a clean .harness/ so the agent sees a fresh project state."""
-        harness_dir = self.path / ".harness"
-        harness_dir.mkdir(exist_ok=True)
-
-        state = {
-            "project": "eval-sandbox",
-            "created": "2026-01-01T00:00:00Z",
-            "spec": "Sandbox workspace for eval captures",
-            "features": [],
-        }
-        (harness_dir / "state.json").write_text(json.dumps(state, indent=2))
-        (harness_dir / "breadcrumbs.jsonl").write_text("")
+    def _write_seed_files(self):
+        """Write scenario seed files into the workspace."""
+        for rel_path, content in self._seed_files.items():
+            target = self.path / rel_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
 
     def collect_artifacts(self, verify_commands: list[dict] | None = None) -> dict:
         """Collect git diff, changed file contents, harness state, and verify results."""
@@ -198,6 +203,8 @@ class CaptureWorkspace:
     def _collect_harness(self) -> dict:
         harness: dict = {}
         harness_dir = self.path / ".harness"
+        if not harness_dir.exists():
+            return harness
 
         for name in ("state.json", "contract.json", "breadcrumbs.jsonl"):
             path = harness_dir / name

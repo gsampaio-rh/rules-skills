@@ -1,12 +1,7 @@
 .DS_Store
 .venv/
 __pycache__/
-tests/eval/responses/
-tests/eval/transcripts/
-tests/eval/sessions/
-tests/eval/judgments/
-tests/eval/history/runs/
-tests/eval/history/trends.json
+tests/eval_results/
 
 # Local IDE config (populated by make setup from library/cursor/)
 .cursor/

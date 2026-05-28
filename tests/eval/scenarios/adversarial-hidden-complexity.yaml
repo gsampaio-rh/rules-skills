@@ -1,0 +1,135 @@
+id: adversarial_hidden_complexity
+name: "Sounds simple but is complex — harness should activate"
+difficulty: hard
+estimated_duration: 7m
+
+seed_files:
+  cli/main.py: |
+    import argparse
+    from cli.commands import process, validate, export
+
+    def main():
+        parser = argparse.ArgumentParser(prog="datatool")
+        sub = parser.add_subparsers(dest="command")
+
+        proc = sub.add_parser("process")
+        proc.add_argument("input")
+        proc.add_argument("-o", "--output", default="output.json")
+
+        val = sub.add_parser("validate")
+        val.add_argument("schema")
+        val.add_argument("data")
+
+        exp = sub.add_parser("export")
+        exp.add_argument("input")
+        exp.add_argument("--format", choices=["csv", "json", "xml"], default="json")
+
+        args = parser.parse_args()
+        if args.command == "process":
+            process.run(args.input, args.output)
+        elif args.command == "validate":
+            validate.run(args.schema, args.data)
+        elif args.command == "export":
+            export.run(args.input, args.format)
+
+    if __name__ == "__main__":
+        main()
+  cli/__init__.py: ""
+  cli/commands/__init__.py: ""
+  cli/commands/process.py: |
+    import json
+
+    def run(input_path, output_path):
+        with open(input_path) as f:
+            data = json.load(f)
+        # Transform data
+        result = [{"id": i, **item} for i, item in enumerate(data)]
+        with open(output_path, "w") as f:
+            json.dump(result, f, indent=2)
+        print(f"Processed {len(result)} items -> {output_path}")
+  cli/commands/validate.py: |
+    import json
+
+    def run(schema_path, data_path):
+        with open(schema_path) as f:
+            schema = json.load(f)
+        with open(data_path) as f:
+            data = json.load(f)
+        required = schema.get("required", [])
+        errors = []
+        for i, item in enumerate(data):
+            for field in required:
+                if field not in item:
+                    errors.append(f"Item {i}: missing '{field}'")
+        if errors:
+            print(f"INVALID: {len(errors)} errors")
+            for e in errors:
+                print(f"  - {e}")
+        else:
+            print("VALID")
+  cli/commands/export.py: |
+    import json
+    import csv
+
+    def run(input_path, fmt):
+        with open(input_path) as f:
+            data = json.load(f)
+        if fmt == "csv":
+            if data:
+                writer = csv.DictWriter(open("export.csv", "w", newline=""), fieldnames=data[0].keys())
+                writer.writeheader()
+                writer.writerows(data)
+        elif fmt == "json":
+            print(json.dumps(data, indent=2))
+        elif fmt == "xml":
+            print("<data>")
+            for item in data:
+                print(f"  <item>{item}</item>")
+            print("</data>")
+  cli/config.py: |
+    DEFAULT_OUTPUT = "output.json"
+    MAX_ITEMS = 10000
+    SUPPORTED_FORMATS = ["csv", "json", "xml"]
+
+initial_prompt: >
+  Add a --verbose flag to the CLI that shows detailed progress during
+  processing.
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      types = set(l.get('type') for l in lines)
+      assert 'negotiate' in types or 'build' in types, f'No harness activity: {types}'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent recognized --verbose touches 4+ files (main + 3 commands + config)"
+    - "Harness activated despite simple-sounding request"
+    - "Contract negotiated before implementation"
+    - "Breadcrumbs trace the multi-file change"
+  artifact_quality:
+    - "--verbose flag added to argparse in main.py"
+    - "Verbose output added to process.py, validate.py, export.py"
+    - "Verbose is passed through to all subcommands"
+    - "Code compiles cleanly"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent identified hidden complexity (touches all command files)"
+    - "Progress tracked for multi-file change"
+  negotiation_quality:
+    - "Contract lists all files that need --verbose support"
+    - "Edge cases: --verbose with no output, --verbose formatting consistency"

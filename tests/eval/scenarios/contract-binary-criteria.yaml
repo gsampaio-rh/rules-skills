@@ -1,0 +1,95 @@
+id: contract_binary_criteria
+name: "Contract criteria must be binary-testable"
+difficulty: medium
+estimated_duration: 6m
+
+seed_files:
+  src/db.py: |
+    import sqlite3
+
+    def get_connection():
+        return sqlite3.connect("app.db")
+
+    def get_user(user_id):
+        conn = get_connection()
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        conn.close()
+        return row
+
+    def get_users():
+        conn = get_connection()
+        rows = conn.execute("SELECT * FROM users").fetchall()
+        conn.close()
+        return rows
+
+    def get_posts(user_id):
+        conn = get_connection()
+        rows = conn.execute("SELECT * FROM posts WHERE user_id=?", (user_id,)).fetchall()
+        conn.close()
+        return rows
+  src/api.py: |
+    from db import get_user, get_users, get_posts
+
+    def user_detail(user_id):
+        user = get_user(user_id)
+        posts = get_posts(user_id)
+        return {"user": user, "posts": posts}
+
+    def all_users():
+        return {"users": get_users()}
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  Add a caching layer to the database queries. Frequently accessed data
+  (users, posts) should be cached with configurable TTL. Cache invalidation
+  should happen on writes.
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      criteria = c.get('acceptance_criteria', [])
+      # Each criterion should be testable (contains action verbs, not vague adjectives)
+      vague = ['good', 'proper', 'appropriate', 'nice', 'clean', 'better']
+      fails = [cr for cr in criteria if any(v in cr.lower() for v in vague)]
+      assert len(criteria) >= 3, f'Too few criteria: {len(criteria)}'
+      assert len(fails) == 0, f'Vague criteria found: {fails}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      ec = c.get('edge_cases', [])
+      assert len(ec) >= 2, f'Need >=2 edge cases, got {len(ec)}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Contract created with negotiating/negotiated phase"
+    - "Breadcrumbs show negotiate type entries"
+    - "State.json tracks the caching feature"
+  artifact_quality:
+    - "Caching implementation exists (in-memory or external)"
+    - "TTL is configurable (not hardcoded magic number)"
+    - "Cache invalidation on write operations present"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent verified the implementation (import check, test)"
+    - "Autonomous execution — didn't ask permission to install deps"
+  negotiation_quality:
+    - "All acceptance criteria are binary (can answer yes/no)"
+    - "No vague terms like 'proper', 'good', 'appropriate'"
+    - "Verification method specifies exact commands to run"

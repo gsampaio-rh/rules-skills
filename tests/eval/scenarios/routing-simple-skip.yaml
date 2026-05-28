@@ -1,0 +1,49 @@
+id: routing_simple_skip
+name: "Simple task — harness should NOT activate"
+difficulty: easy
+estimated_duration: 2m
+
+seed_files:
+  main.py: |
+    def calculate_total(items):
+        x = 0
+        for item in items:
+            x += item["price"] * item["quantity"]
+        return x
+
+    def format_receipt(items, x):
+        lines = []
+        for item in items:
+            lines.append(f"{item['name']}: ${item['price'] * item['quantity']:.2f}")
+        lines.append(f"Total: ${x:.2f}")
+        return "\n".join(lines)
+
+initial_prompt: >
+  Rename the variable `x` to `total` in main.py (both in calculate_total
+  and format_receipt).
+
+follow_up_prompts: []
+
+verify:
+  - command: "test ! -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test ! -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "python -c \"import ast; ast.parse(open('main.py').read()); print('PASS')\""
+    timeout_s: 5
+  - command: "grep -q 'total' main.py && ! grep -q '\\bx\\b' main.py && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "No .harness/ directory created (trivial single-file rename)"
+    - "No contract negotiation in transcript"
+    - "No /planner or /evaluator launched"
+  artifact_quality:
+    - "Variable renamed from x to total in both functions"
+    - "Code still parses (valid Python)"
+    - "No other changes introduced"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Change made directly without asking 'should I proceed?'"
+    - "No TodoWrite for a trivial rename"

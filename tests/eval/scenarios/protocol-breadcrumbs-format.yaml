@@ -1,0 +1,109 @@
+id: protocol_breadcrumbs_format
+name: "Breadcrumbs must follow JSONL schema"
+difficulty: medium
+estimated_duration: 6m
+
+seed_files:
+  src/parser.py: |
+    def parse_csv(filepath):
+        with open(filepath) as f:
+            lines = f.readlines()
+        header = lines[0].strip().split(",")
+        rows = []
+        for line in lines[1:]:
+            values = line.strip().split(",")
+            rows.append(dict(zip(header, values)))
+        return rows
+
+    def parse_json(filepath):
+        import json
+        with open(filepath) as f:
+            return json.load(f)
+  src/transformer.py: |
+    def filter_rows(rows, column, value):
+        return [r for r in rows if r.get(column) == value]
+
+    def sort_rows(rows, column, reverse=False):
+        return sorted(rows, key=lambda r: r.get(column, ""), reverse=reverse)
+
+    def aggregate(rows, column):
+        values = [float(r[column]) for r in rows if column in r]
+        return {"count": len(values), "sum": sum(values), "avg": sum(values)/len(values) if values else 0}
+  src/exporter.py: |
+    import json
+    import csv
+
+    def to_json(rows, filepath):
+        with open(filepath, "w") as f:
+            json.dump(rows, f, indent=2)
+
+    def to_csv(rows, filepath):
+        if not rows:
+            return
+        with open(filepath, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+
+initial_prompt: >
+  Add a CLI interface (using argparse) that ties parser, transformer, and
+  exporter together. The CLI should support: input file path, output format
+  (json/csv), optional filter (--filter column=value), optional sort
+  (--sort column), and output file path. Also add proper error handling
+  and a --verbose flag for debug output.
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      required_fields = {'ts', 'role', 'type', 'msg'}
+      valid_roles = {'planner', 'builder', 'evaluator', 'system'}
+      valid_types = {'plan', 'negotiate', 'build', 'verify', 'eval', 'checkpoint', 'decision', 'scrap'}
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      assert len(lines) >= 2, f'Too few breadcrumbs: {len(lines)}'
+      for i, line in enumerate(lines):
+          missing = required_fields - set(line.keys())
+          assert not missing, f'Line {i} missing fields: {missing}'
+          assert line['role'] in valid_roles, f'Line {i} invalid role: {line[\"role\"]}'
+          assert line['type'] in valid_types, f'Line {i} invalid type: {line[\"type\"]}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      # Timestamps should be ISO-8601 format
+      import re
+      iso_pattern = r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}'
+      for i, line in enumerate(lines):
+          assert re.match(iso_pattern, line['ts']), f'Line {i} bad timestamp: {line[\"ts\"]}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' -exec python -m py_compile {} + && echo PASS || echo FAIL"
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Every breadcrumb line has: ts, role, type, msg (required fields)"
+    - "Roles are from valid set: planner, builder, evaluator, system"
+    - "Types are from valid set: plan, negotiate, build, verify, eval, checkpoint, decision, scrap"
+    - "Timestamps are ISO-8601 format"
+  artifact_quality:
+    - "CLI entry point exists with argparse"
+    - "Supports --filter, --sort, --verbose flags"
+    - "Error handling for missing files, bad format"
+    - "All Python files compile cleanly"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent verified CLI works (ran it or at least syntax-checked)"
+    - "Multi-file change tracked via breadcrumbs"
+  negotiation_quality:
+    - "Contract specifies CLI interface requirements"
+    - "Edge cases include: missing input file, invalid filter syntax, empty dataset"

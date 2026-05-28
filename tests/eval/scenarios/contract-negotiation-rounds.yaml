@@ -1,0 +1,86 @@
+id: contract_negotiation_rounds
+name: "Evaluator pushes back on weak contract"
+difficulty: hard
+estimated_duration: 7m
+
+seed_files:
+  src/scheduler.py: |
+    import time
+    from datetime import datetime
+
+    jobs = []
+
+    def add_job(name, interval_seconds, callback):
+        jobs.append({
+            "name": name,
+            "interval": interval_seconds,
+            "callback": callback,
+            "last_run": None,
+        })
+
+    def run_forever():
+        while True:
+            now = datetime.now()
+            for job in jobs:
+                if job["last_run"] is None or (now - job["last_run"]).total_seconds() >= job["interval"]:
+                    job["callback"]()
+                    job["last_run"] = now
+            time.sleep(1)
+  requirements.txt: |
+    # no deps needed
+
+initial_prompt: >
+  Build a robust task scheduler with: cron-style scheduling (not just
+  intervals), job persistence (survive restarts), retry with exponential
+  backoff on failure, concurrent job execution with a configurable thread
+  pool, and a simple REST API to manage scheduled jobs.
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      rounds = c.get('negotiation_rounds', 0)
+      # Contract should show negotiation happened
+      assert rounds >= 1, f'No negotiation rounds recorded: {rounds}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      negotiate_entries = [l for l in lines if l.get('type') == 'negotiate']
+      assert len(negotiate_entries) >= 2, f'Expected multiple negotiate entries, got {len(negotiate_entries)}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' | head -3 | xargs python -m py_compile && echo PASS || echo FAIL"
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Contract shows negotiation_rounds >= 1"
+    - "Multiple negotiate-type breadcrumbs exist"
+    - "Evaluator role appears in breadcrumbs (pushed back on criteria)"
+    - "Final contract is stronger than initial proposal"
+  artifact_quality:
+    - "Cron-style scheduling (not just interval)"
+    - "Job persistence mechanism"
+    - "Retry with backoff logic"
+    - "Thread pool or async execution"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent accepted evaluator feedback constructively"
+    - "Verification after implementation"
+  negotiation_quality:
+    - "Contract criteria are specific and testable"
+    - "Edge cases cover: concurrent job conflicts, failed persistence, malformed cron expression"
+    - "Verification method includes running actual jobs"

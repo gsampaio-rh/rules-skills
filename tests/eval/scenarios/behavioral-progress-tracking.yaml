@@ -1,0 +1,113 @@
+id: behavioral_progress_tracking
+name: "Multi-file change requires progress tracking"
+difficulty: medium
+estimated_duration: 7m
+
+seed_files:
+  src/models/user.py: |
+    class User:
+        def __init__(self, id, name, email):
+            self.id = id
+            self.name = name
+            self.email = email
+  src/models/post.py: |
+    class Post:
+        def __init__(self, id, title, body, author_id):
+            self.id = id
+            self.title = title
+            self.body = body
+            self.author_id = author_id
+  src/models/comment.py: |
+    class Comment:
+        def __init__(self, id, body, post_id, author_id):
+            self.id = id
+            self.body = body
+            self.post_id = post_id
+            self.author_id = author_id
+  src/models/__init__.py: |
+    from .user import User
+    from .post import Post
+    from .comment import Comment
+  src/repositories/__init__.py: ""
+  src/repositories/user_repo.py: |
+    users = {}
+
+    def create(user):
+        users[user.id] = user
+        return user
+
+    def get(user_id):
+        return users.get(user_id)
+
+    def delete(user_id):
+        return users.pop(user_id, None)
+  src/repositories/post_repo.py: |
+    posts = {}
+
+    def create(post):
+        posts[post.id] = post
+        return post
+
+    def get(post_id):
+        return posts.get(post_id)
+
+    def list_by_author(author_id):
+        return [p for p in posts.values() if p.author_id == author_id]
+  src/repositories/comment_repo.py: |
+    comments = {}
+
+    def create(comment):
+        comments[comment.id] = comment
+        return comment
+
+    def list_by_post(post_id):
+        return [c for c in comments.values() if c.post_id == post_id]
+
+initial_prompt: >
+  Add serialization support to all models (to_dict and from_dict class
+  methods), add type hints to all repository functions, and add a
+  services layer that orchestrates create/delete operations with proper
+  cascading (deleting a user deletes their posts, deleting a post
+  deletes its comments).
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      build_entries = [l for l in lines if l.get('type') == 'build']
+      # Multi-file change should have multiple build breadcrumbs (progress tracking)
+      assert len(build_entries) >= 2, f'Only {len(build_entries)} build entries — not tracking per-step'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' -exec python -m py_compile {} + && echo PASS || echo FAIL"
+    timeout_s: 10
+  - command: "grep -r 'def to_dict' src/models/ && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "grep -rq 'services' src/ && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Harness activated (touches 6+ files)"
+    - "Multiple build-type breadcrumbs (one per logical step)"
+    - "Contract covers serialization + type hints + services"
+  artifact_quality:
+    - "to_dict and from_dict on all 3 models"
+    - "Type hints on repository functions"
+    - "Services layer with cascading deletes"
+    - "All Python files compile cleanly"
+  behavioral:
+    - "Progress tracked per step (not just one breadcrumb at the end)"
+    - "TodoWrite or equivalent used to decompose the task"
+    - "No apologies or unnecessary summaries"
+    - "Agent verified after each major step (not just at the end)"
+  negotiation_quality:
+    - "Contract breaks down into: serialization, type hints, services"
+    - "Edge cases include: cascading delete with no posts, circular references"

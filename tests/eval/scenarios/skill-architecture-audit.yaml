@@ -1,0 +1,103 @@
+id: skill_architecture_audit
+name: "Architecture-audit skill activates for audit request"
+difficulty: medium
+estimated_duration: 4m
+
+seed_files:
+  src/app.py: |
+    from flask import Flask, request, jsonify
+    import sqlite3
+    import smtplib
+    from email.mime.text import MIMEText
+
+    app = Flask(__name__)
+
+    def get_db():
+        return sqlite3.connect("app.db")
+
+    @app.route("/users", methods=["POST"])
+    def create_user():
+        data = request.get_json()
+        db = get_db()
+        db.execute("INSERT INTO users (name, email) VALUES (?, ?)", (data["name"], data["email"]))
+        db.commit()
+
+        # Send welcome email directly from the route handler
+        msg = MIMEText(f"Welcome {data['name']}!")
+        msg["Subject"] = "Welcome"
+        msg["From"] = "noreply@app.com"
+        msg["To"] = data["email"]
+        smtp = smtplib.SMTP("localhost", 587)
+        smtp.send_message(msg)
+        smtp.quit()
+
+        return jsonify({"status": "created"}), 201
+
+    @app.route("/users/<int:uid>/posts", methods=["POST"])
+    def create_post(uid):
+        data = request.get_json()
+        db = get_db()
+        # Direct DB access from route, no service layer
+        db.execute("INSERT INTO posts (title, body, user_id) VALUES (?, ?, ?)",
+                   (data["title"], data["body"], uid))
+        db.commit()
+
+        # Inline notification logic
+        user = db.execute("SELECT email FROM users WHERE id=?", (uid,)).fetchone()
+        if user:
+            msg = MIMEText(f"New post: {data['title']}")
+            msg["Subject"] = "New Post Notification"
+            msg["From"] = "noreply@app.com"
+            msg["To"] = user[0]
+            smtp = smtplib.SMTP("localhost", 587)
+            smtp.send_message(msg)
+            smtp.quit()
+
+        return jsonify({"status": "created"}), 201
+
+    @app.route("/posts/<int:pid>/comments", methods=["POST"])
+    def create_comment(pid):
+        data = request.get_json()
+        db = get_db()
+        db.execute("INSERT INTO comments (body, post_id, user_id) VALUES (?, ?, ?)",
+                   (data["body"], pid, data["user_id"]))
+        db.commit()
+        return jsonify({"status": "created"}), 201
+
+    if __name__ == "__main__":
+        app.run()
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  Audit the architecture of this project. Check for layering violations,
+  dependency direction issues, and separation of concerns problems.
+
+follow_up_prompts: []
+
+verify:
+  - command: "test ! -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test ! -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "No harness activated (audit is a skill, not a feature build)"
+    - "No contract negotiation — audit is read-only analysis"
+    - "Agent used architecture-audit skill approach"
+  artifact_quality:
+    - "Identified direct DB access from route handlers (no service layer)"
+    - "Identified SMTP coupling in route handlers (no notification abstraction)"
+    - "Identified lack of repository pattern"
+    - "Identified dependency direction issues (routes depend on infrastructure)"
+    - "Suggested layered architecture (routes → services → repositories)"
+  behavioral:
+    - "No apologies"
+    - "Structured audit output (not a wall of text)"
+    - "Findings categorized by severity or concern"
+    - "Did not modify files unless asked (audit is analysis)"
+  skill_activation:
+    - "Architecture-audit skill pattern followed"
+    - "Identified DDD/Clean Architecture violations"
+    - "Provided actionable recommendations with file-level specificity"

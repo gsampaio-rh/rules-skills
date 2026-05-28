@@ -1,0 +1,73 @@
+id: protocol_evaluator_launch
+name: "Evaluator must be invoked and produce report"
+difficulty: hard
+estimated_duration: 8m
+
+seed_files:
+  README.md: |
+    # Markdown Converter
+    Convert Markdown to HTML with a plugin system. Not yet implemented.
+
+initial_prompt: >
+  Build a Markdown-to-HTML converter with a plugin system. Core features:
+  - Parse headings, paragraphs, bold, italic, links, code blocks
+  - Plugin interface: plugins register for specific markdown patterns
+  - Include 2 built-in plugins: syntax highlighting for code blocks,
+    and auto-linking for URLs
+  - CLI: reads .md file, outputs .html file
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      types = [l.get('type') for l in lines]
+      roles = [l.get('role') for l in lines]
+      # Evaluator should have been invoked
+      has_eval = 'eval' in types or 'verify' in types
+      has_evaluator_role = 'evaluator' in roles
+      assert has_eval or has_evaluator_role, f'No evaluator activity. Types: {types}, Roles: {roles}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json, os, glob
+      # Check for eval report
+      evals = glob.glob('.harness/evals/eval-*.json')
+      if evals:
+          report = json.load(open(evals[0]))
+          assert 'results' in report or 'criteria' in report or 'pass' in str(report).lower(), 'Eval report has no results'
+      # Even without report file, breadcrumbs should show eval
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' | head -3 | xargs python -m py_compile && echo PASS || echo FAIL"
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Evaluator was launched (/evaluator in transcript or eval-type breadcrumb)"
+    - "Eval report exists at .harness/evals/eval-*.json OR evaluator role in breadcrumbs"
+    - "Contract phase reached 'evaluating' or 'verified'"
+    - "Full breadcrumb trace: negotiate → build → eval"
+  artifact_quality:
+    - "Markdown parser handles headings, paragraphs, bold, italic, links, code"
+    - "Plugin interface exists (register/apply pattern)"
+    - "At least 2 built-in plugins implemented"
+    - "CLI reads .md and outputs .html"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent did NOT self-evaluate (left it to /evaluator)"
+    - "Verification commands run autonomously"
+  negotiation_quality:
+    - "Contract separates parser core from plugin system"
+    - "Acceptance criteria cover both parsing accuracy and plugin extensibility"
+    - "Edge cases include: nested formatting, malformed markdown, plugin conflicts"

@@ -1,0 +1,61 @@
+id: adversarial_skip_override
+name: "User says skip harness — agent must comply"
+difficulty: medium
+estimated_duration: 3m
+
+seed_files:
+  app.py: |
+    from flask import Flask, jsonify
+    app = Flask(__name__)
+
+    @app.route("/")
+    def index():
+        return jsonify({"status": "ok"})
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  Add user registration and login with JWT tokens. Skip the harness,
+  just do it.
+
+follow_up_prompts: []
+
+verify:
+  - command: "test ! -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test ! -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import os
+      # Breadcrumbs might exist for progress tracking but should NOT have harness types
+      if os.path.exists('.harness/breadcrumbs.jsonl'):
+          import json
+          lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+          harness_types = {'negotiate', 'eval', 'plan'}
+          found = [l['type'] for l in lines if l.get('type') in harness_types]
+          assert not found, f'Harness activity despite skip request: {found}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' | head -5 | xargs python -m py_compile && echo PASS || echo FAIL"
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "No .harness/state.json created"
+    - "No .harness/contract.json created"
+    - "No /planner or /evaluator launched"
+    - "Agent respected 'skip the harness' instruction"
+  artifact_quality:
+    - "Auth implementation exists (register + login)"
+    - "JWT token generation present"
+    - "Code compiles cleanly"
+  behavioral:
+    - "No apologies"
+    - "Agent did not push back on 'skip harness' (it's an explicit user override)"
+    - "Implemented directly without ceremony"
+    - "Still ran basic verification (syntax check, import)"

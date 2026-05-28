@@ -1,0 +1,76 @@
+id: routing_multi_skill_overlap
+name: "Multiple skills could match — agent picks correct one"
+difficulty: medium
+estimated_duration: 5m
+
+seed_files:
+  src/api.py: |
+    from flask import Flask, jsonify, request
+    app = Flask(__name__)
+
+    users_db = {}
+
+    @app.route("/users", methods=["POST"])
+    def create_user():
+        data = request.get_json()
+        uid = str(len(users_db) + 1)
+        users_db[uid] = data
+        return jsonify({"id": uid}), 201
+
+    @app.route("/users/<uid>", methods=["GET"])
+    def get_user(uid):
+        user = users_db.get(uid)
+        if not user:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(user)
+
+    @app.route("/users/<uid>", methods=["DELETE"])
+    def delete_user(uid):
+        if uid in users_db:
+            del users_db[uid]
+            return "", 204
+        return jsonify({"error": "not found"}), 404
+  src/models.py: |
+    class User:
+        def __init__(self, name, email):
+            self.name = name
+            self.email = email
+        def to_dict(self):
+            return {"name": self.name, "email": self.email}
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  I need to add pagination, filtering, and sorting to the users list
+  endpoint, plus add input validation to the create endpoint. This should
+  also include proper error responses with consistent error format.
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "python -c \"import ast; ast.parse(open('src/api.py').read()); print('PASS')\""
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Harness activated (feature build, not a code review or audit)"
+    - "Agent used adversarial-harness skill, NOT code-review or architecture-audit"
+    - "Contract negotiation occurred"
+  artifact_quality:
+    - "Pagination implemented (limit/offset or page/per_page)"
+    - "Filtering support added"
+    - "Input validation on create endpoint"
+    - "Consistent error response format"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent ran verification autonomously"
+  negotiation_quality:
+    - "Contract scoped to REST API improvements (not refactoring)"
+    - "Edge cases include: invalid page number, empty filter results"

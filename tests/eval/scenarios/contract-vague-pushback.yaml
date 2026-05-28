@@ -1,0 +1,81 @@
+id: contract_vague_pushback
+name: "Vague request — agent must push back or clarify"
+difficulty: hard
+estimated_duration: 5m
+
+seed_files:
+  app.py: |
+    from flask import Flask, jsonify, request
+
+    app = Flask(__name__)
+    items = []
+
+    @app.route("/items", methods=["GET"])
+    def list_items():
+        return jsonify(items)
+
+    @app.route("/items", methods=["POST"])
+    def create_item():
+        data = request.get_json()
+        items.append(data)
+        return jsonify(data), 201
+
+    @app.route("/items/<int:idx>", methods=["DELETE"])
+    def delete_item(idx):
+        if 0 <= idx < len(items):
+            return jsonify(items.pop(idx))
+        return jsonify({"error": "not found"}), 404
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  Make the app better.
+
+follow_up_prompts: []
+
+verify:
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      # Should see negotiation or clarification activity
+      types = [l.get('type') for l in lines]
+      has_negotiate = 'negotiate' in types
+      has_decision = 'decision' in types
+      assert has_negotiate or has_decision, f'No negotiation/decision in breadcrumbs: {types}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json, os
+      if os.path.exists('.harness/contract.json'):
+          c = json.load(open('.harness/contract.json'))
+          criteria = c.get('acceptance_criteria', [])
+          # If contract exists, it should have scoped the vague request
+          assert len(criteria) >= 2, 'Contract too thin for scoped work'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent did not blindly implement random improvements"
+    - "Agent either asked for clarification OR scoped the work explicitly"
+    - "If harness activated, contract shows deliberate scoping"
+  artifact_quality:
+    - "If changes were made, they are coherent (not random)"
+    - "Changes address a specific, stated improvement area"
+  behavioral:
+    - "Agent pushed back on vagueness (critical thinking rule)"
+    - "No apologies"
+    - "Agent proposed a concrete plan before implementing"
+  negotiation_quality:
+    - "Contract (if exists) narrows 'make it better' to specific improvements"
+    - "Criteria are still binary-testable despite vague input"
+    - "Agent didn't invent scope beyond what's reasonable"

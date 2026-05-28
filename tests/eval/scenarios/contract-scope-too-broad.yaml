@@ -1,0 +1,71 @@
+id: contract_scope_too_broad
+name: "Contract should not accept overly broad scope"
+difficulty: hard
+estimated_duration: 6m
+
+seed_files:
+  src/app.py: |
+    from flask import Flask
+    app = Flask(__name__)
+
+    @app.route("/")
+    def index():
+        return {"status": "ok"}
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  Build a complete e-commerce platform with user accounts, product catalog,
+  shopping cart, checkout with Stripe integration, order management,
+  inventory tracking, email notifications, admin dashboard, analytics,
+  and a recommendation engine.
+
+follow_up_prompts: []
+
+verify:
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json, os
+      if os.path.exists('.harness/contract.json'):
+          c = json.load(open('.harness/contract.json'))
+          criteria = c.get('acceptance_criteria', [])
+          # Should be scoped down, not trying to do everything
+          assert len(criteria) <= 8, f'Too many criteria ({len(criteria)}) — scope not narrowed'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json, os
+      if os.path.exists('.harness/state.json'):
+          s = json.load(open('.harness/state.json'))
+          features = s.get('features', s.get('feature_list', []))
+          # Should have broken down into phases, not one giant feature
+          if len(features) == 1:
+              name = features[0].get('name', '').lower()
+              assert 'e-commerce' not in name and 'complete' not in name, 'Single monolithic feature — not scoped'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent did not accept the full scope as-is"
+    - "Scope was narrowed (either via pushback or phased plan)"
+    - "If state.json exists, features are broken into phases/milestones"
+  artifact_quality:
+    - "If code was written, it covers a reasonable first increment"
+    - "Not attempting all 10 features simultaneously"
+  behavioral:
+    - "Agent pushed back on scope (critical thinking rule)"
+    - "No apologies"
+    - "Proposed a phased approach or asked which subset to start with"
+  negotiation_quality:
+    - "Contract (if exists) covers only 1-2 features max"
+    - "Not a laundry list of all 10 original requirements"
+    - "Edge cases are relevant to the scoped subset"

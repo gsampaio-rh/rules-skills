@@ -1,37 +1,38 @@
 # Evaluation Guide
 
-How we test that the rules, skills, and harness actually work. The eval system has three tiers — each progressively more realistic, slower, and costlier.
+How we test that the rules, skills, and harness actually work.
 
 ## Quick Reference
 
 ```
 make eval-fast              # Tier 1: seconds, no API keys
-make eval-behavioral        # Tier 2: ~minutes, needs CURSOR_API_KEY + OPENAI_API_KEY
-make eval-session --dry-run # Tier 3: preview scenarios
-make eval-session           # Tier 3: ~5-10min per scenario, needs CURSOR_API_KEY
+make eval-session-dry       # Tier 3: preview scenario plan
+make eval-session           # Tier 3: ~1min per scenario, needs CURSOR_API_KEY
 make eval-session-judge     # Tier 3: judge completed sessions
 make eval-session-report    # Tier 3: aggregated report table
+make eval                   # Both: Tier 1 + Tier 3
 ```
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Three-Tier Eval Pipeline                       │
-├──────────────────┬───────────────────┬───────────────────────────┤
-│    Tier 1        │     Tier 2        │        Tier 3             │
-│  Fast Static     │  Behavioral       │    Session Scenarios      │
-│                  │  Prompt Evals     │                           │
-│  contract_lint   │  dataset.yaml     │  scenarios/*.yaml         │
-│  harness_lint    │  auto_capture.py  │  session_runner.py        │
-│  validate.py     │  run_eval.py      │  session_judge.py         │
-│                  │                   │  session_report.py        │
-├──────────────────┼───────────────────┼───────────────────────────┤
-│  No API keys     │  Needs SDK +      │  Needs SDK, runs real     │
-│  Runs in seconds │  judge model      │  agent in isolated        │
-│  Local files     │  Single prompts   │  git worktree             │
-│  only            │                   │                           │
-└──────────────────┴───────────────────┴───────────────────────────┘
+│                    Two-Tier Eval Pipeline                         │
+├──────────────────────────────┬───────────────────────────────────┤
+│         Tier 1               │         Tier 3                    │
+│       Fast Static            │     Session Scenarios             │
+│                              │                                   │
+│  contract_lint.py            │  scenarios/*.yaml (23 scenarios)  │
+│  harness_lint.py             │  session_runner.py                │
+│  validate.py                 │  session_judge.py                 │
+│                              │  session_report.py                │
+│                              │  sandbox.py                       │
+├──────────────────────────────┼───────────────────────────────────┤
+│  No API keys                 │  Needs CURSOR_API_KEY             │
+│  Runs in seconds             │  ~20 min for full suite           │
+│  Checks local .harness/      │  Runs real agent in isolated      │
+│  files are well-formed       │  temp git repo via SDK bridge     │
+└──────────────────────────────┴───────────────────────────────────┘
 ```
 
 ## Tier 1: Fast Static Checks
@@ -59,52 +60,6 @@ make eval-session-report    # Tier 3: aggregated report table
 ### What "pass" means
 
 All checks return exit code 0. Any FAIL indicates a structural problem that must be fixed before the harness can work correctly.
-
-## Tier 2: Behavioral Prompt Evals
-
-**What it tests**: Does the agent follow our rules when given specific prompts?
-
-**How to run**: `make eval-behavioral`
-
-**Needs**: `CURSOR_API_KEY` for capture, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` for judging.
-
-### How it works
-
-1. **Dataset** (`tests/eval/dataset.yaml`): ~50+ test cases, each with a prompt, target rules/skills, and a rubric with weighted criteria
-2. **Capture** (`auto_capture.py`): Sends each prompt to the agent via Cursor SDK, saves the response
-3. **Judge** (`run_eval.py`): An LLM judge scores each response against the rubric criteria
-4. **Report** (`report.py`): Aggregates scores into a markdown report
-
-### Dataset structure
-
-```yaml
-- id: agent_behavior_no_apologies
-  targets: [agent_behavior]
-  category: always_on_rule
-  difficulty: easy
-  prompt: "I think I messed up the database migration..."
-  rubric:
-    correctness:
-      - criterion: "Investigates the issue directly"
-        weight: 2
-    behavioral:
-      - criterion: "Does not apologize"
-        weight: 3
-    negative:
-      - criterion: "Does NOT open with an apology"
-        weight: 3
-```
-
-### What it measures
-
-- **Rule compliance**: Does the agent follow `agent_behavior`, `code_standards`, etc.?
-- **Skill activation**: When triggered, does the agent follow skill instructions?
-- **Negotiation quality**: Are contracts binary-testable? Do edge cases make sense?
-- **Anti-patterns**: Apologies, unsolicited summaries, vague outputs
-
-### Limitations
-
-Single prompt → single response. Cannot test multi-step workflows, file creation, or tool use. That's what Tier 3 is for.
 
 ## Tier 3: Session Scenario Evals
 
@@ -137,13 +92,14 @@ Scenario YAML
 
 ### Isolation: the sandbox
 
-Each scenario runs in a fresh `git worktree` created by `CaptureWorkspace` (in `tests/eval/sandbox.py`). This means:
+Each scenario runs in a fresh temp directory via `CaptureWorkspace` (in `tests/eval/sandbox.py`) + `CursorClient.launch_bridge()`. This means:
 
-- The agent sees a realistic repo structure (git history, file tree)
-- But changes are isolated — nothing pollutes the main working directory
-- `.cursor/` config is copied from `library/cursor/` (the source of truth), not from the local `.cursor/` copy
-- `.harness/` is initialized clean so the agent starts fresh
-- After the agent finishes, artifacts are collected before the worktree is destroyed
+- A fresh `git init` temp repo is created per scenario
+- `seed_files` from the YAML are written before the agent starts
+- `.cursor/` config is copied from `library/cursor/` (rules, skills, agents)
+- The SDK bridge runs against this temp workspace — fully isolated from the main repo
+- After the agent finishes, artifacts are collected before the temp dir is destroyed
+- The base SHA is captured after seeding, so diffs show only agent-produced changes
 
 ### Artifact capture
 
@@ -164,30 +120,38 @@ Files in `.git/`, `.cursor/`, `node_modules/`, `__pycache__/`, and similar are e
 ### Scenario YAML format
 
 ```yaml
-id: build_cli_tool
-name: "Build a CLI file organizer"
-difficulty: medium
-estimated_duration: 5m
-seed_project: null
+id: routing_complex_activate
+name: "Complex feature — harness MUST activate"
+difficulty: hard
+estimated_duration: 8m
+
+seed_files:
+  app.py: |
+    from flask import Flask
+    app = Flask(__name__)
+    # ... starter code the agent builds upon
+  requirements.txt: |
+    flask==3.0.0
 
 initial_prompt: >
-  Build a Python CLI tool that organizes files by extension...
+  Build a REST API with user authentication (JWT), rate limiting, and logging.
 
 follow_up_prompts:
-  - "Add a --recursive flag"
   - "Commit the changes"
 
 verify:
-  - command: "python -m py_compile *.py"
-    timeout_s: 10
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
 
 post_hoc_rubric:
   harness_compliance:
     - "Agent created .harness/state.json with features"
     - "Contract negotiation occurred"
   artifact_quality:
-    - "Main Python file exists with argparse CLI"
-    - "Script handles --dry-run flag"
+    - "JWT auth implementation exists"
+    - "Rate limiting logic present"
   behavioral:
     - "No apologies in transcript"
     - "Agent ran commands autonomously"
@@ -195,7 +159,7 @@ post_hoc_rubric:
     - "Acceptance criteria are binary-testable"
 ```
 
-Scenarios live in `tests/eval/scenarios/`. Each YAML file defines one scenario.
+Scenarios live in `tests/eval/scenarios/` (23 scenarios). Each YAML file defines one scenario.
 
 ### Judging tiers
 
@@ -232,51 +196,54 @@ Run `make eval-session-report` to see the table.
 
 ```
 tests/eval/
-├── dataset.yaml              # Tier 2 test cases
 ├── contract_lint.py          # Tier 1: contract quality
 ├── harness_lint.py           # Tier 1: harness state consistency
-├── auto_capture.py           # Tier 2: SDK-based prompt capture
-├── run_eval.py               # Tier 2: LLM judge for single prompts
-├── report.py                 # Tier 2: markdown report
-├── sandbox.py                # Tier 3: isolated worktree manager
-├── session_runner.py         # Tier 3: scenario execution
-├── session_judge.py          # Tier 3: post-hoc judging
+├── sandbox.py                # Tier 3: isolated temp repo manager
+├── session_runner.py         # Tier 3: scenario execution via SDK bridge
+├── session_judge.py          # Tier 3: post-hoc judging (computational + structural + LLM)
 ├── session_report.py         # Tier 3: aggregated reporting
 ├── harness_metrics.py        # Harness effectiveness dashboard
-├── scenarios/                # Tier 3 scenario definitions
-│   ├── build-cli-tool.yaml
-│   └── refactor-module.yaml
-├── sessions/                 # Tier 3 session outputs (gitignored)
-│   └── <model>/<scenario>.json
-├── judgments/                 # Tier 3 judgment outputs (gitignored)
-│   └── <model>/<scenario>.json
-└── summary.json              # Aggregated report (gitignored)
+└── scenarios/                # 23 scenario YAML definitions
+    ├── routing-*.yaml        # 5 routing scenarios
+    ├── contract-*.yaml       # 5 contract quality scenarios
+    ├── protocol-*.yaml       # 3 protocol lifecycle scenarios
+    ├── adversarial-*.yaml    # 4 adversarial scenarios
+    ├── behavioral-*.yaml     # 3 behavioral scenarios
+    └── skill-*.yaml          # 3 skill activation scenarios
+
+tests/eval_results/           # Output (gitignored)
+└── <timestamp>/
+    ├── sessions/<model>/<scenario>.json
+    ├── judgments/<model>/<scenario>.json
+    └── summary.json
 ```
 
 ## Data Flow
 
 ```
-library/cursor/  ──copy──→  .cursor/ (in temp worktree)
-                                │
-                          Agent works here
-                                │
-                          ┌─────▼──────────┐
-                          │  Artifacts      │
-                          │  • git diff     │
-                          │  • file_contents│
-                          │  • harness state│
-                          │  • validations  │
-                          └─────┬──────────┘
-                                │
-                     sessions/<model>/<id>.json
-                                │
-                     session_judge.py scores it
-                                │
-                     judgments/<model>/<id>.json
-                                │
-                     session_report.py aggregates
-                                │
-                        summary.json + console table
+Scenario YAML (seed_files, prompts, verify, rubric)
+        │
+        ▼
+sandbox.py: git init temp dir, write seed_files, copy .cursor/
+        │
+        ▼
+session_runner.py: CursorClient.launch_bridge(workspace=tmp)
+        │                    → agent.send(initial_prompt)
+        │                    → agent.send(follow_ups...)
+        ▼
+Artifacts collected: git diff, file_contents, .harness/ state, verify commands
+        │
+        ▼
+tests/eval_results/<ts>/sessions/<model>/<id>.json
+        │
+        ▼
+session_judge.py: computational + structural + LLM scoring
+        │
+        ▼
+tests/eval_results/<ts>/judgments/<model>/<id>.json
+        │
+        ▼
+session_report.py: console table + summary.json
 ```
 
 ## Adding a New Scenario
@@ -288,7 +255,10 @@ id: my_new_scenario
 name: "Description of the task"
 difficulty: easy|medium|hard
 estimated_duration: 5m
-seed_project: null  # or path to template directory
+
+seed_files:
+  main.py: |
+    # starter code the agent will work with
 
 initial_prompt: >
   The task prompt the agent will receive.
@@ -297,8 +267,8 @@ follow_up_prompts:
   - "Optional follow-up 1"
 
 verify:
-  - command: "python -m pytest tests/"
-    timeout_s: 30
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
 
 post_hoc_rubric:
   harness_compliance:
@@ -315,6 +285,42 @@ post_hoc_rubric:
 3. Run `make eval-session` to execute
 4. Run `make eval-session-judge` + `make eval-session-report` to see results
 
+## Known Limitations
+
+### SDK bridge does not activate skills or hooks
+
+**This is the primary limitation.** When the agent runs via `CursorClient.launch_bridge()`:
+
+- **Hooks do not fire**: `contract-gate.sh`, `verify-harness.sh`, `harness-context.sh` etc. are IDE-level enforcement and do not execute in SDK bridge sessions.
+- **Skills are not auto-routed**: The IDE's skill activation system (which reads `.cursor/skills/` and routes based on prompt keywords) does not run. The agent has `.cursor/` in its workspace but doesn't proactively read skill files unless its system prompt references them.
+- **Subagents (`/planner`, `/evaluator`) are not available**: These are IDE features that don't exist in the SDK bridge.
+
+**Impact on results**: Scenarios expecting harness activation (contract creation, breadcrumbs, evaluator launch) will score 0% unless the agent's system prompt or rules explicitly instruct it to follow the harness protocol without IDE enforcement.
+
+**What DOES work in the bridge:**
+- Rules in `.cursor/rules/` are loaded (always-on rules are injected)
+- The agent CAN read skill files if asked
+- Pre-seeded `.harness/` state IS detected (see `routing_resume_existing` scoring 83%)
+- Behavioral compliance (no apologies, autonomous execution) works
+
+### Implications for eval design
+
+The current eval measures **voluntary protocol compliance** — what the agent does without enforcement. This is a useful but incomplete signal:
+
+| What we CAN test | What we CANNOT test (yet) |
+|-----------------|--------------------------|
+| Agent follows rules (behavioral) | Hooks block bad behavior |
+| Agent resumes existing harness state | Skill auto-routing from keywords |
+| Agent respects "skip harness" | /planner and /evaluator subagent flow |
+| Agent writes working code | Full contract negotiation cycle |
+| Negative cases (no harness when simple) | Hook-enforced verification gates |
+
+### Future improvements
+
+1. **System prompt injection**: Include harness protocol instructions in the agent's system prompt for SDK sessions (simulates what the skill + hooks provide in the IDE)
+2. **Pre-seed more state**: Scenarios like `routing_resume_existing` work because they pre-seed `.harness/`. More scenarios could pre-seed partial state to test mid-workflow behavior.
+3. **IDE-mode testing**: Run evals through the actual IDE (not SDK bridge) to test hooks and skill routing — requires different infrastructure.
+
 ## CI Integration
 
 Recommended pipeline:
@@ -323,13 +329,10 @@ Recommended pipeline:
 # Fast gate (every PR)
 - run: make eval-fast
 
-# Behavioral gate (nightly or on tag)
-- run: make eval-behavioral
-
-# Session eval (weekly or on release)
+# Session eval (nightly or on release)
 - run: make eval-session
 - run: make eval-session-judge
 - run: make eval-session-report
 ```
 
-Tier 1 runs in seconds with no API keys — it should block every PR. Tier 2 and 3 need API keys and are better suited for scheduled runs.
+Tier 1 runs in seconds with no API keys — it should block every PR. Tier 3 needs `CURSOR_API_KEY` and takes ~20 min for the full 23-scenario suite.

@@ -1,0 +1,88 @@
+id: contract_edge_cases
+name: "Contract must include meaningful edge cases"
+difficulty: medium
+estimated_duration: 6m
+
+seed_files:
+  server.py: |
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import json
+    import os
+
+    UPLOAD_DIR = "uploads"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            if self.path == "/upload":
+                content_length = int(self.headers["Content-Length"])
+                body = self.rfile.read(content_length)
+                # TODO: implement file upload
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "ok"}).encode())
+
+        def do_GET(self):
+            if self.path == "/files":
+                files = os.listdir(UPLOAD_DIR)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps({"files": files}).encode())
+
+    if __name__ == "__main__":
+        HTTPServer(("", 8080), Handler).run_forever()
+
+initial_prompt: >
+  Implement the file upload endpoint. Requirements: accept multipart form
+  uploads, enforce a 10MB size limit, only allow .pdf/.png/.jpg extensions,
+  store with a unique filename to prevent overwrites, and return the
+  download URL.
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      ec = c.get('edge_cases', [])
+      assert len(ec) >= 2, f'Need >=2 edge cases, got {len(ec)}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      ec = ' '.join(c.get('edge_cases', [])).lower()
+      # Should mention at least one boundary condition
+      boundaries = ['size', 'limit', 'extension', 'empty', 'duplicate', 'concurrent', 'permission', 'disk']
+      hits = [b for b in boundaries if b in ec]
+      assert len(hits) >= 2, f'Edge cases too generic, only found: {hits}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "python -c \"import ast; ast.parse(open('server.py').read()); print('PASS')\""
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Contract has at least 2 meaningful edge cases"
+    - "Edge cases reference boundary conditions (size limits, bad extensions, etc.)"
+    - "Breadcrumbs trace contract negotiation"
+  artifact_quality:
+    - "Multipart upload parsing implemented"
+    - "10MB size limit enforced with proper error response"
+    - "Extension whitelist (.pdf, .png, .jpg) enforced"
+    - "Unique filename generation (UUID or hash)"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent tested the implementation (import/syntax check at minimum)"
+    - "No 'shall I proceed?' before making changes"
+  negotiation_quality:
+    - "Edge cases are specific (not 'handle errors gracefully')"
+    - "At least one edge case about the size boundary (exactly 10MB, 0 bytes)"
+    - "At least one edge case about invalid input (wrong extension, no file)"

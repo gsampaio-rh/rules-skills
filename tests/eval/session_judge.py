@@ -67,6 +67,20 @@ def find_sessions(run_dir: Path, filter_str: str | None = None) -> list[Path]:
 
 # ─── Computational Checks ─────────────────────────────────────────────────────
 
+VALID_BREADCRUMB_ROLES = {"planner", "builder", "evaluator", "system"}
+VALID_BREADCRUMB_TYPES = {"plan", "negotiate", "build", "verify", "eval", "checkpoint", "decision", "scrap"}
+ISO_TS_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+
+
+def _is_negative_harness_scenario(rubric: dict) -> bool:
+    """Detect scenarios where harness should NOT activate."""
+    compliance = rubric.get("post_hoc_rubric", {}).get("harness_compliance", [])
+    negative_signals = ("no .harness", "not activate", "no contract", "no /planner", "no /evaluator")
+    return any(
+        any(sig in c.lower() for sig in negative_signals)
+        for c in compliance
+    )
+
 
 def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     """Fast, deterministic checks on harness state."""
@@ -74,12 +88,15 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     artifacts = session.get("artifacts", {})
     harness = artifacts.get("harness", {})
 
+    if _is_negative_harness_scenario(rubric):
+        return _check_harness_absent(harness)
+
     state = harness.get("state.json", {})
-    has_state = bool(state and state.get("features"))
+    has_state = bool(state and (state.get("features") or state.get("feature_list")))
     results.append({
         "criterion": "Agent created .harness/state.json with features",
         "result": "PASS" if has_state else "FAIL",
-        "evidence": f"{len(state.get('features', []))} features" if has_state else "No features in state",
+        "evidence": f"{len(state.get('features', state.get('feature_list', [])))} features" if has_state else "No features in state",
         "tier": "computational",
     })
 
@@ -91,7 +108,7 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     results.append({
         "criterion": "Contract negotiation occurred",
         "result": "PASS" if has_negotiate else "FAIL",
-        "evidence": f"Found negotiate breadcrumb" if has_negotiate else "No negotiate entries in breadcrumbs",
+        "evidence": "Found negotiate breadcrumb" if has_negotiate else "No negotiate entries in breadcrumbs",
         "tier": "computational",
     })
 
@@ -108,10 +125,126 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
 
     contract = harness.get("contract.json", {})
     verified = contract.get("verified", False)
+    phase = contract.get("phase", "none")
     results.append({
         "criterion": "Contract was verified before completion",
         "result": "PASS" if verified else "FAIL",
-        "evidence": f"verified={verified}, phase={contract.get('phase', 'none')}",
+        "evidence": f"verified={verified}, phase={phase}",
+        "tier": "computational",
+    })
+
+    results.extend(_check_breadcrumbs_schema(breadcrumbs))
+    results.extend(_check_phase_progression(contract, breadcrumbs))
+
+    return results
+
+
+def _check_harness_absent(harness: dict) -> list[dict]:
+    """For negative scenarios: harness artifacts should NOT exist."""
+    results = []
+    has_state = bool(harness.get("state.json"))
+    results.append({
+        "criterion": "No .harness/state.json created (expected for simple task)",
+        "result": "PASS" if not has_state else "FAIL",
+        "evidence": "state.json absent" if not has_state else "state.json exists unexpectedly",
+        "tier": "computational",
+    })
+
+    has_contract = bool(harness.get("contract.json"))
+    results.append({
+        "criterion": "No .harness/contract.json created (expected for simple task)",
+        "result": "PASS" if not has_contract else "FAIL",
+        "evidence": "contract.json absent" if not has_contract else "contract.json exists unexpectedly",
+        "tier": "computational",
+    })
+
+    breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+    harness_types = {"negotiate", "eval", "plan"}
+    harness_activity = [
+        b for b in breadcrumbs
+        if isinstance(b, dict) and b.get("type") in harness_types
+    ]
+    results.append({
+        "criterion": "No harness workflow activity in breadcrumbs",
+        "result": "PASS" if not harness_activity else "FAIL",
+        "evidence": "No harness types found" if not harness_activity else f"Found: {[b['type'] for b in harness_activity]}",
+        "tier": "computational",
+    })
+
+    return results
+
+
+def _check_breadcrumbs_schema(breadcrumbs: list[dict]) -> list[dict]:
+    """Validate breadcrumbs follow the required JSONL schema."""
+    results = []
+    if not breadcrumbs:
+        results.append({
+            "criterion": "Breadcrumbs exist (at least 1 entry)",
+            "result": "FAIL",
+            "evidence": "No breadcrumbs found",
+            "tier": "computational",
+        })
+        return results
+
+    required_fields = {"ts", "role", "type", "msg"}
+    schema_errors = []
+    for i, b in enumerate(breadcrumbs):
+        if not isinstance(b, dict):
+            schema_errors.append(f"Line {i}: not a dict")
+            continue
+        missing = required_fields - set(b.keys())
+        if missing:
+            schema_errors.append(f"Line {i}: missing {missing}")
+        if b.get("role") and b["role"] not in VALID_BREADCRUMB_ROLES:
+            schema_errors.append(f"Line {i}: invalid role '{b['role']}'")
+        if b.get("type") and b["type"] not in VALID_BREADCRUMB_TYPES:
+            schema_errors.append(f"Line {i}: invalid type '{b['type']}'")
+        if b.get("ts") and not ISO_TS_PATTERN.match(str(b["ts"])):
+            schema_errors.append(f"Line {i}: bad timestamp '{b['ts']}'")
+
+    results.append({
+        "criterion": "Breadcrumbs follow JSONL schema (ts, role, type, msg)",
+        "result": "PASS" if not schema_errors else "FAIL",
+        "evidence": "All entries valid" if not schema_errors else "; ".join(schema_errors[:5]),
+        "tier": "computational",
+    })
+
+    roles_present = {b.get("role") for b in breadcrumbs if isinstance(b, dict)}
+    has_builder = "builder" in roles_present
+    results.append({
+        "criterion": "Builder role present in breadcrumbs",
+        "result": "PASS" if has_builder else "FAIL",
+        "evidence": f"Roles found: {sorted(roles_present)}",
+        "tier": "computational",
+    })
+
+    return results
+
+
+def _check_phase_progression(contract: dict, breadcrumbs: list[dict]) -> list[dict]:
+    """Check that contract phase progressed beyond initial state."""
+    results = []
+    if not contract:
+        return results
+
+    phase = contract.get("phase", "")
+    late_phases = {"building", "evaluating", "verified", "negotiated"}
+    progressed = phase in late_phases
+    results.append({
+        "criterion": "Contract phase progressed beyond 'negotiating'",
+        "result": "PASS" if progressed else "FAIL",
+        "evidence": f"Current phase: {phase}",
+        "tier": "computational",
+    })
+
+    types_in_order = [b.get("type") for b in breadcrumbs if isinstance(b, dict)]
+    expected_progression = ["negotiate", "build"]
+    found_progression = [t for t in types_in_order if t in expected_progression]
+    ordered = found_progression == sorted(found_progression, key=expected_progression.index)
+    results.append({
+        "criterion": "Breadcrumb types follow logical order (negotiate → build)",
+        "result": "PASS" if (ordered and len(found_progression) >= 2) else "FAIL",
+        "evidence": f"Type sequence: {found_progression}",
         "tier": "computational",
     })
 
@@ -334,8 +467,8 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         apology_patterns = re.compile(r"\b(i'm sorry|i apologize|sorry about)\b", re.I)
         return not apology_patterns.search(transcript_text)
 
-    if "autonomously" in check_lower:
-        action_indicators = ["Running", "Executing", "Installing", "npm", "pip", "make"]
+    if "autonomously" in check_lower or "autonomous" in check_lower:
+        action_indicators = ["Running", "Executing", "Installing", "npm", "pip", "make", "pytest", "python"]
         return any(ind in transcript_text for ind in action_indicators)
 
     if "breadcrumbs" in check_lower and "complete" in check_lower:
@@ -343,7 +476,86 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         breadcrumbs = harness.get("breadcrumbs.jsonl", [])
         return len(breadcrumbs) >= 3
 
+    if "shall i proceed" in check_lower or "should i" in check_lower:
+        proceed_patterns = re.compile(r"\b(shall I proceed|should I|want me to|would you like me to)\b", re.I)
+        return not proceed_patterns.search(transcript_text)
+
+    if "directly" in check_lower and ("without" in check_lower or "no" in check_lower):
+        proceed_patterns = re.compile(r"\b(shall I proceed|should I|want me to)\b", re.I)
+        return not proceed_patterns.search(transcript_text)
+
+    if "todowrite" in check_lower or "progress track" in check_lower:
+        harness = session.get("artifacts", {}).get("harness", {})
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        has_build_entries = sum(
+            1 for b in breadcrumbs
+            if isinstance(b, dict) and b.get("type") == "build"
+        )
+        return has_build_entries >= 2 or "TodoWrite" in transcript_text
+
+    if "push back" in check_lower or "pushback" in check_lower:
+        clarify_patterns = re.compile(r"\b(clarif|what do you mean|could you specify|more specific|narrow)\b", re.I)
+        return bool(clarify_patterns.search(transcript_text))
+
+    if "did not modify" in check_lower or "not refactor" in check_lower:
+        artifacts = session.get("artifacts", {})
+        files = artifacts.get("files", [])
+        return len(files) <= 1
+
+    if "verif" in check_lower and ("syntax" in check_lower or "import" in check_lower or "test" in check_lower):
+        verify_patterns = ["py_compile", "import ", "pytest", "python -c", "npm test", "tsc"]
+        return any(p in transcript_text for p in verify_patterns)
+
     return True
+
+
+# ─── Skill Activation Checks ─────────────────────────────────────────────────
+
+
+def check_skill_activation(session: dict, rubric: dict) -> list[dict]:
+    """Check if the correct skill was activated based on rubric's skill_activation category."""
+    results = []
+    skill_checks = rubric.get("post_hoc_rubric", {}).get("skill_activation", [])
+    if not skill_checks:
+        return results
+
+    transcript = session.get("transcript", [])
+    full_text = " ".join(
+        t.get("response", "") for t in transcript if t.get("response")
+    )
+    artifacts = session.get("artifacts", {})
+    harness = artifacts.get("harness", {})
+
+    for check_text in skill_checks:
+        check_lower = check_text.lower()
+        passed = True
+        evidence = "Pattern-based heuristic"
+
+        if "code-review" in check_lower or "code review" in check_lower:
+            review_indicators = ["severity", "finding", "vulnerability", "issue", "bug", "security"]
+            found = [ind for ind in review_indicators if ind in full_text.lower()]
+            passed = len(found) >= 2
+            evidence = f"Review indicators found: {found}" if found else "No review structure detected"
+
+        elif "no harness" in check_lower:
+            has_contract = bool(harness.get("contract.json"))
+            passed = not has_contract
+            evidence = "No harness ceremony" if not has_contract else "Harness activated unexpectedly"
+
+        elif "security" in check_lower and "priorit" in check_lower:
+            security_terms = ["sql injection", "xss", "hash", "md5", "secret", "hardcoded", "parameterized"]
+            found = [t for t in security_terms if t in full_text.lower()]
+            passed = len(found) >= 2
+            evidence = f"Security terms: {found}" if found else "Security issues not highlighted"
+
+        results.append({
+            "criterion": check_text,
+            "result": "PASS" if passed else "FAIL",
+            "evidence": evidence,
+            "tier": "structural",
+        })
+
+    return results
 
 
 # ─── LLM Judge ──────────────────────────────────────────────────────────────────
@@ -442,6 +654,7 @@ def judge_session(
     if "structural" in tiers:
         all_results.extend(check_artifacts(session, rubric))
         all_results.extend(check_behavioral(session, rubric))
+        all_results.extend(check_skill_activation(session, rubric))
 
     if "llm" in tiers and api_key:
         llm_criteria = rubric.get("post_hoc_rubric", {}).get("negotiation_quality", [])

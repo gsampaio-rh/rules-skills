@@ -1,0 +1,108 @@
+id: routing_resume_existing
+name: "Resume harness when state.json has pending features"
+difficulty: medium
+estimated_duration: 5m
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "task-manager",
+      "created": "2026-05-20T10:00:00Z",
+      "features": [
+        {"id": "feat-1", "name": "Task CRUD", "status": "committed"},
+        {"id": "feat-2", "name": "Task filtering and search", "status": "negotiated"}
+      ]
+    }
+  .harness/contract.json: |
+    {
+      "feature_id": "feat-2",
+      "feature": "Task filtering and search",
+      "problem": "Users cannot find tasks efficiently in large lists",
+      "proposed_solution": "Add filter by status, priority, and free-text search",
+      "acceptance_criteria": [
+        "GET /tasks?status=done returns only completed tasks",
+        "GET /tasks?priority=high returns high-priority tasks",
+        "GET /tasks?q=keyword searches title and description",
+        "Filters can be combined (status + priority + search)"
+      ],
+      "edge_cases": [
+        "Empty search query returns all tasks",
+        "Invalid status value returns 400 with helpful message"
+      ],
+      "verification_method": "Run pytest tests/test_filtering.py to validate all filter combinations",
+      "phase": "negotiated",
+      "verified": false
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-05-20T10:05:00Z","role":"builder","type":"negotiate","feat":"feat-2","msg":"Proposed contract for task filtering"}
+    {"ts":"2026-05-20T10:10:00Z","role":"evaluator","type":"negotiate","feat":"feat-2","msg":"Accepted contract with 4 criteria, 2 edge cases"}
+  src/app.py: |
+    from flask import Flask, jsonify, request
+    app = Flask(__name__)
+
+    tasks = [
+        {"id": 1, "title": "Buy groceries", "status": "todo", "priority": "low", "description": "Milk, eggs, bread"},
+        {"id": 2, "title": "Fix login bug", "status": "in_progress", "priority": "high", "description": "Users can't log in with email"},
+        {"id": 3, "title": "Write tests", "status": "done", "priority": "medium", "description": "Unit tests for auth module"},
+    ]
+
+    @app.route("/tasks", methods=["GET"])
+    def list_tasks():
+        return jsonify(tasks)
+
+    @app.route("/tasks/<int:task_id>", methods=["GET"])
+    def get_task(task_id):
+        task = next((t for t in tasks if t["id"] == task_id), None)
+        if not task:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(task)
+  requirements.txt: |
+    flask==3.0.0
+    pytest==7.4.0
+
+initial_prompt: >
+  Continue working on the task manager. Pick up where we left off.
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      assert c.get('phase') in ('building', 'evaluating', 'verified'), f'Phase not advanced: {c[\"phase\"]}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      build_entries = [l for l in lines if l.get('type') == 'build']
+      assert len(build_entries) >= 1, 'No build breadcrumbs added'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "python -c \"import ast; ast.parse(open('src/app.py').read()); print('PASS')\""
+    timeout_s: 5
+  - command: "grep -q 'status' src/app.py && grep -q 'priority' src/app.py && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent detected existing .harness/state.json and resumed workflow"
+    - "Did NOT create a new contract (existing one is already negotiated)"
+    - "Set contract phase to 'building' before implementing"
+    - "Added build-type breadcrumbs during implementation"
+  artifact_quality:
+    - "Filtering by status implemented"
+    - "Filtering by priority implemented"
+    - "Text search on title/description implemented"
+    - "Filters can be combined"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent read existing contract and worked against its criteria"
+    - "Verification commands run after implementation"
+  negotiation_quality:
+    - "Did not re-negotiate (contract was already negotiated)"

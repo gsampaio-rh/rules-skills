@@ -92,7 +92,8 @@ def run_scenario(scenario: dict, model: str, api_key: str, timeout: int) -> dict
     completed_prompts = 0
     artifacts: dict = {}
 
-    with CaptureWorkspace(prefix=f"eval-{scenario_id}-") as ws:
+    seed_files = scenario.get("seed_files") or {}
+    with CaptureWorkspace(prefix=f"eval-{scenario_id}-", seed_files=seed_files) as ws:
         print(f"  Workspace: {ws.path}")
 
         try:

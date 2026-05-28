@@ -1,0 +1,80 @@
+id: protocol_full_lifecycle
+name: "Full harness lifecycle — plan to verified"
+difficulty: hard
+estimated_duration: 10m
+
+seed_files:
+  README.md: |
+    # URL Shortener
+    A simple URL shortener service. Not yet implemented.
+
+initial_prompt: >
+  Build a URL shortener with analytics. Requirements:
+  - POST /shorten accepts a URL and returns a short code
+  - GET /<code> redirects to the original URL
+  - GET /stats/<code> returns click count, last accessed time, referrers
+  - Store data in SQLite
+  - Short codes should be 6 alphanumeric characters
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      phase = c.get('phase', '')
+      assert phase in ('verified', 'evaluating', 'building'), f'Expected late phase, got: {phase}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      types = set(l.get('type') for l in lines)
+      # Must have at least negotiate + build phases in breadcrumbs
+      assert 'negotiate' in types, f'Missing negotiate in: {types}'
+      assert 'build' in types, f'Missing build in: {types}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      s = json.load(open('.harness/state.json'))
+      # State should exist and have features
+      features = s.get('features', s.get('feature_list', []))
+      assert len(features) >= 1, 'No features in state.json'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' | head -1 | xargs python -m py_compile && echo PASS || echo FAIL"
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Full lifecycle: state.json created → contract negotiated → built → evaluated"
+    - "Breadcrumbs contain negotiate, build, and eval/verify entries"
+    - "Contract phase progressed beyond 'negotiating'"
+    - "Evaluator was invoked (eval type in breadcrumbs or /evaluator in transcript)"
+  artifact_quality:
+    - "URL shortener works (shorten + redirect + stats endpoints)"
+    - "SQLite storage implementation"
+    - "Short codes are 6 alphanumeric characters"
+    - "Analytics tracking (click count, timestamps)"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent ran tests or verification commands autonomously"
+    - "Multi-file progress tracked (TodoWrite or breadcrumbs per step)"
+  negotiation_quality:
+    - "Contract covers all 3 endpoints"
+    - "Edge cases include: duplicate URL, expired/invalid code, concurrent access"
+    - "Verification method includes HTTP request simulation or unit tests"

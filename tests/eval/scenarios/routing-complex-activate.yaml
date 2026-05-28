@@ -1,0 +1,61 @@
+id: routing_complex_activate
+name: "Complex feature — harness MUST activate"
+difficulty: hard
+estimated_duration: 8m
+
+seed_files:
+  app.py: |
+    from flask import Flask
+    app = Flask(__name__)
+
+    @app.route("/")
+    def index():
+        return {"status": "ok"}
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  Build a REST API with user authentication (JWT), rate limiting (per-IP,
+  configurable), and structured request logging. Add endpoints for register,
+  login, and a protected /me route. This should touch at least 4-5 files
+  with proper separation of concerns.
+
+follow_up_prompts:
+  - "Commit the changes"
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "python -c \"import json; c=json.load(open('.harness/contract.json')); assert 'acceptance_criteria' in c and 'phase' in c; print('PASS')\""
+    timeout_s: 5
+  - command: "python -c \"import json; lines=[json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]; assert len(lines)>=2; print('PASS')\""
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' | wc -l | awk '{if($1>=3) print \"PASS\"; else print \"FAIL\"}'"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent created .harness/state.json with feature entries"
+    - "Contract negotiation occurred (breadcrumbs show negotiate type)"
+    - "Evaluator was launched (breadcrumbs show eval type or /evaluator in transcript)"
+    - "Contract reached 'verified' or 'evaluating' phase"
+  artifact_quality:
+    - "JWT auth implementation exists (register + login endpoints)"
+    - "Rate limiting logic present"
+    - "Logging middleware or decorator present"
+    - "At least 4 Python files with separation of concerns"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent ran verification commands autonomously (tests, imports, lint)"
+    - "Progress tracked via TodoWrite or breadcrumbs for multi-file change"
+  negotiation_quality:
+    - "Acceptance criteria are binary-testable (not vague)"
+    - "At least 2 edge cases in contract"
+    - "Verification method is runnable (not 'review the code')"
