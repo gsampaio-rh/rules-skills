@@ -12,12 +12,12 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-RULES_DIR = Path(".cursor/rules")
-SKILLS_DIR = Path(".cursor/skills")
+RULES_DIR = Path("library/cursor/rules")
+SKILLS_DIR = Path("library/cursor/skills")
 
 MAX_RULE_LINES = 200
 MAX_SKILL_LINES = 300
-MAX_ALWAYS_ON_TOKENS = 2500  # words * ~1.3 ≈ tokens
+MAX_ALWAYS_ON_TOKENS = 2000  # words * ~1.3 ≈ tokens
 MAX_ALWAYS_ON_WORDS = int(MAX_ALWAYS_ON_TOKENS / 1.3)
 
 REQUIRED_SKILL_SECTIONS = [

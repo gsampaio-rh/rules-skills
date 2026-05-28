@@ -4,11 +4,20 @@ description: >-
   Audit codebase file structure, module boundaries, cohesion, and dependency flow.
   Use when: organization audit, file structure review, module boundaries check,
   circular dependencies, code organization, project structure, cohesion analysis.
+disable-model-invocation: false
 ---
 
 # Organization Audit
 
 Evaluate a codebase's file structure, module boundaries, dependency flow, and cohesion. Produces a structured report identifying structural problems and recommending reorganization.
+
+## How This Skill Works
+
+### Mode 1: Full Audit
+Comprehensive structure audit. Maps modules, traces dependencies, assesses cohesion, produces full report.
+
+### Mode 2: Harness Integration
+Focused audit of structural changes by a feature (invoked via contract rubrics). Checks new files follow conventions.
 
 ## Proactive Triggers
 
@@ -116,6 +125,13 @@ Save to `.harness/audits/audit-organization-{timestamp}.json`:
 | C | 2-3 high-severity fails |
 | D | 4+ high-severity fails |
 | F | No discernible structure (everything in root, circular deps everywhere, no modules) |
+
+## Output Artifacts
+
+- Structure map (top-level dirs, modules, entry points)
+- Dependency graph (cycles, fan-in/fan-out, boundary violations)
+- Audit report at `.harness/audits/audit-organization-{timestamp}.json`
+- Prioritized recommendations (3-5 structural improvements)
 
 ## Stop Conditions
 

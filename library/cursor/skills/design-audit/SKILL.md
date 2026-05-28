@@ -4,11 +4,20 @@ description: >-
   Audit UI/UX for design system compliance, accessibility, visual hierarchy, and responsiveness.
   Use when: design audit, accessibility check, a11y review, UI review, design system compliance,
   visual hierarchy, responsiveness check, WCAG audit, design quality.
+disable-model-invocation: false
 ---
 
 # Design Audit
 
 Evaluate a user interface against design system compliance, accessibility standards (WCAG AA), visual hierarchy, responsiveness, and interaction quality. Produces a structured report with actionable findings.
+
+## How This Skill Works
+
+### Mode 1: Full Audit
+Comprehensive UI/UX audit with static analysis and runtime testing (if browser available).
+
+### Mode 2: Harness Integration
+Focused audit of UI components changed by a feature (invoked via contract rubrics).
 
 ## Proactive Triggers
 
@@ -135,6 +144,12 @@ Save to `.harness/audits/audit-design-ui-{timestamp}.json`:
 | F | No accessibility considerations, no design tokens, no responsive design |
 
 BLOCKED criteria do not count against the score but are reported separately.
+
+## Output Artifacts
+
+- UI surface map (component count, pages, design tokens, CSS framework)
+- Audit report at `.harness/audits/audit-design-ui-{timestamp}.json`
+- Prioritized recommendations (3-5 most impactful improvements)
 
 ## Stop Conditions
 

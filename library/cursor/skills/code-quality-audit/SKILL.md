@@ -4,11 +4,20 @@ description: >-
   Audit code for SOLID principles, complexity, naming, DRY, coupling, and sizing.
   Use when: code quality audit, SOLID check, complexity review, code smell detection,
   coupling analysis, function sizing, quality gate, technical debt assessment.
+disable-model-invocation: false
 ---
 
 # Code Quality Audit
 
 Evaluate code against SOLID principles, complexity metrics, naming conventions, DRY compliance, and coupling/cohesion. Produces a structured report with pass/fail per criterion and prioritized fix suggestions.
+
+## How This Skill Works
+
+### Mode 1: Full Audit
+Comprehensive quality audit of the specified scope. Collects metrics, analyzes patterns, grades all criteria.
+
+### Mode 2: Harness Integration
+Focused audit of files changed by a feature (invoked via contract rubrics). Checks new code meets quality thresholds.
 
 ## Proactive Triggers
 
@@ -108,6 +117,12 @@ Save to `.harness/audits/audit-code-quality-{timestamp}.json`:
 | C | 2-3 high-severity fails |
 | D | 4+ high-severity fails |
 | F | Pervasive quality issues (no tests, god functions, no types, copy-paste everywhere) |
+
+## Output Artifacts
+
+- Metrics summary (function sizes, complexity, type coverage)
+- Audit report at `.harness/audits/audit-code-quality-{timestamp}.json`
+- Prioritized recommendations (3-5 most impactful improvements)
 
 ## Stop Conditions
 

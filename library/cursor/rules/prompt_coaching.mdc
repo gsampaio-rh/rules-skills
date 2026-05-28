@@ -1,6 +1,6 @@
 ---
 description: Coach the user toward more effective prompts when requests are vague or underspecified
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Prompt Coaching
@@ -24,18 +24,12 @@ Coach when the request is missing critical context that forced you to guess:
 
 ## How to Coach
 
-After completing the task, add a single short line in this format:
+After completing the task, add a single short line:
 
-> **Tip:** [specific suggestion for this prompt]. Example: "Fix the JWT expiration check in `src/auth.py` — return 401 when expired. Run `pytest tests/test_auth.py` to verify."
+> **Tip:** [specific suggestion for this prompt]. Example: "Trim `security.mdc` to under 200 words — move supply chain details to `references/`."
 
-Keep it:
-- **One sentence** — not a lecture
-- **Specific** to what was missing in THIS prompt, not generic advice
-- **Constructive** — show the improved version, don't just say "be more specific"
-- **Rare** — at most once per conversation, not on every message
+Keep it: one sentence, specific to this prompt, constructive, rare (at most once per conversation).
 
 ## For Complex Tasks
 
-If the request touches 3+ files or involves architectural decisions and the user hasn't provided structure, suggest Plan mode:
-
-> **Tip:** This touches multiple files. Consider starting with Plan mode to map out the changes before coding.
+If the request touches 3+ files or involves architectural decisions and the user hasn't provided structure, suggest Plan mode.

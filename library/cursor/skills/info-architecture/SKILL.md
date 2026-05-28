@@ -242,6 +242,12 @@ New topic needs to fit into existing docs:
 - **Navigation order doesn't match journey pattern** → suggest reordering
 - **Cross-link only goes one direction** → suggest adding the reverse link
 
+## Output Artifacts
+
+- Navigation structure (sidebar config, index pages)
+- Diátaxis classification per page
+- Cross-link recommendations
+
 ## Stop Conditions
 
 - User explicitly wants a flat structure with no hierarchy — respect the request

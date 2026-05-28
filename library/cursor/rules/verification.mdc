@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Verification After Code Changes
 
-This rule covers **per-edit** verification: the immediate check after each Write or StrReplace. Feature-level verification (does the whole feature work end-to-end?) goes through the `/evaluator` subagent per the adversarial harness.
+Per-edit verification: the immediate check after each Write or StrReplace.
 
 ## After Any Code Edit
 
@@ -21,16 +21,10 @@ This rule covers **per-edit** verification: the immediate check after each Write
 - Build check: `python -c "import module"`, `npm run build`, `tsc --noEmit`
 - Running the changed code path with a quick smoke test
 
-## What Does NOT Count
-
-- Reading the code and deciding it "looks correct"
-- Telling the user "the change should work"
-- Moving on to the next task without running anything
-
 ## Skip Only When Explicitly Asked
 
-If the user says "skip tests", "don't verify", or "just make the change", verification can be skipped. Otherwise, always verify.
+If the user says "skip tests" or "just make the change", verification can be skipped. Otherwise, always verify.
 
-## For Documentation-Only Changes
+## Documentation-Only Changes
 
 Markdown, README, config files, and non-executable changes do not require verification.

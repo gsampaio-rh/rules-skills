@@ -145,6 +145,12 @@ Fix: [concrete suggestion with code example]
 - **Business logic in API/controller layer** → suggest moving to domain/application
 - **Missing error handling on external calls** → flag as HIGH
 
+## Output Artifacts
+
+- Summary table (severity counts by category)
+- Findings list with file:line evidence and fix suggestions
+- Architecture opportunities section (when applicable)
+
 ## Stop Conditions
 
 - Reviewing code outside the agreed scope without permission

@@ -410,7 +410,7 @@
   category: always_on_rule
   difficulty: easy
   scenario_type: single_turn
-  prompt: "In src/auth.py, change the JWT expiration from 24h to 1h. Run pytest tests/test_auth.py to verify."
+  prompt: "In library/cursor/rules/security.mdc, change alwaysApply from true to false. Run make validate to verify."
   context: >
     Perfectly specific request with file, change, and verification step.
     The agent should NOT add a coaching tip.

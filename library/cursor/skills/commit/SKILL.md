@@ -109,6 +109,11 @@ Only push when the user explicitly asks. After pushing:
 - **No recent commits on branch** → remind to commit frequently
 - **Untracked files that look important** → ask if they should be staged
 
+## Output Artifacts
+
+- Git commit(s) with conventional commit messages
+- Summary of what was committed (files, type, scope)
+
 ## Stop Conditions
 
 - Unsure whether changes should be committed (ask the user)

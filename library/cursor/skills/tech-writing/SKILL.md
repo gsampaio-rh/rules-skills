@@ -276,6 +276,12 @@ Before finishing any page, verify:
 - **No navigation footer** → add previous/next/index links
 - **Catalog entry without consistent metadata** → flag inconsistency
 
+## Output Artifacts
+
+- Documentation page(s) following Diátaxis type classification
+- Cross-links to related pages
+- Navigation footer (previous/next/index)
+
 ## Stop Conditions
 
 - User explicitly asks for a different style or structure — respect the request

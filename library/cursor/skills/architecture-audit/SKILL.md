@@ -4,11 +4,20 @@ description: >-
   Audit a codebase for DDD, Clean Architecture, and Hexagonal patterns compliance.
   Use when: audit architecture, check DDD, architecture review, dependency direction,
   clean arch compliance, bounded contexts, hexagonal audit, layering violations.
+disable-model-invocation: false
 ---
 
 # Architecture Audit
 
 Evaluate a codebase against DDD, Clean Architecture, and Hexagonal Architecture principles. Produces a structured report with pass/fail per criterion and actionable fix suggestions.
+
+## How This Skill Works
+
+### Mode 1: Full Audit
+Comprehensive architecture audit of the specified scope. Maps layers, grades all criteria, produces full report.
+
+### Mode 2: Harness Integration
+Focused audit of files changed by a feature (invoked via contract rubrics). Checks new code follows existing patterns.
 
 ## Proactive Triggers
 
@@ -107,6 +116,12 @@ Save to `.harness/audits/audit-architecture-{timestamp}.json`:
 | C | 2-3 high-severity fails |
 | D | 4+ high-severity fails |
 | F | Fundamental violations (no layer separation, business logic in controllers everywhere) |
+
+## Output Artifacts
+
+- Architecture map (layers, entry points, key modules)
+- Audit report at `.harness/audits/audit-architecture-{timestamp}.json`
+- Prioritized recommendations (3-5 most impactful improvements)
 
 ## Stop Conditions
 
