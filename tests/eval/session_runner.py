@@ -244,7 +244,8 @@ def main() -> int:
     results = []
 
     for scenario in scenarios:
-        result = run_scenario(scenario, args.model, api_key, args.timeout)
+        scenario_timeout = scenario.get("timeout_s", args.timeout)
+        result = run_scenario(scenario, args.model, api_key, scenario_timeout)
         path = save_session(result, run_dir)
         print(f"  Saved: {path}")
         results.append(result)

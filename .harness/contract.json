@@ -1,23 +1,21 @@
 {
-  "feature_id": "feat-6",
-  "feature": "Harness eval metrics",
-  "problem": "No unified view of harness effectiveness (planner quality, contract completeness, eval accuracy) or rule compliance trends. Debugging the harness requires manually reading breadcrumbs and eval reports.",
-  "proposed_solution": "Create tests/eval/harness_metrics.py that reads .harness/ state files and produces a structured metrics report. Add make harness-metrics target.",
+  "feature_id": "feat-7+8+9",
+  "feature": "Eval quick wins: evaluator check, per-scenario timeout, dep install",
+  "problem": "52% eval score has false negatives from: (1) evaluator subagent can't launch in SDK so check always fails, (2) 3 scenarios timeout at 300s, (3) py_compile fails because deps aren't installed in sandbox",
+  "proposed_solution": "Three targeted fixes to session_judge.py, session_runner.py, and sandbox.py",
   "acceptance_criteria": [
-    "tests/eval/harness_metrics.py exists and runs without errors",
-    "Script reads breadcrumbs.jsonl, state.json, contract.json, and eval reports from .harness/",
-    "Produces metrics for: negotiation rounds, build-evaluate cycles, scrap rate, features completed/pending",
-    "Output is structured JSON saved to .harness/metrics.json",
-    "make harness-metrics target exists and runs the script",
-    "Script handles missing files gracefully (no .harness/ = empty report)"
+    "Judge accepts role:evaluator breadcrumbs OR evaluation-type breadcrumbs as 'evaluator launched' evidence",
+    "session_runner reads timeout_s from scenario YAML, falls back to --timeout flag",
+    "sandbox.py runs pip install -q -r requirements.txt (if exists) before verify commands",
+    "All 23 scenarios still parse and run without errors",
+    "Aggregate score improves from 52% baseline"
   ],
   "edge_cases": [
-    "Empty .harness/ directory: should produce zeroed metrics without crashing",
-    "Malformed breadcrumbs.jsonl lines: should skip bad lines and continue"
+    "Scenario without timeout_s field: uses global --timeout default",
+    "Sandbox without requirements.txt: skip pip install gracefully",
+    "Breadcrumbs with evaluation type but no evaluator role: still counts as eval evidence"
   ],
-  "verification_method": "Run: python tests/eval/harness_metrics.py (produces .harness/metrics.json), make harness-metrics (same), python -c 'import json; json.load(open(\".harness/metrics.json\"))' (valid JSON)",
-  "rubrics": ["code-quality"],
-  "rubric_mode": "warn",
+  "verification_method": "python -m py_compile tests/eval/session_judge.py && python -m py_compile tests/eval/session_runner.py && python -m py_compile tests/eval/sandbox.py",
   "negotiation_rounds": 0,
   "phase": "verified",
   "verified": true

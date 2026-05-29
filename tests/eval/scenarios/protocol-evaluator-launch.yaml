@@ -2,6 +2,7 @@ id: protocol_evaluator_launch
 name: "Evaluator must be invoked and produce report"
 difficulty: hard
 estimated_duration: 8m
+timeout_s: 500
 
 seed_files:
   README.md: |

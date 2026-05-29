@@ -2,6 +2,7 @@ id: contract_binary_criteria
 name: "Contract criteria must be binary-testable"
 difficulty: medium
 estimated_duration: 6m
+timeout_s: 450
 
 seed_files:
   .harness/state.json: |

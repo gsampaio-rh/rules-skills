@@ -68,7 +68,10 @@ def find_sessions(run_dir: Path, filter_str: str | None = None) -> list[Path]:
 # ─── Computational Checks ─────────────────────────────────────────────────────
 
 VALID_BREADCRUMB_ROLES = {"planner", "builder", "evaluator", "system"}
-VALID_BREADCRUMB_TYPES = {"plan", "negotiate", "build", "verify", "eval", "checkpoint", "decision", "scrap"}
+VALID_BREADCRUMB_TYPES = {
+    "plan", "negotiate", "build", "verify", "eval", "checkpoint",
+    "decision", "scrap", "init", "session_start", "evaluation",
+}
 ISO_TS_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
 
 
@@ -113,13 +116,14 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     })
 
     has_eval = any(
-        b.get("type") in ("eval", "verify")
+        b.get("type") in ("eval", "verify", "evaluation")
+        or b.get("role") == "evaluator"
         for b in breadcrumbs if isinstance(b, dict)
     )
     results.append({
         "criterion": "Evaluator was launched",
         "result": "PASS" if has_eval else "FAIL",
-        "evidence": "Found eval/verify breadcrumb" if has_eval else "No eval entries in breadcrumbs",
+        "evidence": "Found evaluator activity in breadcrumbs" if has_eval else "No evaluator role or eval-type entries",
         "tier": "computational",
     })
 

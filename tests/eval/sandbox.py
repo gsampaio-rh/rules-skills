@@ -126,6 +126,7 @@ class CaptureWorkspace:
         artifacts["harness"] = self._collect_harness()
 
         if verify_commands:
+            self._install_deps()
             artifacts["validations"] = self._run_verify_commands(verify_commands)
 
         return artifacts
@@ -231,6 +232,16 @@ class CaptureWorkspace:
                 harness[name] = {"_error": "failed to parse"}
 
         return harness
+
+    def _install_deps(self):
+        """Install Python deps if requirements.txt exists (best-effort for verify accuracy)."""
+        req_file = self.path / "requirements.txt"
+        if not req_file.exists():
+            return
+        subprocess.run(
+            ["pip", "install", "-q", "-r", "requirements.txt"],
+            cwd=self.path, capture_output=True, timeout=60,
+        )
 
     def _run_verify_commands(self, commands: list[dict]) -> list[dict]:
         results = []

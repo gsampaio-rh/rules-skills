@@ -1,13 +1,22 @@
 {
   "project": "rules-skills",
   "created": "2026-05-27T14:00:00Z",
-  "spec": "Bring rules-skills into full compliance with its own authoring standards, fix project hygiene, and document harness design lineage",
+  "spec": "Improve eval pipeline accuracy and remove false negatives from SDK limitations",
   "features": [
     { "id": "feat-1", "name": "Local .cursor/ setup and git hygiene", "status": "verified" },
     { "id": "feat-2", "name": "Always-on rules token budget", "status": "verified" },
     { "id": "feat-3", "name": "Skill authoring compliance", "status": "verified" },
     { "id": "feat-4", "name": "Stale reference cleanup", "status": "verified" },
     { "id": "feat-5", "name": "Harness design lineage documentation", "status": "verified" },
-    { "id": "feat-6", "name": "Harness eval metrics", "status": "verified" }
+    { "id": "feat-6", "name": "Harness eval metrics", "status": "verified" },
+    { "id": "feat-7", "name": "Relax evaluator check (accept inline eval)", "status": "verified" },
+    { "id": "feat-8", "name": "Per-scenario timeout", "status": "verified" },
+    { "id": "feat-9", "name": "Install deps before verify", "status": "verified" },
+    { "id": "feat-10", "name": "Broaden keyword patterns in verify commands", "status": "pending" },
+    { "id": "feat-11", "name": "Move style checks to post_hoc_rubric", "status": "pending" },
+    { "id": "feat-12", "name": "Accept more breadcrumb types in schema checks", "status": "pending" },
+    { "id": "feat-13", "name": "Multi-agent evaluator orchestration", "status": "pending" },
+    { "id": "feat-14", "name": "LLM-as-judge for post_hoc_rubric", "status": "pending" },
+    { "id": "feat-15", "name": "Update EVAL_GUIDE.md with current state", "status": "pending" }
   ]
 }

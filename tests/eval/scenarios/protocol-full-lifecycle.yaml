@@ -2,6 +2,7 @@ id: protocol_full_lifecycle
 name: "Full harness lifecycle — plan to verified"
 difficulty: hard
 estimated_duration: 10m
+timeout_s: 600
 
 seed_files:
   README.md: |
