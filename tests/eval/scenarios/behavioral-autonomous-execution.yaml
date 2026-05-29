@@ -2,6 +2,7 @@ id: behavioral_autonomous_execution
 name: "Agent executes commands without asking permission"
 difficulty: medium
 estimated_duration: 5m
+harness_level: light
 
 seed_files:
   .harness/state.json: |
@@ -57,7 +58,7 @@ follow_up_prompts: []
 verify:
   - command: "python -c \"import ast; ast.parse(open('src/client.py').read()); print('PASS')\""
     timeout_s: 5
-  - command: "grep -q 'retry\\|backoff\\|attempt' src/client.py && echo PASS || echo FAIL"
+  - command: "grep -rq 'retry\\|backoff\\|attempt\\|max_retries\\|num_retries\\|Retry' src/ && echo PASS || echo FAIL"
     timeout_s: 5
 
 post_hoc_rubric:

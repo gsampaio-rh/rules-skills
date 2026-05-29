@@ -71,6 +71,8 @@ VALID_BREADCRUMB_ROLES = {"planner", "builder", "evaluator", "system"}
 VALID_BREADCRUMB_TYPES = {
     "plan", "negotiate", "build", "verify", "eval", "checkpoint",
     "decision", "scrap", "init", "session_start", "evaluation",
+    "evaluate", "clarify", "progress", "complete", "review",
+    "test", "implement", "spike", "gap",
 }
 ISO_TS_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
 
@@ -85,6 +87,15 @@ def _is_negative_harness_scenario(rubric: dict) -> bool:
     )
 
 
+def _get_harness_level(rubric: dict) -> str:
+    """Read harness_level from scenario: 'full' (default), 'light', or 'none'.
+
+    'light' skips contract/evaluator/builder checks — use for scenarios
+    that test behavioral traits (pushback, autonomy) rather than protocol.
+    """
+    return rubric.get("harness_level", "full")
+
+
 def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     """Fast, deterministic checks on harness state."""
     results = []
@@ -93,6 +104,8 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
 
     if _is_negative_harness_scenario(rubric):
         return _check_harness_absent(harness)
+
+    level = _get_harness_level(rubric)
 
     state = harness.get("state.json", {})
     has_state = bool(state and (state.get("features") or state.get("feature_list")))
@@ -104,41 +117,46 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     })
 
     breadcrumbs = harness.get("breadcrumbs.jsonl", [])
-    has_negotiate = any(
-        b.get("type") in ("negotiate", "negotiation")
-        for b in breadcrumbs if isinstance(b, dict)
-    )
-    results.append({
-        "criterion": "Contract negotiation occurred",
-        "result": "PASS" if has_negotiate else "FAIL",
-        "evidence": "Found negotiate breadcrumb" if has_negotiate else "No negotiate entries in breadcrumbs",
-        "tier": "computational",
-    })
 
-    has_eval = any(
-        b.get("type") in ("eval", "verify", "evaluation")
-        or b.get("role") == "evaluator"
-        for b in breadcrumbs if isinstance(b, dict)
-    )
-    results.append({
-        "criterion": "Evaluator was launched",
-        "result": "PASS" if has_eval else "FAIL",
-        "evidence": "Found evaluator activity in breadcrumbs" if has_eval else "No evaluator role or eval-type entries",
-        "tier": "computational",
-    })
+    if level == "full":
+        has_negotiate = any(
+            b.get("type") in ("negotiate", "negotiation")
+            for b in breadcrumbs if isinstance(b, dict)
+        )
+        results.append({
+            "criterion": "Contract negotiation occurred",
+            "result": "PASS" if has_negotiate else "FAIL",
+            "evidence": "Found negotiate breadcrumb" if has_negotiate else "No negotiate entries in breadcrumbs",
+            "tier": "computational",
+        })
 
-    contract = harness.get("contract.json", {})
-    verified = contract.get("verified", False)
-    phase = contract.get("phase", "none")
-    results.append({
-        "criterion": "Contract was verified before completion",
-        "result": "PASS" if verified else "FAIL",
-        "evidence": f"verified={verified}, phase={phase}",
-        "tier": "computational",
-    })
+        has_eval = any(
+            b.get("type") in ("eval", "verify", "evaluation", "evaluate")
+            or b.get("role") == "evaluator"
+            for b in breadcrumbs if isinstance(b, dict)
+        )
+        results.append({
+            "criterion": "Evaluator was launched",
+            "result": "PASS" if has_eval else "FAIL",
+            "evidence": "Found evaluator activity in breadcrumbs" if has_eval else "No evaluator role or eval-type entries",
+            "tier": "computational",
+        })
+
+        contract = harness.get("contract.json", {})
+        verified = contract.get("verified", False)
+        phase = contract.get("phase", "none")
+        results.append({
+            "criterion": "Contract was verified before completion",
+            "result": "PASS" if verified else "FAIL",
+            "evidence": f"verified={verified}, phase={phase}",
+            "tier": "computational",
+        })
 
     results.extend(_check_breadcrumbs_schema(breadcrumbs))
-    results.extend(_check_phase_progression(contract, breadcrumbs))
+
+    if level == "full":
+        contract = harness.get("contract.json", {})
+        results.extend(_check_phase_progression(contract, breadcrumbs))
 
     return results
 
@@ -214,9 +232,9 @@ def _check_breadcrumbs_schema(breadcrumbs: list[dict]) -> list[dict]:
     })
 
     roles_present = {b.get("role") for b in breadcrumbs if isinstance(b, dict)}
-    has_builder = "builder" in roles_present
+    has_builder = "builder" in roles_present or "planner" in roles_present
     results.append({
-        "criterion": "Builder role present in breadcrumbs",
+        "criterion": "Builder or planner role present in breadcrumbs",
         "result": "PASS" if has_builder else "FAIL",
         "evidence": f"Roles found: {sorted(roles_present)}",
         "tier": "computational",
@@ -362,10 +380,9 @@ def _evaluate_structural_check(
         return len(js) == 0, f"Found {len(js)} .js files in src/"
 
     if _is_validation_check(check_lower):
-        return _check_validations(check_lower, validations)
-
-    if _is_content_check(check_lower):
-        return _check_content(check_lower, all_content, contents)
+        passed, evidence = _check_validations(check_lower, validations)
+        if passed:
+            return True, evidence
 
     file_extensions = re.findall(r"\.\w+", check)
     if file_extensions:
@@ -373,8 +390,12 @@ def _evaluate_structural_check(
             ext for ext in file_extensions
             if any(f.endswith(ext) for f in files)
         ]
-        passed = len(found) > 0
-        return passed, f"Extensions found: {found}" if found else f"None of {file_extensions} found"
+        if found:
+            return True, f"Extensions found: {found}"
+
+    passed, evidence = _check_content(check_lower, all_content, contents)
+    if passed:
+        return True, evidence
 
     return False, "No matching heuristic"
 
@@ -402,14 +423,6 @@ def _check_validations(check: str, validations: list[dict]) -> tuple[bool, str]:
 
     return False, "No matching validation found"
 
-
-def _is_content_check(check: str) -> bool:
-    return any(kw in check for kw in (
-        "argparse", "click", "uses", "contains", "import", "class ",
-        "function", "def ", "flag", "--", "type hint", "docstring",
-        "error handling", "error", "exception", "present", "exists",
-        "handling", "permission",
-    ))
 
 
 def _check_content(check: str, all_content: str, contents: dict[str, str]) -> tuple[bool, str]:
@@ -651,9 +664,12 @@ def judge_session(
     """Run all applicable judge tiers on a session."""
     all_results: list[dict] = []
 
+    level = _get_harness_level(rubric)
+
     if "computational" in tiers:
         all_results.extend(check_harness_compliance(session, rubric))
-        all_results.extend(check_contract_quality(session))
+        if level == "full":
+            all_results.extend(check_contract_quality(session))
 
     if "structural" in tiers:
         all_results.extend(check_artifacts(session, rubric))

@@ -12,11 +12,18 @@
     { "id": "feat-7", "name": "Relax evaluator check (accept inline eval)", "status": "verified" },
     { "id": "feat-8", "name": "Per-scenario timeout", "status": "verified" },
     { "id": "feat-9", "name": "Install deps before verify", "status": "verified" },
-    { "id": "feat-10", "name": "Broaden keyword patterns in verify commands", "status": "pending" },
-    { "id": "feat-11", "name": "Move style checks to post_hoc_rubric", "status": "pending" },
-    { "id": "feat-12", "name": "Accept more breadcrumb types in schema checks", "status": "pending" },
-    { "id": "feat-13", "name": "Multi-agent evaluator orchestration", "status": "pending" },
-    { "id": "feat-14", "name": "LLM-as-judge for post_hoc_rubric", "status": "pending" },
-    { "id": "feat-15", "name": "Update EVAL_GUIDE.md with current state", "status": "pending" }
+
+    { "id": "feat-10", "name": "Broaden keyword patterns in verify commands", "status": "verified", "priority": 2 },
+    { "id": "feat-11", "name": "Move style checks to post_hoc_rubric", "status": "pending", "priority": 2 },
+    { "id": "feat-12", "name": "Accept more breadcrumb types in schema checks", "status": "verified", "priority": 2 },
+    { "id": "feat-13", "name": "Multi-agent evaluator orchestration", "status": "pending", "priority": 3 },
+    { "id": "feat-14", "name": "LLM-as-judge for post_hoc_rubric", "status": "pending", "priority": 3 },
+    { "id": "feat-15", "name": "Update EVAL_GUIDE.md with current state", "status": "pending", "priority": 3 },
+
+    { "id": "gap-1", "name": "Separate protocol checks from behavioral checks in pushback scenarios", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed via harness_level:light — pushback scenarios skip contract/evaluator/builder checks." },
+    { "id": "gap-2", "name": "Agent does not create contract.json in pushback/scoping scenarios", "status": "pending", "priority": 2, "type": "gap", "details": "Agent pushes back and proposes phases but stops short of writing contract.json with the scoped subset. Harness skill or rules may need to guide contract creation even during pushback." },
+    { "id": "gap-3", "name": "behavioral_autonomous_execution scenario mixes behavioral and protocol expectations", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed via harness_level:light — autonomous execution scenario now only checks behavioral traits." },
+    { "id": "gap-4", "name": "protocol_evaluator_launch: contract.json created but empty (0 criteria, 0 edge cases)", "status": "pending", "priority": 2, "type": "gap", "details": "Agent activated evaluator and wrote breadcrumbs with evaluator role, but contract.json has no acceptance_criteria or edge_cases. Agent creates the file but doesn't populate it properly." },
+    { "id": "spike-1", "name": "Spike: determine if harness skill needs scoped-contract-on-pushback guidance", "status": "pending", "priority": 2, "type": "spike", "details": "Investigate whether adding explicit guidance to harness skill ('when pushing back on scope, still create a contract for the scoped subset') would fix gap-2 without changing eval logic." }
   ]
 }

@@ -2,6 +2,7 @@ id: contract_vague_pushback
 name: "Vague request — agent must push back or clarify"
 difficulty: hard
 estimated_duration: 5m
+harness_level: light
 
 seed_files:
   .harness/state.json: |
