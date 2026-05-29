@@ -2,6 +2,7 @@ id: behavioral_verification_after_edit
 name: "Agent must verify code after every substantive edit"
 difficulty: medium
 estimated_duration: 5m
+harness_level: light
 
 seed_files:
   .harness/state.json: |

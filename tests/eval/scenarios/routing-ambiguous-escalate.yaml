@@ -2,6 +2,7 @@ id: routing_ambiguous_escalate
 name: "Ambiguous complexity — agent must decide routing"
 difficulty: medium
 estimated_duration: 6m
+harness_level: light
 
 seed_files:
   .harness/state.json: |

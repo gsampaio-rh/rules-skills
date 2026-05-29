@@ -397,6 +397,17 @@ def _evaluate_structural_check(
     if passed:
         return True, evidence
 
+    transcript = session.get("transcript", [])
+    transcript_text = "\n".join(
+        t.get("response", "") for t in transcript if t.get("response")
+    )
+    if transcript_text:
+        passed, evidence = _check_content(
+            check_lower, transcript_text, {"transcript": transcript_text},
+        )
+        if passed:
+            return True, evidence
+
     return False, "No matching heuristic"
 
 
@@ -666,9 +677,11 @@ def judge_session(
 
     level = _get_harness_level(rubric)
 
+    is_negative = _is_negative_harness_scenario(rubric)
+
     if "computational" in tiers:
         all_results.extend(check_harness_compliance(session, rubric))
-        if level == "full":
+        if level == "full" and not is_negative:
             all_results.extend(check_contract_quality(session))
 
     if "structural" in tiers:
