@@ -21,7 +21,7 @@ The full Cursor configuration: rules, skills, agents, hooks, and references.
 cp -R library/cursor/rules/ /path/to/project/.cursor/rules/
 cp -R library/cursor/hooks/ /path/to/project/.cursor/hooks/
 cp -R library/cursor/references/ /path/to/project/.cursor/references/
-cp .cursor/hooks.full.json /path/to/project/.cursor/hooks.json
+cp library/cursor/hooks.full.json /path/to/project/.cursor/hooks.json
 mkdir -p /path/to/project/.harness/{evals,audits}
 ```
 
@@ -45,7 +45,7 @@ mkdir -p /path/to/project/.harness/{evals,audits}
 | `library/cursor/rules/` | `.cursor/rules/` | Per-project |
 | `library/cursor/hooks/` | `.cursor/hooks/` | Per-project |
 | `library/cursor/references/` | `.cursor/references/` | Per-project |
-| `.cursor/hooks.full.json` | `.cursor/hooks.json` | Per-project |
+| `library/cursor/hooks.full.json` | `.cursor/hooks.json` | Per-project |
 | `library/cursor/agents/` | `~/.cursor/agents/` | Global |
 | `library/cursor/skills/` | `~/.cursor/skills/` | Global |
 | (create empty) | `.harness/` | Per-project |

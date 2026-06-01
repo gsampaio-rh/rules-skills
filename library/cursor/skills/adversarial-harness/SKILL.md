@@ -37,7 +37,7 @@ Launch a rubric audit without a full feature build. Uses the evaluator in rubric
 
 Subagent definitions live in `.cursor/agents/`. Hooks enforce the workflow:
 - `sessionStart` → injects harness state into context
-- `beforeSubmitPrompt` → blocks non-trivial prompts when no harness is active
+- `beforeSubmitPrompt` → detects non-trivial prompts and injects planner routing (does NOT block)
 - `subagentStop` → routes based on `phase` field
 - `stop` → blocks if contract is unverified
 
@@ -138,14 +138,14 @@ Scrap-and-restart is expected, not failure — models should discard work that i
 | `.harness/evals/eval-{id}.json` | Eval reports | Evaluator |
 | `.harness/breadcrumbs.jsonl` | Append-only trace | All agents |
 
-All state lives on the file system. Add `.harness/` to `.gitignore`.
+All state lives on the file system. Whether `.harness/` is git-tracked or gitignored depends on the project — this repo tracks it for dogfooding; consumer projects may choose to gitignore it.
 
 ## Breadcrumbs
 
 Append-only JSONL trace. Every agent appends one line per significant action.
 
 ```jsonl
-{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created spec with 5 features"}
+{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created state.json with 5 features"}
 {"ts":"2026-05-23T09:52","role":"builder","type":"negotiate","feat":"feat-1","msg":"Proposed contract: 4 criteria, 2 edge cases"}
 {"ts":"2026-05-23T10:15","role":"evaluator","type":"eval","feat":"feat-1","msg":"PASS 6/6 criteria","result":"pass"}
 ```

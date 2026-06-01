@@ -88,9 +88,9 @@ Scenario YAML
   → library/cursor/ is copied into worktree's .cursor/
   → Agent receives the task prompts and works autonomously
   → Before teardown: git diff captured, changed files read, verify commands run
-  → Session JSON saved to tests/eval/sessions/<model>/<scenario_id>.json
+  → Session JSON saved to tests/eval_results/<timestamp>/sessions/<model>/<scenario_id>.json
   → session_judge.py scores the session against the scenario's rubric
-  → Judgment JSON saved to tests/eval/judgments/<model>/<scenario_id>.json
+  → Judgment JSON saved to tests/eval_results/<timestamp>/judgments/<model>/<scenario_id>.json
   → session_report.py produces summary.json + console table
 ```
 
@@ -204,8 +204,13 @@ Standard scenarios test 2-8 minute tasks. Long scenarios test whether the agent 
 
 ```bash
 make eval-session-long                                    # Run all long scenarios (~35 min)
-make eval-session-long SCENARIO=long-full-harness-cycle   # Single scenario
 make eval-session-long-judge                              # Judge results
+```
+
+To run a single long scenario, use the runner directly:
+
+```bash
+python tests/eval/session_runner.py --long --scenario long_full_harness_cycle
 ```
 
 Or directly:

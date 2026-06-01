@@ -30,7 +30,7 @@
     { "id": "feat-12", "name": "Accept more breadcrumb types in schema checks", "status": "verified", "priority": 2 },
     { "id": "feat-13", "name": "Multi-agent evaluator orchestration", "status": "pending", "priority": 3 },
     { "id": "feat-14", "name": "LLM-as-judge for post_hoc_rubric", "status": "pending", "priority": 3 },
-    { "id": "feat-15", "name": "Update EVAL_GUIDE.md with current state", "status": "pending", "priority": 3 },
+    { "id": "feat-15", "name": "Update EVAL_GUIDE.md with current state", "status": "verified", "priority": 3 },
     { "id": "feat-16", "name": "Kill spec.md — single source of truth in state.json", "status": "verified", "priority": 1 },
 
     { "id": "gap-1", "name": "Separate protocol checks from behavioral checks in pushback scenarios", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed via harness_level:light — pushback scenarios skip contract/evaluator/builder checks." },
@@ -44,6 +44,8 @@
     { "id": "gap-7", "name": "spec.md diverged from state.json — describes standards compliance, not eval accuracy focus", "status": "verified", "priority": 2, "type": "gap", "details": "Resolved by killing spec.md — state.json is now the single source of truth with vision and direction fields." },
     { "id": "gap-8", "name": "HARNESS_STANDARD.md Tier 2 references dataset.yaml (removed)", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed: Tier 2 section marked as planned/future with note explaining dataset.yaml removal and Tier 3 replacement." },
     { "id": "gap-9", "name": "Harness flow allows spec.md and state.json to diverge silently", "status": "verified", "priority": 1, "type": "gap", "details": "Resolved by eliminating spec.md entirely. state.json now carries vision, direction, trade_offs, and open_questions. Single file = no drift possible." },
-    { "id": "gap-10", "name": "feat-2 marked verified but make validate still fails on token budget", "status": "verified", "priority": 1, "type": "gap", "details": "Fixed: trimmed adversarial_harness.mdc from 1239 to 200 words (routing-only stub). Detail moved to skill. Total now 1990/2000 tokens. make validate passes." }
+    { "id": "gap-10", "name": "feat-2 marked verified but make validate still fails on token budget", "status": "verified", "priority": 1, "type": "gap", "details": "Fixed: trimmed adversarial_harness.mdc from 1239 to 200 words (routing-only stub). Detail moved to skill. Total now 1990/2000 tokens. make validate passes." },
+
+    { "id": "gap-11", "name": "Documentation drifts silently when code changes — no automated staleness detection", "status": "pending", "priority": 2, "type": "gap", "details": "Docs (README, EVAL_GUIDE, SKILL.md, HARNESS_STANDARD) went stale after spec.md kill, harness rule trim, and long scenarios addition. No lint or hook detects when a code change invalidates doc references. Potential fixes: (1) a doc-coherence lint that cross-checks Makefile targets, state files, and doc references, (2) a stop hook that flags multi-file changes touching code but not docs, (3) a periodic audit scenario in the eval pipeline." }
   ]
 }

@@ -25,7 +25,7 @@ library/cursor/skills/<skill-name>/
 └── templates/         # User-fillable templates (optional)
 ```
 
-Cursor accesses skills via symlink: `.cursor/skills/` → `library/cursor/skills/`.
+Cursor accesses skills from `.cursor/skills/`, populated via `make setup` (copies from `library/cursor/skills/`).
 
 Skills that reference harness state use `.harness/` paths (e.g., `.harness/breadcrumbs.jsonl`, `.harness/contract.json`).
 

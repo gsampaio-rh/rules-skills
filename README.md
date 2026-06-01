@@ -8,7 +8,7 @@ This repo separates three concerns:
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
-| **Project state** | `.harness/` | Tracked harness state — contracts, evals, breadcrumbs, specs |
+| **Project state** | `.harness/` | Tracked harness state — contracts, evals, breadcrumbs |
 | **IDE config** | `.cursor/` | Local copies from `library/cursor/` via `make setup` (gitignored) |
 | **Product library** | `library/` | The distributable rules, skills, hooks, agents, references |
 
@@ -36,7 +36,7 @@ rules-skills/
 
 ```bash
 git clone <this-repo>
-# Lean profile is default — no harness enforcement fires
+# Lean profile is default — lightweight harness enforcement (contract gate, verify, progress)
 # Edit library/cursor/rules/*.mdc, library/cursor/skills/*/SKILL.md directly
 ```
 
@@ -69,7 +69,7 @@ mkdir -p /path/to/project/.harness/{evals,audits}
 | `prompt_coaching` | Scoped | Coach users toward effective prompts |
 | `security` | Scoped | Input validation, secrets, supply chain |
 | `verification` | Always on | Test/lint/build after every code change |
-| `adversarial_harness` | `src/**,app/**,lib/**,...` | Planner/evaluator workflow for non-trivial features |
+| `adversarial_harness` | Always on | Planner/evaluator workflow routing for non-trivial features |
 | `architecture` | `*.py, *.ts, *.tsx` | SOLID, dependency direction, pattern trade-offs |
 | `python_ml` | `*.py, *.ipynb` | Type hints, pandas, ML conventions |
 | `testing` | `**/test*.py` | Pytest conventions, contract testing |
@@ -119,12 +119,12 @@ Two profiles control which hooks are active:
 
 | Profile | Use case | Active hooks |
 |---------|----------|-------------|
-| **lean** (default here) | Rules/skills development | dedup-server, enforce-progress (Tier 1), context-health |
-| **full** | Real projects, dogfooding | All 11 scripts + 2 LLM prompt hooks |
+| **lean** (default here) | Rules/skills development | harness-context, contract-gate, dedup-server, verify-harness, enforce-progress, context-health |
+| **full** | Real projects, dogfooding | All 11 scripts + 2 LLM prompt hooks (adds harness-gate, evaluator-guard, pre-commit, chain-evaluator) |
 
 ```bash
-scripts/hooks-profile.sh lean     # no harness enforcement
-scripts/hooks-profile.sh full     # full enforcement
+scripts/hooks-profile.sh lean     # lightweight harness enforcement
+scripts/hooks-profile.sh full     # full enforcement with LLM routing
 scripts/hooks-profile.sh status   # show current
 ```
 
@@ -151,7 +151,8 @@ Two-tier behavioral testing that verifies rules actually change agent behavior. 
 
 ```bash
 make eval-fast              # Tier 1: static checks (seconds, no API keys)
-make eval-session           # Tier 3: 23 session scenarios via Cursor SDK
+make eval-session           # Tier 3: 23 standard scenarios via Cursor SDK
+make eval-session-long      # Tier 3: 3 long scenarios (10-15 min each)
 make eval-session-judge     # Judge completed sessions
 make eval-session-report    # Aggregated report table
 make eval                   # Both tiers
@@ -164,7 +165,7 @@ make eval                   # Both tiers
 | `session_runner.py` | Tier 3: runs scenarios in isolated git worktrees via SDK bridge |
 | `session_judge.py` | Tier 3: computational + structural + LLM scoring |
 | `session_report.py` | Tier 3: aggregated reporting across all scenarios |
-| `scenarios/*.yaml` | 23 behavioral scenario definitions |
+| `scenarios/*.yaml` | 23 standard + 3 long behavioral scenario definitions |
 
 ## Sync (`sync-cursor.sh`)
 

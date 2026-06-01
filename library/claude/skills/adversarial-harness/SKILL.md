@@ -72,7 +72,7 @@ Before writing a single line of code, the builder and evaluator negotiate what "
 
 ### How it works
 
-1. **Builder proposes:** Read the spec for this feature. Write a contract to `.harness/contract.json` with `"phase": "negotiating"`:
+1. **Builder proposes:** Read the feature from `state.json`. Write a contract to `.harness/contract.json` with `"phase": "negotiating"`:
    - What you will build (proposed_solution)
    - How success will be verified (acceptance_criteria)
    - What edge cases to test
@@ -206,7 +206,7 @@ After the evaluator passes:
 | `.harness/evals/eval-{id}.json` | Evaluator reports with evidence | Evaluator |
 | `.harness/breadcrumbs.jsonl` | Append-only trace — the project's memory | All agents |
 
-All state lives on the file system, not in context. Add `.harness/` and `.harness/breadcrumbs.jsonl` to `.gitignore`.
+All state lives on the file system, not in context. Whether `.harness/` is git-tracked or gitignored depends on the project — this repo tracks it for dogfooding; consumer projects may choose to gitignore it.
 
 ---
 
@@ -219,7 +219,7 @@ The single append-only trace log. Every agent appends one JSONL line per signifi
 Each line in `.harness/breadcrumbs.jsonl` is one JSON object:
 
 ```jsonl
-{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created spec with 5 features"}
+{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created state.json with 5 features"}
 {"ts":"2026-05-23T09:52","role":"builder","type":"negotiate","feat":"feat-1","msg":"Proposed contract: 4 criteria, 2 edge cases"}
 {"ts":"2026-05-23T09:54","role":"evaluator","type":"negotiate","feat":"feat-1","msg":"Pushed back: scope too broad, missing expired token edge case"}
 {"ts":"2026-05-23T10:05","role":"builder","type":"build","feat":"feat-1","msg":"Implemented JWT validation middleware"}

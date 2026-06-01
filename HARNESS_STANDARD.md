@@ -200,7 +200,7 @@ Run: `make eval-fast`
 | Artifact quality | `session_judge.py` structural checks | Whether produced code meets scenario requirements |
 | Negotiation judgment | `session_judge.py` LLM tier | Whether acceptance criteria are genuinely testable |
 
-Run: `make eval-session` (capture) → `make eval-session-judge` (judge)
+Run: `make eval-session` (standard, ~20 min) → `make eval-session-long` (long, ~35 min) → `make eval-session-judge` (judge)
 
 ### Harness Metrics Dashboard
 
