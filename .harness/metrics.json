@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-01T19:26:31.357664+00:00",
+  "timestamp": "2026-06-01T21:20:19+00:00",
   "project": "rules-skills",
   "tasks": {
     "total": 48,
@@ -15,43 +15,32 @@
     },
     "tasks_completed": 40,
     "tasks_pending": 8,
-    "completion_rate": 0.8333333333333334
+    "completion_rate": 0.83
   },
-  "breadcrumbs": {
-    "total_entries": 131,
-    "by_role": {
-      "builder": 104,
-      "system": 21,
-      "evaluator": 3,
-      "planner": 3
+  "eval": {
+    "run_id": "2026-06-01T201124Z",
+    "model": "composer-2.5",
+    "scenarios": 30,
+    "total_checks": 214,
+    "pass": 194,
+    "pass_rate": 0.91,
+    "at_100_pct": 16,
+    "below_70_pct": 1,
+    "weakest": "behavioral_session_boundary (33%)",
+    "runtime_s": 4116,
+    "status_breakdown": {
+      "complete": 28,
+      "timeout": 1,
+      "error": 1
     },
-    "by_type": {
-      "negotiate": 3,
-      "build": 73,
-      "verify": 12,
-      "checkpoint": 11,
-      "session_start": 15,
-      "decision": 8,
-      "negotiation": 1,
-      "cleanup": 1,
-      "plan": 3,
-      "handoff": 2,
-      "evaluation": 1,
-      "eval": 1
-    },
-    "negotiation_rounds": 4,
-    "build_evaluate_cycles": 13,
-    "scrap_count": 0,
-    "scrap_rate": 0.0,
-    "features_touched": 35
+    "trajectory": [
+      {"date": "2026-05-28", "scenarios": 23, "checks": 400, "score": 0.52},
+      {"date": "2026-05-29", "scenarios": 23, "checks": 361, "score": 0.83},
+      {"date": "2026-06-01a", "scenarios": 27, "checks": 394, "score": 0.93},
+      {"date": "2026-06-01b", "scenarios": 30, "checks": 214, "score": 0.91}
+    ]
   },
   "contract": {
     "active": false
-  },
-  "evaluations": {
-    "total_reports": 1,
-    "pass_count": 0,
-    "fail_count": 1,
-    "pass_rate": 0.0
   }
 }
