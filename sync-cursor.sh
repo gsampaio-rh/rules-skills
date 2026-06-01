@@ -298,6 +298,57 @@ migrate_harness() {
     echo ""
 }
 
+migrate_schema() {
+    local targets_file="$1"
+    echo -e "${BOLD}Checking harness schema versions...${RESET}"
+
+    local migrated=0
+    local cleaned=0
+
+    while IFS= read -r rel; do
+        local harness_dir="$SEARCH_ROOT/$rel/.harness"
+        local state_file="$harness_dir/state.json"
+
+        # Migrate v1 (features) → v2 (tasks)
+        if [[ -f "$state_file" ]]; then
+            local needs_v2
+            needs_v2=$(python3 -c "
+import json,sys
+s=json.load(open('$state_file'))
+sys.exit(0 if 'features' in s and 'tasks' not in s else 1)
+" 2>/dev/null && echo "yes" || echo "no")
+
+            if [[ "$needs_v2" == "yes" ]]; then
+                if ! $DRY_RUN; then
+                    python3 "$SCRIPT_DIR/scripts/migrate-state-schema.py" \
+                        --harness-dir "$harness_dir" > /dev/null
+                fi
+                printf "  ${YELLOW}↳${RESET} %-50s schema v1 → v2\n" "$rel"
+                migrated=$((migrated + 1))
+            fi
+        fi
+
+        # Clean up stale spec.md
+        for spec_path in "$harness_dir/spec.md" "$SEARCH_ROOT/$rel/.cursor/harness/spec.md"; do
+            if [[ -f "$spec_path" ]]; then
+                if ! $DRY_RUN; then
+                    rm "$spec_path"
+                fi
+                printf "  ${RED}↳${RESET} %-50s removed stale %s\n" "$rel" "$(basename "$(dirname "$spec_path")")/spec.md"
+                cleaned=$((cleaned + 1))
+            fi
+        done
+    done < "$targets_file"
+
+    if [[ $migrated -eq 0 && $cleaned -eq 0 ]]; then
+        echo -e "  ${DIM}All projects already on v2 schema, no stale files.${RESET}"
+    else
+        [[ $migrated -gt 0 ]] && echo -e "  Migrated ${BOLD}$migrated${RESET} project(s) to v2 schema."
+        [[ $cleaned -gt 0 ]] && echo -e "  Cleaned ${BOLD}$cleaned${RESET} stale file(s)."
+    fi
+    echo ""
+}
+
 main() {
     migrate_harness
     sync_global
@@ -352,6 +403,8 @@ main() {
 
     if [[ $changes_count -eq 0 ]]; then
         echo -e "\n${GREEN}All $target_count projects are up-to-date.${RESET}"
+        echo ""
+        migrate_schema "$targets_file"
         exit 0
     fi
 
@@ -403,6 +456,8 @@ main() {
     echo ""
 
     if $DRY_RUN; then
+        echo ""
+        migrate_schema "$targets_file"
         echo -e "${DIM}Dry run — no files were changed.${RESET}"
         exit 0
     fi
@@ -432,6 +487,9 @@ main() {
 
     echo ""
     echo -e "${GREEN}Done.${RESET} Synced ${changes_count} projects."
+    echo ""
+
+    migrate_schema "$targets_file"
 }
 
 main
