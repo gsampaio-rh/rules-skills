@@ -15,12 +15,8 @@ alwaysApply: true
 | Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
 | Non-trivial (3+ files, user-facing, architectural) | **Launch `/planner` FIRST.** |
 
-**Non-trivial indicators (any ONE triggers):**
-- Touches 3+ files
-- User-facing features (UI, API, notifications)
-- Architectural decisions (new services, data models)
-- Vague enough for multiple valid implementations
-- Visual/UI work with multiple valid layouts (even if 1-2 files)
+**Non-trivial indicators (any ONE):**
+- 3+ files, user-facing, architectural, vague/ambiguous, or visual/UI work
 
 User says "skip harness" to opt out.
 
@@ -39,8 +35,13 @@ Non-trivial prompt → /planner → state.json → user confirms
 → PASS → commit → next feature | FAIL → fix → retest (max 2x)
 ```
 
-## Self-Check
+## Contract Gate
 
-Before writing code: "Non-trivial? Did I plan?" If yes and no — stop, launch planner.
+**Before any implementation Write when `state.json` has a building feature:**
 
-Full workflow details, state schemas, and tuning: read the `adversarial-harness` skill.
+1. Check `.harness/contract.json` — if missing, **write it first** (`feature`, `acceptance_criteria`, `edge_cases`, `verification_method`)
+2. Launch evaluator for negotiation → then implement
+
+Self-check: "Building feature + no contract? → stop, write contract."
+
+Full workflow: read the `adversarial-harness` skill.

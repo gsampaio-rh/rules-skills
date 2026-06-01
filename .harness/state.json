@@ -2,7 +2,7 @@
   "project": "rules-skills",
   "created": "2026-05-27T14:00:00Z",
   "vision": "A distributable library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code. The library must dogfood its own authoring standards: every rule, skill, and validation gate should pass before the library is considered trustworthy.",
-  "direction": "library/cursor/ is the single source of truth for distributable config. .cursor/ is local-only (gitignored, created via make setup). Validation (make validate) must pass with zero errors. Eval pipeline (Tier 1 static + Tier 3 session 27 scenarios) at 85% (362/424 checks). LLM judge tier operational. Phase 1 judge tuning applied (expanded behavioral regexes, lowered session boundary threshold). Next: re-run evals to measure impact, then Phase 2 — gap-13 (contract skipping) and gap-14 (session boundary enforcement) via rule/skill structural changes.",
+  "direction": "library/cursor/ is the single source of truth for distributable config. .cursor/ is local-only (gitignored, created via make setup). Validation (make validate) must pass with zero errors. Eval pipeline (Tier 1 static + Tier 3 session 27 scenarios) at 93% (368/394 checks). Zero scenarios below 70%. Phase 2 complete: hooks confirmed working in SDK bridge, contract-gate.sh path extraction fixed, deterministic enforcement chain operational (preToolUse DENIES writes → stop hooks verify contract). gap-13 resolved (4 scenarios jumped from 44-64% to 94-95%). Next: remaining gaps (gap-2, gap-4, gap-14 further improvement) and new features.",
   "trade_offs": [
     { "decision": "Gitignore entire .cursor/", "alternative": "Keep symlinks tracked, gitignore only transient files", "reasoning": "Matches how consumer projects treat IDE config; library/cursor/ is the distributable artifact" },
     { "decision": "Trim always-on rules in place", "alternative": "Demote bulky rules to alwaysApply: false", "reasoning": "Keeps universal guidance available but risks agents not loading security/code standards on non-matching globs" },
@@ -11,19 +11,19 @@
     { "decision": "harness_level:light for behavioral scenarios", "alternative": "Full protocol checks on all scenarios", "reasoning": "Behavioral/pushback scenarios should only test behavioral traits, not harness protocol compliance" }
   ],
   "open_questions": [
-    "Should the eval pipeline inject harness protocol instructions into the agent's system prompt for SDK sessions (simulating hooks/skills)?",
-    "How to handle gap-2/gap-4: is it a harness skill guidance issue or a fundamental SDK bridge limitation?"
+    "How to handle gap-2/gap-4: is it a harness skill guidance issue or a behavioral prompt quality issue? (Hooks enforce contract existence but not contract QUALITY.)",
+    "Can the LLM judge tier be stabilized to score the ~15 UNCERTAIN checks across scenarios?"
   ],
   "features": [
 
-    { "id": "gap-13", "name": "Agent skips contract.json in 4 scenarios despite harness rule", "status": "pending", "priority": 1, "type": "gap", "details": "adversarial_hidden_complexity (44%), routing_multi_skill_overlap (47%), routing_visual_ambiguity (57%), routing_complex_activate (64%) — agent builds directly without contract negotiation. The harness routing rule triggers planner but not the contract->evaluator pipeline. Related to gap-2." },
-    { "id": "feat-19", "name": "R3: Visual routing trigger + eval scenario", "status": "building", "priority": 1, "details": "Rule + scenario implemented. Eval score: 57%. Agent presents options (PASS) but does NOT create contract or launch evaluator. Blocked by gap-13." },
+    { "id": "gap-13", "name": "Agent skips contract.json — RESOLVED via hook enforcement", "status": "verified", "priority": 1, "type": "gap", "details": "Fixed contract-gate.sh path extraction bug. All hooks fire in SDK bridge. preToolUse DENIES writes, stop hooks enforce verification. 4 scenarios: 44-64% → 94-95%. Deterministic enforcement chain operational." },
+    { "id": "feat-19", "name": "R3: Visual routing trigger + eval scenario", "status": "verified", "priority": 1, "details": "Rule + scenario implemented. Eval score: 94% (up from 57%). Hook enforcement ensures contract workflow." },
     { "id": "gap-2", "name": "Agent does not create contract.json in pushback/scoping scenarios", "status": "pending", "priority": 2, "type": "gap", "details": "Agent pushes back and proposes phases but stops short of writing contract.json with the scoped subset." },
     { "id": "gap-4", "name": "protocol_evaluator_launch: contract.json created but empty (0 criteria, 0 edge cases)", "status": "pending", "priority": 2, "type": "gap", "details": "Agent creates the file but doesn't populate acceptance_criteria or edge_cases." },
     { "id": "spike-1", "name": "Spike: determine if harness skill needs scoped-contract-on-pushback guidance", "status": "pending", "priority": 2, "type": "spike" },
 
-    { "id": "gap-14", "name": "Session boundary rule not enforced — agent accepts unlimited follow-ups", "status": "pending", "priority": 1, "type": "gap", "details": "behavioral_session_boundary at 45%. Rule threshold lowered from 15 to 3 follow-ups in Phase 1. Needs re-eval to measure impact. May still need hook enforcement." },
-    { "id": "feat-18", "name": "R2: Session boundary rule + eval scenario", "status": "building", "priority": 1, "details": "Rule + scenario implemented. Rule threshold lowered from 15 to 3 follow-ups. Judge patterns expanded. Needs re-eval." },
+    { "id": "gap-14", "name": "Session boundary: improved to 70% but 3 UNCERTAIN checks remain", "status": "pending", "priority": 2, "type": "gap", "details": "behavioral_session_boundary at 70% (up from 45%). 3 structural checks need LLM tier to resolve. Hook enforcement active but boundary detection is still behavioral." },
+    { "id": "feat-18", "name": "R2: Session boundary rule + eval scenario", "status": "verified", "priority": 1, "details": "Rule + scenario implemented. Score 70% (up from 45%). Rule threshold lowered, judge patterns expanded, hooks active. Remaining UNCERTAIN checks need LLM tier." },
 
     { "id": "feat-13", "name": "Multi-agent evaluator orchestration", "status": "pending", "priority": 3 },
     { "id": "feat-14", "name": "LLM-as-judge for post_hoc_rubric", "status": "pending", "priority": 3 },

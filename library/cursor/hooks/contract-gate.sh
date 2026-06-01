@@ -28,20 +28,43 @@ if [ -f "$CONTRACT" ]; then
   exit 0
 fi
 
-# Extract the target file path from the tool input
+# Fast exit: recent skip breadcrumb (builder explicitly skipped harness)
+BREADCRUMBS=".harness/breadcrumbs.jsonl"
+if [ -f "$BREADCRUMBS" ]; then
+  SKIP_FOUND=$(tail -5 "$BREADCRUMBS" | grep -c "Skipped harness" 2>/dev/null || echo "0")
+  if [ "$SKIP_FOUND" -gt 0 ]; then
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: skip breadcrumb found, allowing" >> "$HOOK_LOG" 2>/dev/null
+    echo '{}'
+    exit 0
+  fi
+fi
+
+# Extract the target file path from the tool input.
+# The input schema varies by context: IDE sends {input: {path: ...}},
+# SDK bridge may send {tool_name: ..., input: {path: ...}} or flat {path: ...}.
+# We walk multiple known locations to handle all variants.
 target_path=$(echo "$input" | python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
-    # preToolUse Write input has the path in 'input.path' or 'path'
-    inp = data.get('input', data)
-    print(inp.get('path', inp.get('file_path', '')))
+    path = ''
+    for key in ('input', 'toolInput', 'tool_input'):
+        nested = data.get(key)
+        if isinstance(nested, dict):
+            path = nested.get('path', nested.get('file_path', nested.get('filePath', '')))
+            if path:
+                break
+    if not path:
+        path = data.get('path', data.get('file_path', data.get('filePath', '')))
+    print(path)
 except Exception:
     print('')
 " 2>/dev/null)
 
 if [ -z "$target_path" ]; then
-  echo '['"$(date -u +%Y-%m-%dT%H:%M:%S)"'] contract-gate: could not extract path, allowing' >> "$HOOK_LOG" 2>/dev/null
+  # Log truncated raw input for debugging path extraction failures
+  RAW_SNIPPET=$(echo "$input" | head -c 300)
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: could not extract path, allowing. raw(truncated): $RAW_SNIPPET" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi

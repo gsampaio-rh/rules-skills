@@ -231,6 +231,13 @@ class CaptureWorkspace:
             except (json.JSONDecodeError, OSError):
                 harness[name] = {"_error": "failed to parse"}
 
+        hooks_log = self.path / ".cursor" / "hooks.log"
+        if hooks_log.exists():
+            try:
+                harness["hooks.log"] = hooks_log.read_text(errors="replace")
+            except OSError:
+                pass
+
         return harness
 
     def _install_deps(self):

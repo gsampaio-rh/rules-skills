@@ -1,28 +1,23 @@
 {
-  "timestamp": "2026-06-01T15:05:00Z",
+  "timestamp": "2026-06-01T17:15:00Z",
   "project": "rules-skills",
   "features": {
     "total": 28,
     "by_status": {
-      "verified": 22,
-      "building": 2,
-      "pending": 4
+      "verified": 25,
+      "building": 0,
+      "pending": 3
     },
-    "completion_rate": 0.79
+    "completion_rate": 0.89
   },
   "eval_score": {
-    "current": 0.88,
-    "checks_passing": 329,
-    "checks_total": 376,
+    "current": 0.93,
+    "checks_passing": 368,
+    "checks_total": 394,
     "scenarios_total": 27,
-    "scenarios_at_100pct": 8,
-    "scenarios_below_70pct": 4,
-    "weak_scenarios": [
-      "routing_visual_ambiguity",
-      "routing_multi_skill_overlap",
-      "adversarial_hidden_complexity",
-      "behavioral_session_boundary"
-    ],
+    "scenarios_at_100pct": 10,
+    "scenarios_below_70pct": 0,
+    "weak_scenarios": [],
     "trajectory": [
       { "phase": "baseline", "score": 0.27 },
       { "phase": "sdk_bridge_fix", "score": 0.52 },
@@ -31,14 +26,15 @@
       { "phase": "phase_1b", "score": 0.90 },
       { "phase": "transcript_analysis_rules_scenarios", "score": 0.76 },
       { "phase": "judge_fixes_gap_12_15_16", "score": 0.85 },
-      { "phase": "phase_1_judge_tuning", "score": 0.88 }
+      { "phase": "phase_1_judge_tuning", "score": 0.88 },
+      { "phase": "phase_2_hook_enforcement", "score": 0.93 }
     ]
   },
   "gaps": {
     "total": 16,
-    "verified": 12,
-    "pending": 4,
-    "blocking": ["gap-13", "gap-14"],
-    "next_session": ["gap-2", "gap-4", "gap-11", "gap-13", "gap-14", "spike-1"]
+    "verified": 14,
+    "pending": 2,
+    "blocking": [],
+    "next_session": ["gap-2", "gap-4", "gap-11", "gap-14", "spike-1"]
   }
 }

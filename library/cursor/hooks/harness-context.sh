@@ -64,6 +64,13 @@ if os.path.isfile(contract_path):
         parts.append(f'Contract for \"{feat}\": phase={phase}, verified={verified}.')
     except Exception:
         parts.append('Contract exists but could not be parsed.')
+elif building:
+    b = building[0]
+    parts.append(f'CONTRACT REQUIRED: Feature \"{b.get(\"id\",\"?\")}\" is in building status but no contract.json exists. Before writing ANY implementation code, you MUST:')
+    parts.append('1. Write .harness/contract.json with: feature, acceptance_criteria (binary-testable), edge_cases, verification_method')
+    parts.append('2. Launch the evaluator subagent for contract negotiation')
+    parts.append('3. Only after negotiation completes, proceed with implementation')
+    parts.append('Skipping the contract violates the adversarial harness protocol.')
 
 if os.path.isfile(breadcrumbs_path):
     try:

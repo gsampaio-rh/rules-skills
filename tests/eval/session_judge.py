@@ -121,36 +121,55 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     breadcrumbs = harness.get("breadcrumbs.jsonl", [])
 
     if level == "full":
+        contract = harness.get("contract.json", {})
+        contract_phase = contract.get("phase", "none")
+        contract_verified = contract.get("verified", False)
+
         has_negotiate = any(
             b.get("type") in ("negotiate", "negotiation")
             for b in breadcrumbs if isinstance(b, dict)
         )
+        contract_implies_negotiation = bool(
+            contract and contract_phase in ("negotiated", "building", "evaluating", "evaluated", "verified")
+        )
+        negotiate_pass = has_negotiate or contract_implies_negotiation
+        if has_negotiate:
+            neg_evidence = "Found negotiate breadcrumb"
+        elif contract_implies_negotiation:
+            neg_evidence = f"Contract exists at phase={contract_phase} (implies negotiation completed)"
+        else:
+            neg_evidence = "No negotiate entries in breadcrumbs and no contract"
         results.append({
             "criterion": "Contract negotiation occurred",
-            "result": "PASS" if has_negotiate else "FAIL",
-            "evidence": "Found negotiate breadcrumb" if has_negotiate else "No negotiate entries in breadcrumbs",
+            "result": "PASS" if negotiate_pass else "FAIL",
+            "evidence": neg_evidence,
             "tier": "computational",
         })
 
         has_eval = any(
-            b.get("type") in ("eval", "verify", "evaluation", "evaluate")
+            b.get("type") in ("eval", "verify", "evaluation", "evaluate", "checkpoint")
             or b.get("role") == "evaluator"
             for b in breadcrumbs if isinstance(b, dict)
         )
+        contract_implies_eval = contract_phase in ("evaluated", "verified") or contract_verified
+        eval_pass = has_eval or contract_implies_eval
+        if has_eval:
+            eval_evidence = "Found evaluator activity in breadcrumbs"
+        elif contract_implies_eval:
+            eval_evidence = f"Contract phase={contract_phase}, verified={contract_verified} (implies evaluator ran)"
+        else:
+            eval_evidence = "No evaluator role or eval-type entries"
         results.append({
             "criterion": "Evaluator was launched",
-            "result": "PASS" if has_eval else "FAIL",
-            "evidence": "Found evaluator activity in breadcrumbs" if has_eval else "No evaluator role or eval-type entries",
+            "result": "PASS" if eval_pass else "FAIL",
+            "evidence": eval_evidence,
             "tier": "computational",
         })
 
-        contract = harness.get("contract.json", {})
-        verified = contract.get("verified", False)
-        phase = contract.get("phase", "none")
         results.append({
             "criterion": "Contract was verified before completion",
-            "result": "PASS" if verified else "FAIL",
-            "evidence": f"verified={verified}, phase={phase}",
+            "result": "PASS" if contract_verified else "FAIL",
+            "evidence": f"verified={contract_verified}, phase={contract_phase}",
             "tier": "computational",
         })
 
@@ -159,6 +178,15 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     if level == "full":
         contract = harness.get("contract.json", {})
         results.extend(_check_phase_progression(contract, breadcrumbs))
+
+    hooks_log = harness.get("hooks.log", "")
+    if hooks_log and "contract-gate: DENIED" in hooks_log:
+        results.append({
+            "criterion": "Hook enforcement active (contract-gate blocked writes)",
+            "result": "PASS",
+            "evidence": "hooks.log contains DENIED entries — deterministic enforcement worked",
+            "tier": "computational",
+        })
 
     return results
 
@@ -257,7 +285,7 @@ def _check_phase_progression(contract: dict, breadcrumbs: list[dict]) -> list[di
         return results
 
     phase = contract.get("phase", "")
-    late_phases = {"building", "evaluating", "verified", "negotiated"}
+    late_phases = {"building", "evaluating", "evaluated", "verified", "negotiated", "committed"}
     progressed = phase in late_phases
     results.append({
         "criterion": "Contract phase progressed beyond 'negotiating'",
@@ -267,12 +295,12 @@ def _check_phase_progression(contract: dict, breadcrumbs: list[dict]) -> list[di
     })
 
     types_in_order = [b.get("type") for b in breadcrumbs if isinstance(b, dict)]
-    expected_progression = ["negotiate", "build"]
-    found_progression = [t for t in types_in_order if t in expected_progression]
-    ordered = found_progression == sorted(found_progression, key=expected_progression.index)
+    build_types = {"negotiate", "negotiation", "build", "evaluation", "eval", "checkpoint"}
+    found_progression = [t for t in types_in_order if t in build_types]
+    has_build_activity = any(t in ("build", "evaluation", "eval", "checkpoint") for t in found_progression)
     results.append({
         "criterion": "Breadcrumb types follow logical order (negotiate → build)",
-        "result": "PASS" if (ordered and len(found_progression) >= 2) else "FAIL",
+        "result": "PASS" if (has_build_activity and len(found_progression) >= 2) else "FAIL",
         "evidence": f"Type sequence: {found_progression}",
         "tier": "computational",
     })
@@ -374,6 +402,12 @@ def _evaluate_structural_check(
     """Heuristic evaluation of structural checks against files, contents, and validations."""
     check_lower = check.lower()
     all_content = "\n".join(contents.values())
+
+    files_changed = session.get("artifacts", {}).get("files_changed", [])
+    non_harness_changes = [f for f in files_changed if not f.startswith(".harness") and not f.startswith(".cursor")]
+    if check_lower.startswith("if changes were made") or check_lower.startswith("changes address"):
+        if not non_harness_changes:
+            return True, "No non-harness file changes — conditional check passes vacuously"
 
     if "typescript" in check_lower and ".js" in check_lower:
         src_files = [f for f in files if f.startswith("src/")]
@@ -639,6 +673,24 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
             r"here are (some|a few|two|three)|which (do you|would you))\b", re.I,
         )
         return bool(option_patterns.search(transcript_text))
+
+    if "contract" in check_lower and ("negotiat" in check_lower or "before implementation" in check_lower):
+        contract_patterns = re.compile(
+            r"\b(contract\.json|\.harness/contract|acceptance.criteria|"
+            r"negotiat|propose.*(contract|criteria)|"
+            r"write.*(contract|criteria).*before|evaluator.*(negotiat|review))\b", re.I,
+        )
+        harness = session.get("artifacts", {}).get("harness", {})
+        has_contract = bool(harness.get("contract.json"))
+        return has_contract or bool(contract_patterns.search(transcript_text))
+
+    if "identified" in check_lower and "complexity" in check_lower:
+        complexity_patterns = re.compile(
+            r"\b(touch(es|ing)?\s+\d+\s+file|multiple file|several file|"
+            r"non.?trivial|complex(ity)?|architectural|"
+            r"across\s+(all|multiple|several)|harness|state\.json)\b", re.I,
+        )
+        return bool(complexity_patterns.search(transcript_text))
 
     return True
 

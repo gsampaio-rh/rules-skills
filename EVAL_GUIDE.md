@@ -368,39 +368,41 @@ post_hoc_rubric:
 
 ## Known Limitations
 
-### SDK bridge does not activate skills or hooks
+### SDK bridge hook and skill support
 
-**This is the primary limitation.** When the agent runs via `CursorClient.launch_bridge()`:
+When the agent runs via `CursorClient.launch_bridge()`:
 
-- **Hooks do not fire**: `contract-gate.sh`, `verify-harness.sh`, `harness-context.sh` etc. are IDE-level enforcement and do not execute in SDK bridge sessions.
-- **Skills are not auto-routed**: The IDE's skill activation system (which reads `.cursor/skills/` and routes based on prompt keywords) does not run. The agent has `.cursor/` in its workspace but doesn't proactively read skill files unless its system prompt references them.
-- **Subagents (`/planner`, `/evaluator`) are not available**: These are IDE features that don't exist in the SDK bridge.
+- **Hooks fire**: `contract-gate.sh` (preToolUse), `verify-harness.sh` (stop), `harness-context.sh` (sessionStart), `enforce-progress.sh` (stop), and `context-health.sh` (stop) all execute in SDK bridge sessions. The sandbox copies `.cursor/hooks.json` and hook scripts into the workspace, and the bridge loads them from `local.cwd`.
+- **preToolUse contract-gate blocks writes**: When `state.json` exists without `contract.json`, the agent cannot write implementation files — it must create the contract first. This is deterministic enforcement.
+- **Skills are not auto-routed**: The IDE's skill activation system does not run. The agent has `.cursor/` in its workspace but doesn't proactively read skill files unless its system prompt references them.
+- **Subagents (`/planner`, `/evaluator`) are not available**: These are IDE features that don't exist in the SDK bridge. The agent simulates the evaluator role internally.
 
-**Impact on results**: Scenarios expecting harness activation (contract creation, breadcrumbs, evaluator launch) will score 0% unless the agent's system prompt or rules explicitly instruct it to follow the harness protocol without IDE enforcement.
-
-**What DOES work in the bridge:**
+**What works in the bridge:**
 - Rules in `.cursor/rules/` are loaded (always-on rules are injected)
-- The agent CAN read skill files if asked
-- Pre-seeded `.harness/` state IS detected (see `routing_resume_existing` scoring 83%)
+- Hooks fire and enforce the harness protocol (contract gate, verification gate, progress tracking)
+- `sessionStart` injects harness context (current feature, contract status, recent breadcrumbs)
+- Pre-seeded `.harness/` state IS detected and hooks respond to it
 - Behavioral compliance (no apologies, autonomous execution) works
+- The agent CAN read skill files if asked
 
 ### Implications for eval design
 
-The current eval measures **voluntary protocol compliance** — what the agent does without enforcement. This is a useful but incomplete signal:
+The eval now measures **enforced protocol compliance** — hooks block bad behavior and force the agent to follow the contract workflow:
 
 | What we CAN test | What we CANNOT test (yet) |
 |-----------------|--------------------------|
-| Agent follows rules (behavioral) | Hooks block bad behavior |
-| Agent resumes existing harness state | Skill auto-routing from keywords |
-| Agent respects "skip harness" | /planner and /evaluator subagent flow |
-| Agent writes working code | Full contract negotiation cycle |
-| Negative cases (no harness when simple) | Hook-enforced verification gates |
+| Agent follows rules (behavioral) | Skill auto-routing from keywords |
+| Hook-enforced contract gate | /planner subagent launch |
+| Hook-enforced verification gate | /evaluator as a separate subagent |
+| Agent resumes existing harness state | Multi-round negotiation with real evaluator |
+| Agent respects "skip harness" | |
+| Agent writes working code | |
+| Negative cases (no harness when simple) | |
 
 ### Future improvements
 
-1. **System prompt injection**: Include harness protocol instructions in the agent's system prompt for SDK sessions (simulates what the skill + hooks provide in the IDE)
-2. **Pre-seed more state**: Scenarios like `routing_resume_existing` work because they pre-seed `.harness/`. More scenarios could pre-seed partial state to test mid-workflow behavior.
-3. **IDE-mode testing**: Run evals through the actual IDE (not SDK bridge) to test hooks and skill routing — requires different infrastructure.
+1. **Pre-seed more state**: Scenarios like `routing_resume_existing` work well because they pre-seed `.harness/`. More scenarios could pre-seed partial state to test mid-workflow behavior.
+2. **IDE-mode testing**: Run evals through the actual IDE (not SDK bridge) to test skill routing and real subagent launch — requires different infrastructure.
 
 ## CI Integration
 
