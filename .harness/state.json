@@ -26,7 +26,7 @@
     { "id": "feat-9", "name": "Install deps before verify", "status": "verified" },
 
     { "id": "feat-10", "name": "Broaden keyword patterns in verify commands", "status": "verified", "priority": 2 },
-    { "id": "feat-11", "name": "Move style checks to post_hoc_rubric", "status": "pending", "priority": 2 },
+    { "id": "feat-11", "name": "Move style checks to post_hoc_rubric", "status": "verified", "priority": 2 },
     { "id": "feat-12", "name": "Accept more breadcrumb types in schema checks", "status": "verified", "priority": 2 },
     { "id": "feat-13", "name": "Multi-agent evaluator orchestration", "status": "pending", "priority": 3 },
     { "id": "feat-14", "name": "LLM-as-judge for post_hoc_rubric", "status": "pending", "priority": 3 },

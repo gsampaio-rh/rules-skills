@@ -588,6 +588,104 @@ def check_skill_activation(session: dict, rubric: dict) -> list[dict]:
     return results
 
 
+# ─── Design Compliance Checks ─────────────────────────────────────────────────
+
+
+def check_design_compliance(session: dict, rubric: dict) -> list[dict]:
+    """Check frontend design patterns in produced artifacts and file contents."""
+    results = []
+    design_checks = rubric.get("post_hoc_rubric", {}).get("design_compliance", [])
+    if not design_checks:
+        return results
+
+    artifacts = session.get("artifacts", {})
+    contents = artifacts.get("file_contents", {})
+    all_content = "\n".join(contents.values()).lower()
+
+    for check_text in design_checks:
+        check_lower = check_text.lower()
+        passed = False
+        evidence = "No matching pattern"
+
+        if "custom propert" in check_lower or "var(--" in check_lower or "--color" in check_lower:
+            token_hits = re.findall(r"var\(--[\w-]+\)", all_content)
+            raw_defs = re.findall(r"--[\w-]+\s*:", all_content)
+            total = len(token_hits) + len(raw_defs)
+            passed = total >= 3
+            evidence = f"{len(raw_defs)} definitions, {len(token_hits)} usages" if passed else f"Only {total} token references found"
+
+        elif "spacing" in check_lower and ("8px" in check_lower or "grid" in check_lower or "multiple" in check_lower):
+            spacing_vals = re.findall(r":\s*(\d+)px", all_content)
+            multiples_of_4 = [v for v in spacing_vals if int(v) % 4 == 0 and int(v) > 0]
+            ratio = len(multiples_of_4) / max(len(spacing_vals), 1)
+            passed = ratio >= 0.5 and len(multiples_of_4) >= 3
+            evidence = f"{len(multiples_of_4)}/{len(spacing_vals)} spacing values are 4px-grid multiples"
+
+        elif "typography" in check_lower and ("scale" in check_lower or "token" in check_lower or "font" in check_lower):
+            valid_sizes = {"12px", "14px", "16px", "20px", "24px", "32px"}
+            font_sizes = re.findall(r"font-size\s*:\s*(\d+px)", all_content)
+            token_defs = re.findall(r"--font-size[\w-]*:\s*(\d+px)", all_content)
+            token_refs = re.findall(r"var\(--font-size", all_content)
+            all_sizes = font_sizes + token_defs
+            on_scale = [s for s in all_sizes if s in valid_sizes]
+            passed = len(on_scale) >= 2 or len(token_refs) >= 2
+            evidence = f"Font sizes on scale: {on_scale}, token refs: {len(token_refs)}"
+
+        elif "color" in check_lower and "palette" in check_lower:
+            palette = ["#2563eb", "#3b82f6", "#1d4ed8", "#7c3aed",
+                       "#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1",
+                       "#64748b", "#334155", "#0f172a",
+                       "#16a34a", "#d97706", "#dc2626", "#0891b2"]
+            used_colors = re.findall(r"#[0-9a-f]{6}", all_content)
+            on_palette = [c for c in used_colors if c in palette]
+            off_palette = [c for c in used_colors if c not in palette and c != "#000000" and c != "#ffffff"]
+            passed = len(on_palette) >= 3 and len(off_palette) <= len(on_palette)
+            evidence = f"{len(on_palette)} on-palette, {len(off_palette)} off-palette colors"
+
+        elif "touch" in check_lower or "44px" in check_lower or ("interactive" in check_lower and "siz" in check_lower):
+            min_heights = re.findall(r"min-height\s*:\s*(\d+)px", all_content)
+            large_enough = [s for s in min_heights if 44 <= int(s) <= 200]
+            explicit_heights = re.findall(r"(?:width|height)\s*:\s*(\d+)px", all_content)
+            large_explicit = [s for s in explicit_heights if 44 <= int(s) <= 200]
+            token_defs = dict(re.findall(r"--(spacing-[\w-]+)\s*:\s*(\d+)px", all_content))
+            token_heights = re.findall(r"(?:width|height)\s*:\s*var\(--(spacing-[\w-]+)\)", all_content)
+            large_tokens = [t for t in token_heights if int(token_defs.get(t, "0")) >= 44]
+            padding_hits = re.findall(r"padding\s*:\s*(\d+)px", all_content)
+            generous_padding = [p for p in padding_hits if int(p) >= 12]
+            total_large = len(large_enough) + len(large_explicit) + len(large_tokens)
+            passed = total_large >= 1 or len(generous_padding) >= 2
+            evidence = f"min-height>=44: {large_enough}, explicit>=44: {large_explicit}, token-resolved>=44: {large_tokens}, padding>=12: {len(generous_padding)}"
+
+        elif "breakpoint" in check_lower or "responsive" in check_lower:
+            media_queries = re.findall(r"min-width:\s*(\d+)px", all_content)
+            target_bps = {"768", "1024"}
+            found_bps = target_bps.intersection(set(media_queries))
+            passed = len(found_bps) >= 1
+            evidence = f"Breakpoints found: {sorted(set(media_queries))}" if media_queries else "No @media breakpoints"
+
+        elif "<nav>" in check_lower or ("nav" in check_lower and "collaps" in check_lower):
+            html_content = "\n".join(v for k, v in contents.items() if k.endswith(".html")).lower()
+            has_nav = "<nav" in html_content
+            has_collapse = any(kw in all_content for kw in ("is-open", "is-active", "collapse", "toggle", "translatex", "display: none"))
+            passed = has_nav and has_collapse
+            evidence = f"<nav>: {has_nav}, collapse mechanism: {has_collapse}"
+
+        elif "no" in check_lower and "style=" in check_lower and "inline" in check_lower:
+            html_content = "\n".join(v for k, v in contents.items() if k.endswith(".html"))
+            inline_styles = re.findall(r'\bstyle\s*=\s*["\']', html_content)
+            passed = len(inline_styles) == 0
+            evidence = f"0 inline style= attributes" if passed else f"{len(inline_styles)} inline style= found"
+
+        results.append({
+            "criterion": check_text,
+            "result": "PASS" if passed else "FAIL",
+            "evidence": evidence,
+            "tier": "structural",
+        })
+
+    return results
+
+
 # ─── Long Scenario Checks ─────────────────────────────────────────────────────
 
 
@@ -897,6 +995,7 @@ def judge_session(
         all_results.extend(check_artifacts(session, rubric))
         all_results.extend(check_behavioral(session, rubric))
         all_results.extend(check_skill_activation(session, rubric))
+        all_results.extend(check_design_compliance(session, rubric))
         all_results.extend(check_long_scenario(session, rubric))
 
     if "llm" in tiers and api_key:
