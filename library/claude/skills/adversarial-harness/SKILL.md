@@ -58,13 +58,11 @@ Launch the `/planner` subagent with the user's request.
 /planner [paste or describe the user's request with relevant context]
 ```
 
-The planner explores the codebase and produces:
-- `.harness/spec.md` — high-level product spec with user stories
-- `.harness/state.json` — feature list with statuses
+The planner explores the codebase and produces `.harness/state.json` — the single source of truth containing vision, direction, trade-offs, and feature list.
 
 The planner does NOT produce contracts. It stays at the product level.
 
-Present the spec to the user. Get confirmation before proceeding.
+Present the plan to the user. Get confirmation before proceeding.
 
 ---
 
@@ -203,8 +201,7 @@ After the evaluator passes:
 
 | File | Purpose | Who writes |
 |------|---------|------------|
-| `.harness/spec.md` | Product spec with user stories | Planner |
-| `.harness/state.json` | Feature list with statuses | Planner (init), Builder (updates) |
+| `.harness/state.json` | Single source of truth — vision, direction, trade-offs, features | Planner (init), Builder (updates) |
 | `.harness/contract.json` | Active negotiated contract | Builder (proposes), Evaluator (approves) |
 | `.harness/evals/eval-{id}.json` | Evaluator reports with evidence | Evaluator |
 | `.harness/breadcrumbs.jsonl` | Append-only trace — the project's memory | All agents |
@@ -337,8 +334,8 @@ User: "Add dark mode support to the dashboard"
 → /planner Add dark mode support to the dashboard. The app uses React + Tailwind.
   Check the current theme setup in src/styles/ and component structure.
 
-→ [planner produces spec.md and state.json]
-→ [agent presents spec to user, user confirms]
+→ [planner produces state.json with vision, direction, features]
+→ [agent presents plan to user, user confirms]
 
 → [builder proposes contract for feat-1 with 5+ binary criteria]
 → /evaluator Review the proposed contract — negotiation mode

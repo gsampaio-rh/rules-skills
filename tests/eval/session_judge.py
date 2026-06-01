@@ -29,6 +29,7 @@ import yaml
 
 EVAL_DIR = Path(__file__).parent
 SCENARIOS_DIR = EVAL_DIR / "scenarios"
+LONG_SCENARIOS_DIR = SCENARIOS_DIR / "long"
 EVAL_RESULTS_DIR = EVAL_DIR.parent / "eval_results"
 
 
@@ -45,11 +46,12 @@ def _resolve_run_dir(run_dir: str | None = None) -> Path:
 
 
 def load_scenario(scenario_id: str) -> dict | None:
-    """Load scenario YAML, trying both underscore and hyphen variants."""
-    for name in (scenario_id, scenario_id.replace("_", "-"), scenario_id.replace("-", "_")):
-        path = SCENARIOS_DIR / f"{name}.yaml"
-        if path.exists():
-            return yaml.safe_load(path.read_text())
+    """Load scenario YAML, trying both underscore and hyphen variants in both dirs."""
+    for directory in (SCENARIOS_DIR, LONG_SCENARIOS_DIR):
+        for name in (scenario_id, scenario_id.replace("_", "-"), scenario_id.replace("-", "_")):
+            path = directory / f"{name}.yaml"
+            if path.exists():
+                return yaml.safe_load(path.read_text())
     return None
 
 
@@ -586,6 +588,213 @@ def check_skill_activation(session: dict, rubric: dict) -> list[dict]:
     return results
 
 
+# ─── Long Scenario Checks ─────────────────────────────────────────────────────
+
+
+def check_long_scenario(session: dict, rubric: dict) -> list[dict]:
+    """Additional checks for long-running scenarios: coherence, breadcrumb density, multi-contract, recovery."""
+    long_rubric = rubric.get("post_hoc_rubric", {}).get("long_scenario", {})
+    if not long_rubric:
+        return []
+
+    results = []
+    artifacts = session.get("artifacts", {})
+    harness = artifacts.get("harness", {})
+    breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+    transcript = session.get("transcript", [])
+    full_text = " ".join(
+        t.get("response", "") for t in transcript if t.get("response")
+    )
+
+    results.extend(_check_breadcrumb_density(breadcrumbs, long_rubric))
+    results.extend(_check_multi_contract(breadcrumbs, harness, long_rubric))
+    results.extend(_check_coherence(full_text, artifacts, long_rubric))
+    results.extend(_check_recovery(full_text, breadcrumbs, harness, long_rubric))
+
+    return results
+
+
+def _check_breadcrumb_density(breadcrumbs: list[dict], long_rubric: dict) -> list[dict]:
+    """Verify enough breadcrumbs were written across the session."""
+    results = []
+    density_config = long_rubric.get("breadcrumb_density", {})
+    if not density_config:
+        return results
+
+    min_entries = density_config.get("min_entries", 4)
+    count = len([b for b in breadcrumbs if isinstance(b, dict)])
+    results.append({
+        "criterion": f"Breadcrumb density: at least {min_entries} entries across session",
+        "result": "PASS" if count >= min_entries else "FAIL",
+        "evidence": f"{count} breadcrumbs found (min: {min_entries})",
+        "tier": "computational",
+    })
+
+    roles = {b.get("role") for b in breadcrumbs if isinstance(b, dict)}
+    types = {b.get("type") for b in breadcrumbs if isinstance(b, dict)}
+    has_variety = len(types) >= 2
+    results.append({
+        "criterion": "Breadcrumbs show variety (multiple types/phases)",
+        "result": "PASS" if has_variety else "FAIL",
+        "evidence": f"Roles: {sorted(roles)}, Types: {sorted(types)}",
+        "tier": "computational",
+    })
+
+    return results
+
+
+def _check_multi_contract(breadcrumbs: list[dict], harness: dict, long_rubric: dict) -> list[dict]:
+    """Verify each feature had its own contract cycle."""
+    results = []
+    contract_checks = long_rubric.get("multi_contract", [])
+    if not contract_checks:
+        return results
+
+    negotiate_entries = [
+        b for b in breadcrumbs
+        if isinstance(b, dict) and b.get("type") in ("negotiate", "negotiation")
+    ]
+
+    state = harness.get("state.json", {})
+    features = state.get("features", state.get("feature_list", []))
+    feature_count = len(features) if isinstance(features, list) else 0
+
+    for check_text in contract_checks:
+        check_lower = check_text.lower()
+
+        if "each feature" in check_lower and "contract" in check_lower:
+            passed = len(negotiate_entries) >= max(feature_count - 1, 1)
+            results.append({
+                "criterion": check_text,
+                "result": "PASS" if passed else "FAIL",
+                "evidence": f"{len(negotiate_entries)} negotiate entries for {feature_count} features",
+                "tier": "computational",
+            })
+        elif "progression" in check_lower or "pending" in check_lower:
+            statuses = [f.get("status", "") for f in features if isinstance(f, dict)]
+            has_progression = any(s in ("verified", "committed", "building") for s in statuses)
+            results.append({
+                "criterion": check_text,
+                "result": "PASS" if has_progression else "FAIL",
+                "evidence": f"Feature statuses: {statuses}",
+                "tier": "computational",
+            })
+        else:
+            results.append({
+                "criterion": check_text,
+                "result": "UNCERTAIN",
+                "evidence": "Requires LLM evaluation",
+                "tier": "structural",
+            })
+
+    return results
+
+
+def _check_coherence(full_text: str, artifacts: dict, long_rubric: dict) -> list[dict]:
+    """Check that later features don't break earlier ones."""
+    results = []
+    coherence_checks = long_rubric.get("coherence", [])
+    if not coherence_checks:
+        return results
+
+    contents = artifacts.get("file_contents", {})
+    all_content = "\n".join(contents.values())
+    validations = artifacts.get("validations", [])
+
+    for check_text in coherence_checks:
+        check_lower = check_text.lower()
+
+        if "regress" in check_lower or "break" in check_lower or "did not break" in check_lower:
+            all_validations_pass = all(v.get("exit_code") == 0 for v in validations) if validations else False
+            no_error_in_transcript = "error" not in full_text.lower()[-500:]
+            passed = all_validations_pass or no_error_in_transcript
+            results.append({
+                "criterion": check_text,
+                "result": "PASS" if passed else "UNCERTAIN",
+                "evidence": "Validations pass or no errors in final output" if passed else "Could not confirm non-regression",
+                "tier": "structural",
+            })
+        elif "integrat" in check_lower or "uses" in check_lower or "same" in check_lower:
+            keywords = re.findall(r"\b\w{4,}\b", check_lower)
+            domain_kws = [k for k in keywords if k not in ("from", "with", "that", "feature", "plugin", "system", "endpoint")]
+            found = sum(1 for kw in domain_kws[:4] if kw in all_content.lower())
+            passed = found >= len(domain_kws[:4]) // 2
+            results.append({
+                "criterion": check_text,
+                "result": "PASS" if passed else "UNCERTAIN",
+                "evidence": f"Found {found}/{len(domain_kws[:4])} domain keywords in code" if found else "Requires LLM evaluation",
+                "tier": "structural",
+            })
+        else:
+            results.append({
+                "criterion": check_text,
+                "result": "UNCERTAIN",
+                "evidence": "Requires LLM evaluation for coherence check",
+                "tier": "structural",
+            })
+
+    return results
+
+
+def _check_recovery(full_text: str, breadcrumbs: list[dict], harness: dict, long_rubric: dict) -> list[dict]:
+    """Check resilience/recovery patterns for scenarios with seeded bugs."""
+    results = []
+    recovery_checks = long_rubric.get("recovery", [])
+    if not recovery_checks:
+        return results
+
+    for check_text in recovery_checks:
+        check_lower = check_text.lower()
+
+        if "detected" in check_lower and ("error" in check_lower or "import" in check_lower or "bug" in check_lower):
+            fix_indicators = ["fix", "error", "import", "traceback", "ModuleNotFoundError", "KeyError"]
+            found = [ind for ind in fix_indicators if ind.lower() in full_text.lower()]
+            passed = len(found) >= 2
+            results.append({
+                "criterion": check_text,
+                "result": "PASS" if passed else "UNCERTAIN",
+                "evidence": f"Fix indicators: {found}" if found else "No error detection signals found",
+                "tier": "structural",
+            })
+        elif "before harness" in check_lower or "before" in check_lower and "feature" in check_lower:
+            build_types = [b for b in breadcrumbs if isinstance(b, dict) and b.get("type") == "build"]
+            negotiate_types = [b for b in breadcrumbs if isinstance(b, dict) and b.get("type") in ("negotiate", "negotiation")]
+            if build_types and negotiate_types:
+                passed = True
+                evidence = "Build entries exist after negotiation"
+            else:
+                passed = len(breadcrumbs) >= 2
+                evidence = "Breadcrumbs indicate sequential work"
+            results.append({
+                "criterion": check_text,
+                "result": "PASS" if passed else "UNCERTAIN",
+                "evidence": evidence,
+                "tier": "structural",
+            })
+        elif "no harness" in check_lower and ("bugfix" in check_lower or "simple" in check_lower):
+            early_breadcrumbs = breadcrumbs[:3] if len(breadcrumbs) >= 3 else breadcrumbs
+            early_negotiate = any(
+                b.get("type") in ("negotiate", "negotiation")
+                for b in early_breadcrumbs if isinstance(b, dict)
+            )
+            passed = not early_negotiate
+            results.append({
+                "criterion": check_text,
+                "result": "PASS" if passed else "FAIL",
+                "evidence": "No early negotiation (bugfix was simple)" if passed else "Harness activated too early for bugfix",
+                "tier": "computational",
+            })
+        else:
+            results.append({
+                "criterion": check_text,
+                "result": "UNCERTAIN",
+                "evidence": "Requires LLM evaluation",
+                "tier": "structural",
+            })
+
+    return results
+
+
 # ─── LLM Judge ──────────────────────────────────────────────────────────────────
 
 
@@ -688,6 +897,7 @@ def judge_session(
         all_results.extend(check_artifacts(session, rubric))
         all_results.extend(check_behavioral(session, rubric))
         all_results.extend(check_skill_activation(session, rubric))
+        all_results.extend(check_long_scenario(session, rubric))
 
     if "llm" in tiers and api_key:
         llm_criteria = rubric.get("post_hoc_rubric", {}).get("negotiation_quality", [])

@@ -46,7 +46,7 @@ except Exception:
 
     cat <<EOF
 {
-  "followup_message": "PLAN GATE: The planner produced a spec with $FEATURE_COUNT features. Before starting development:\n1. Read .harness/spec.md and present a summary to the user\n2. Ask the user to confirm the spec before proceeding\n3. Do NOT start contract negotiation or building until the user confirms\n\nThis ensures the user agrees with the direction before any code is written."
+  "followup_message": "PLAN GATE: The planner produced state.json with $FEATURE_COUNT features. Before starting development:\n1. Read .harness/state.json and present vision, direction, and feature list to the user\n2. Ask the user to confirm the plan before proceeding\n3. Do NOT start contract negotiation or building until the user confirms\n\nThis ensures the user agrees with the direction before any code is written."
 }
 EOF
     exit 0

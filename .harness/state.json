@@ -1,7 +1,19 @@
 {
   "project": "rules-skills",
   "created": "2026-05-27T14:00:00Z",
-  "spec": "Improve eval pipeline accuracy and remove false negatives from SDK limitations",
+  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code. The library must dogfood its own authoring standards: every rule, skill, and validation gate should pass before the library is considered trustworthy.",
+  "direction": "library/cursor/ is the single source of truth for distributable config. .cursor/ is local-only (gitignored, created via make setup). Validation (make validate) must pass with zero errors. The eval pipeline (Tier 1 static + Tier 3 session scenarios) measures whether agents actually follow the rules. Current focus: eval pipeline accuracy — reducing false negatives from SDK bridge limitations.",
+  "trade_offs": [
+    { "decision": "Gitignore entire .cursor/", "alternative": "Keep symlinks tracked, gitignore only transient files", "reasoning": "Matches how consumer projects treat IDE config; library/cursor/ is the distributable artifact" },
+    { "decision": "Trim always-on rules in place", "alternative": "Demote bulky rules to alwaysApply: false", "reasoning": "Keeps universal guidance available but risks agents not loading security/code standards on non-matching globs" },
+    { "decision": "Move adversarial-harness overflow to references/", "alternative": "Split into multiple skills", "reasoning": "Preserves one entry point (/adversarial-harness) while meeting line limits" },
+    { "decision": "Kill spec.md, consolidate into state.json", "alternative": "Keep spec.md with coherence lint", "reasoning": "spec.md was read once (plan gate) then became stale. Single file eliminates drift by design." },
+    { "decision": "harness_level:light for behavioral scenarios", "alternative": "Full protocol checks on all scenarios", "reasoning": "Behavioral/pushback scenarios should only test behavioral traits, not harness protocol compliance" }
+  ],
+  "open_questions": [
+    "Should the eval pipeline inject harness protocol instructions into the agent's system prompt for SDK sessions (simulating hooks/skills)?",
+    "How to handle gap-2/gap-4: is it a harness skill guidance issue or a fundamental SDK bridge limitation?"
+  ],
   "features": [
     { "id": "feat-1", "name": "Local .cursor/ setup and git hygiene", "status": "verified" },
     { "id": "feat-2", "name": "Always-on rules token budget", "status": "verified" },
@@ -19,11 +31,19 @@
     { "id": "feat-13", "name": "Multi-agent evaluator orchestration", "status": "pending", "priority": 3 },
     { "id": "feat-14", "name": "LLM-as-judge for post_hoc_rubric", "status": "pending", "priority": 3 },
     { "id": "feat-15", "name": "Update EVAL_GUIDE.md with current state", "status": "pending", "priority": 3 },
+    { "id": "feat-16", "name": "Kill spec.md — single source of truth in state.json", "status": "verified", "priority": 1 },
 
     { "id": "gap-1", "name": "Separate protocol checks from behavioral checks in pushback scenarios", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed via harness_level:light — pushback scenarios skip contract/evaluator/builder checks." },
     { "id": "gap-2", "name": "Agent does not create contract.json in pushback/scoping scenarios", "status": "pending", "priority": 2, "type": "gap", "details": "Agent pushes back and proposes phases but stops short of writing contract.json with the scoped subset. Harness skill or rules may need to guide contract creation even during pushback." },
     { "id": "gap-3", "name": "behavioral_autonomous_execution scenario mixes behavioral and protocol expectations", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed via harness_level:light — autonomous execution scenario now only checks behavioral traits." },
     { "id": "gap-4", "name": "protocol_evaluator_launch: contract.json created but empty (0 criteria, 0 edge cases)", "status": "pending", "priority": 2, "type": "gap", "details": "Agent activated evaluator and wrote breadcrumbs with evaluator role, but contract.json has no acceptance_criteria or edge_cases. Agent creates the file but doesn't populate it properly." },
-    { "id": "spike-1", "name": "Spike: determine if harness skill needs scoped-contract-on-pushback guidance", "status": "pending", "priority": 2, "type": "spike", "details": "Investigate whether adding explicit guidance to harness skill ('when pushing back on scope, still create a contract for the scoped subset') would fix gap-2 without changing eval logic." }
+    { "id": "spike-1", "name": "Spike: determine if harness skill needs scoped-contract-on-pushback guidance", "status": "pending", "priority": 2, "type": "spike", "details": "Investigate whether adding explicit guidance to harness skill ('when pushing back on scope, still create a contract for the scoped subset') would fix gap-2 without changing eval logic." },
+
+    { "id": "gap-5", "name": "metrics.json stale — does not reflect 13 verified features or 90% score", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed: metrics.json rewritten with current state (13/20 verified, 90% score, trajectory, gaps)." },
+    { "id": "gap-6", "name": "README eval section documents removed files (dataset.yaml, auto_capture.py, hybrid_judge.py)", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed: README eval section now references Tier 1+3 pipeline components and points to EVAL_GUIDE.md." },
+    { "id": "gap-7", "name": "spec.md diverged from state.json — describes standards compliance, not eval accuracy focus", "status": "verified", "priority": 2, "type": "gap", "details": "Resolved by killing spec.md — state.json is now the single source of truth with vision and direction fields." },
+    { "id": "gap-8", "name": "HARNESS_STANDARD.md Tier 2 references dataset.yaml (removed)", "status": "verified", "priority": 2, "type": "gap", "details": "Fixed: Tier 2 section marked as planned/future with note explaining dataset.yaml removal and Tier 3 replacement." },
+    { "id": "gap-9", "name": "Harness flow allows spec.md and state.json to diverge silently", "status": "verified", "priority": 1, "type": "gap", "details": "Resolved by eliminating spec.md entirely. state.json now carries vision, direction, trade_offs, and open_questions. Single file = no drift possible." },
+    { "id": "gap-10", "name": "feat-2 marked verified but make validate still fails on token budget", "status": "verified", "priority": 1, "type": "gap", "details": "Fixed: trimmed adversarial_harness.mdc from 1239 to 200 words (routing-only stub). Detail moved to skill. Total now 1990/2000 tokens. make validate passes." }
   ]
 }

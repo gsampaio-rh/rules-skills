@@ -12,6 +12,8 @@ Usage:
     python tests/eval/session_runner.py --dry-run                  # show plan only
     python tests/eval/session_runner.py --list                     # list available scenarios
     python tests/eval/session_runner.py --timeout 600              # custom timeout (seconds)
+    python tests/eval/session_runner.py --long                     # run long scenarios (~10-15 min each)
+    python tests/eval/session_runner.py --long --no-timeout        # long scenarios, no timeout cap
 
 Environment:
     CURSOR_API_KEY    - Required
@@ -31,11 +33,13 @@ import yaml
 
 EVAL_DIR = Path(__file__).parent
 SCENARIOS_DIR = EVAL_DIR / "scenarios"
+LONG_SCENARIOS_DIR = SCENARIOS_DIR / "long"
 EVAL_RESULTS_DIR = EVAL_DIR.parent / "eval_results"
 REPO_ROOT = EVAL_DIR.parent.parent
 
 DEFAULT_MODEL = "composer-2.5"
 DEFAULT_TIMEOUT = 300
+LONG_DEFAULT_TIMEOUT = 900
 
 
 class _Timeout(Exception):
@@ -43,7 +47,13 @@ class _Timeout(Exception):
 
 
 def _wait_with_timeout(run, timeout_s: int):
-    """Wait for a run to complete, raising _Timeout if it exceeds timeout_s."""
+    """Wait for a run to complete, raising _Timeout if it exceeds timeout_s.
+
+    If timeout_s <= 0, waits indefinitely (no alarm).
+    """
+    if timeout_s <= 0:
+        return run.wait()
+
     def _handler(signum, frame):
         raise _Timeout(f"Run exceeded {timeout_s}s timeout")
 
@@ -56,9 +66,10 @@ def _wait_with_timeout(run, timeout_s: int):
         signal.signal(signal.SIGALRM, prev)
 
 
-def load_scenarios(filter_str: str | None = None) -> list[dict]:
+def load_scenarios(filter_str: str | None = None, long: bool = False) -> list[dict]:
+    source_dir = LONG_SCENARIOS_DIR if long else SCENARIOS_DIR
     scenarios = []
-    for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
+    for path in sorted(source_dir.glob("*.yaml")):
         scenario = yaml.safe_load(path.read_text())
         scenario["_path"] = str(path)
         scenarios.append(scenario)
@@ -156,14 +167,17 @@ def _drive_conversation(agent, scenario: dict, timeout: int, start_time: float):
     completed_prompts += 1
 
     for i, follow_up in enumerate(scenario.get("follow_up_prompts", [])):
-        remaining = timeout - (time.time() - start_time)
-        if remaining <= 0:
-            status = "timeout"
-            transcript.append({
-                "role": "system",
-                "content": f"Timeout: skipped follow-up {i + 1}",
-            })
-            break
+        if timeout > 0:
+            remaining = timeout - (time.time() - start_time)
+            if remaining <= 0:
+                status = "timeout"
+                transcript.append({
+                    "role": "system",
+                    "content": f"Timeout: skipped follow-up {i + 1}",
+                })
+                break
+        else:
+            remaining = 0
 
         print(f"  Sending follow-up {i + 1}...")
         run = agent.send(follow_up)
@@ -203,17 +217,23 @@ def main() -> int:
     parser.add_argument("--filter", help="Filter scenarios by id/name")
     parser.add_argument("--scenario", help="Run a specific scenario by id")
     parser.add_argument("--model", default=os.environ.get("CAPTURE_MODEL", DEFAULT_MODEL))
-    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    parser.add_argument("--timeout", type=int, default=None)
+    parser.add_argument("--no-timeout", action="store_true", help="Disable timeout entirely")
+    parser.add_argument("--long", action="store_true", help="Run long scenarios from scenarios/long/")
     parser.add_argument("--dry-run", action="store_true", help="Show plan only")
     parser.add_argument("--list", action="store_true", help="List available scenarios")
     args = parser.parse_args()
 
+    if args.timeout is None:
+        args.timeout = LONG_DEFAULT_TIMEOUT if args.long else DEFAULT_TIMEOUT
+
     api_key = os.environ.get("CURSOR_API_KEY", "")
 
-    scenarios = load_scenarios(args.filter or args.scenario)
+    scenarios = load_scenarios(args.filter or args.scenario, long=args.long)
 
     if args.list:
-        print(f"Available scenarios ({len(scenarios)}):")
+        tier_label = "long" if args.long else "standard"
+        print(f"Available {tier_label} scenarios ({len(scenarios)}):")
         for s in scenarios:
             dur = s.get("estimated_duration", "?")
             diff = s.get("difficulty", "?")
@@ -221,7 +241,8 @@ def main() -> int:
         return 0
 
     if not scenarios:
-        print("No scenarios found. Add YAML files to tests/eval/scenarios/")
+        source = "tests/eval/scenarios/long/" if args.long else "tests/eval/scenarios/"
+        print(f"No scenarios found. Add YAML files to {source}")
         return 1
 
     if args.dry_run:
@@ -244,7 +265,10 @@ def main() -> int:
     results = []
 
     for scenario in scenarios:
-        scenario_timeout = scenario.get("timeout_s", args.timeout)
+        if args.no_timeout:
+            scenario_timeout = 0
+        else:
+            scenario_timeout = scenario.get("timeout_s", args.timeout)
         result = run_scenario(scenario, args.model, api_key, scenario_timeout)
         path = save_session(result, run_dir)
         print(f"  Saved: {path}")

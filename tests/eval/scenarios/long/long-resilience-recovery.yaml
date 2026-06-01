@@ -1,0 +1,134 @@
+id: long_resilience_recovery
+name: "Resilience and recovery — fix bugs then add feature"
+difficulty: hard
+estimated_duration: 12m
+timeout_s: 900
+tier: long
+
+seed_files:
+  README.md: |
+    # Rate Limiter Service
+    A middleware service for rate limiting API requests.
+  requirements.txt: |
+    flask==3.0.0
+    redis==5.0.0
+  app.py: |
+    from flask import Flask, jsonify, request
+    from middleware import apply_rate_limit
+    from config import load_config
+
+    app = Flask(__name__)
+    config = load_config()
+
+    @app.before_request
+    def rate_limit():
+        return apply_rate_limit(request, config)
+
+    @app.route("/api/data")
+    def get_data():
+        return jsonify({"data": "hello", "remaining": request.rate_limit_remaining})
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  middleware.py: |
+    # BUG: missing import — this will fail on import
+    from redis_client import get_redis
+
+    def apply_rate_limit(request, config):
+        # BUG: 'limit' should be 'rate_limit' per config schema
+        limit = config["limit"]
+        client = get_redis()
+        key = f"rate:{request.remote_addr}"
+        current = client.incr(key)
+        if current == 1:
+            client.expire(key, config["window"])
+        if current > limit:
+            return {"error": "rate limited"}, 429
+        request.rate_limit_remaining = limit - current
+        return None
+  config.py: |
+    import json
+    import os
+
+    def load_config():
+        # BUG: references non-existent env var without fallback
+        path = os.environ["RATE_LIMIT_CONFIG"]
+        with open(path) as f:
+            return json.load(f)
+  tests/__init__.py: ""
+  tests/test_app.py: |
+    import pytest
+    from app import app
+
+    @pytest.fixture
+    def client():
+        app.config["TESTING"] = True
+        with app.test_client() as client:
+            yield client
+
+    def test_health(client):
+        # BUG: endpoint doesn't exist yet
+        resp = client.get("/health")
+        assert resp.status_code == 200
+
+    def test_rate_limit(client):
+        for i in range(10):
+            resp = client.get("/api/data")
+        assert resp.status_code == 429
+
+initial_prompt: >
+  This codebase has several bugs — imports fail, config loading crashes, and
+  tests don't pass. Fix all the bugs so the app can start and tests pass.
+  Then add a /health endpoint and a proper redis_client.py module.
+  The bugfixes are simple — just fix them directly. Don't over-engineer.
+
+follow_up_prompts:
+  - >
+    Now add a dashboard feature: a GET /dashboard endpoint that returns JSON with
+    rate limit statistics per IP (total requests, times limited, current window
+    usage). This is a proper feature — use the harness for it. Store stats in
+    Redis with a separate key namespace.
+
+verify:
+  - command: "python -c \"from app import app; print('PASS')\" 2>&1 | tail -1"
+    timeout_s: 10
+  - command: "python -c \"from middleware import apply_rate_limit; print('PASS')\" 2>&1 | tail -1"
+    timeout_s: 5
+  - command: "python -c \"from config import load_config; print('PASS')\" 2>&1 | tail -1"
+    timeout_s: 5
+  - command: "test -f redis_client.py && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "python -c \"import json; lines=[json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]; assert len(lines)>=3; print('PASS')\""
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "No harness ceremony for the bugfix phase (simple task)"
+    - "Harness activated for the dashboard feature (non-trivial)"
+    - "Contract created for dashboard feature with acceptance criteria"
+  artifact_quality:
+    - "Import errors fixed (redis_client.py exists)"
+    - "Config loading has fallback (no crash without env var)"
+    - "Middleware references correct config key"
+    - "Health endpoint exists and returns 200"
+    - "Dashboard endpoint returns rate limit statistics"
+  behavioral:
+    - "Agent identified and fixed bugs before attempting new feature"
+    - "Agent ran tests or import checks to verify fixes"
+    - "No apologies or unnecessary summaries"
+  negotiation_quality:
+    - "Dashboard contract has binary-testable criteria"
+    - "Edge cases cover empty stats and non-existent IPs"
+  long_scenario:
+    coherence:
+      - "Dashboard feature uses the same Redis client as rate limiting"
+      - "Fixes did not introduce new bugs"
+    breadcrumb_density:
+      min_entries: 3
+      description: "At least 3 breadcrumbs (bugfix + feature work)"
+    recovery:
+      - "Agent detected import/config errors before being told specifics"
+      - "Bugs were fixed before harness activation for new feature"
+      - "No harness activated for simple bugfixes"

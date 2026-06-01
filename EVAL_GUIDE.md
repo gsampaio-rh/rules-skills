@@ -11,6 +11,10 @@ make eval-session           # Tier 3: ~1min per scenario, needs CURSOR_API_KEY
 make eval-session-judge     # Tier 3: judge completed sessions
 make eval-session-report    # Tier 3: aggregated report table
 make eval                   # Both: Tier 1 + Tier 3
+
+make eval-session-long      # Long scenarios (~10-15 min each)
+make eval-session-long-dry  # Preview long scenario plan
+make eval-session-long-judge # Judge long scenario results
 ```
 
 ## Architecture
@@ -192,6 +196,74 @@ Dimensions are derived from the judgment results:
 
 Run `make eval-session-report` to see the table.
 
+## Long Scenarios (~10-15 min each)
+
+Standard scenarios test 2-8 minute tasks. Long scenarios test whether the agent can sustain coherent work over 10-15 minutes across multiple phases (plan, negotiate, build, evaluate, iterate, recover from errors).
+
+### How to run
+
+```bash
+make eval-session-long                                    # Run all long scenarios (~35 min)
+make eval-session-long SCENARIO=long-full-harness-cycle   # Single scenario
+make eval-session-long-judge                              # Judge results
+```
+
+Or directly:
+
+```bash
+python tests/eval/session_runner.py --long                # All long scenarios
+python tests/eval/session_runner.py --long --no-timeout   # No timeout cap
+python tests/eval/session_runner.py --long --list         # List available
+```
+
+### What they test
+
+Each long scenario exercises:
+
+1. **Full harness cycle** — agent must plan, negotiate a contract, build, and get evaluated
+2. **Multi-feature** — at least 2 features in sequence (tests coherence over time)
+3. **Deliberate errors** — seeded bugs or incomplete requirements that force iteration
+
+### Scenarios
+
+| Scenario | Duration | What it tests |
+|----------|----------|---------------|
+| `long-full-harness-cycle` | ~10 min | CLI with plugin system, 2 features, full contract lifecycle |
+| `long-multi-feature-coherence` | ~12 min | REST API with 4 incremental features, coherence across features |
+| `long-resilience-recovery` | ~12 min | Seeded bugs → fix → then add feature with harness |
+
+### Additional judge checks
+
+Long scenarios add checks beyond the standard rubric:
+
+| Check | What it verifies |
+|-------|-----------------|
+| **Coherence** | Later features don't break earlier ones |
+| **Breadcrumb density** | Enough breadcrumbs across the session (not just 1-2) |
+| **Multi-contract** | Each feature had its own contract negotiation cycle |
+| **Recovery** | Agent detects and fixes issues without user prompting (resilience scenario) |
+
+### YAML format additions
+
+Long scenarios use the standard YAML format plus:
+
+```yaml
+timeout_s: 900       # Per-scenario timeout (default for long: 15 min)
+tier: long           # Marker for documentation/filtering
+
+post_hoc_rubric:
+  long_scenario:     # Additional long-specific checks
+    coherence:
+      - "Second feature integrates with first"
+    breadcrumb_density:
+      min_entries: 4
+      description: "At least 4 breadcrumbs across session"
+    multi_contract:
+      - "Each feature had its own contract cycle"
+    recovery:         # Only for resilience scenarios
+      - "Agent detected errors before being told"
+```
+
 ## File Layout
 
 ```
@@ -203,13 +275,17 @@ tests/eval/
 ├── session_judge.py          # Tier 3: post-hoc judging (computational + structural + LLM)
 ├── session_report.py         # Tier 3: aggregated reporting
 ├── harness_metrics.py        # Harness effectiveness dashboard
-└── scenarios/                # 23 scenario YAML definitions
-    ├── routing-*.yaml        # 5 routing scenarios
-    ├── contract-*.yaml       # 5 contract quality scenarios
-    ├── protocol-*.yaml       # 3 protocol lifecycle scenarios
-    ├── adversarial-*.yaml    # 4 adversarial scenarios
-    ├── behavioral-*.yaml     # 3 behavioral scenarios
-    └── skill-*.yaml          # 3 skill activation scenarios
+├── scenarios/                # 23 standard scenario YAML definitions
+│   ├── routing-*.yaml        # 5 routing scenarios
+│   ├── contract-*.yaml       # 5 contract quality scenarios
+│   ├── protocol-*.yaml       # 3 protocol lifecycle scenarios
+│   ├── adversarial-*.yaml    # 4 adversarial scenarios
+│   ├── behavioral-*.yaml     # 3 behavioral scenarios
+│   ├── skill-*.yaml          # 3 skill activation scenarios
+│   └── long/                 # 3 long-running scenarios (10-15 min each)
+│       ├── long-full-harness-cycle.yaml
+│       ├── long-multi-feature-coherence.yaml
+│       └── long-resilience-recovery.yaml
 
 tests/eval_results/           # Output (gitignored)
 └── <timestamp>/

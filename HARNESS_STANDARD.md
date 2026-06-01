@@ -10,7 +10,7 @@ The harness is a structured build-verify cycle that prevents the most common fai
 
 ```
 User request
-  → /planner (spec.md + state.json)
+  → /planner (state.json)
   → Builder proposes contract ↔ /evaluator negotiates
   → Builder implements against contract
   → Computational sensors (lint, test, build)
@@ -32,18 +32,31 @@ All state lives on the file system in `.harness/` at the project root.
 
 ### `state.json`
 
+Single source of truth for the project — replaces the former `spec.md` + `state.json` split.
+
 ```json
 {
   "project": "project-name",
+  "created": "ISO-8601 timestamp",
+  "vision": "1-2 sentences describing the product, purpose, audience",
+  "direction": "Technical direction, constraints, architecture pattern",
+  "trade_offs": [
+    { "decision": "...", "alternative": "...", "reasoning": "..." }
+  ],
+  "open_questions": ["Unresolved items for builder/user"],
   "features": [
     {
       "id": "feat-1",
       "name": "Feature description",
-      "status": "pending|building|evaluating|verified|committed"
+      "status": "pending|building|evaluating|verified|committed",
+      "scope": "Optional: what this includes/excludes"
     }
   ]
 }
 ```
+
+**Required fields:** `project`, `created`, `vision`, `direction`, `features`.
+**Optional fields:** `trade_offs`, `open_questions`, `features[].scope`, `features[].priority`, `features[].type`, `features[].details`.
 
 ### `contract.json`
 
@@ -168,15 +181,15 @@ Three evaluation tiers provide progressively deeper signal:
 
 Run: `make eval-fast`
 
-### Tier 2: Behavioral Prompt Evals (minutes, requires API keys)
+### Tier 2: Behavioral Prompt Evals (planned — not yet implemented)
 
-| Signal | Source | What it tells us |
-|--------|--------|------------------|
-| Negotiation quality | `dataset.yaml` negotiation tests | Whether agents push back on vague criteria and accept strong ones |
-| Builder-evaluator interaction | `dataset.yaml` adversarial tests | Whether builders respond correctly to FAIL/scrap recommendations |
-| Rule compliance | `dataset.yaml` always-on tests | Whether rules actually change agent behavior vs. baseline |
+> **Status**: Tier 2 was originally designed around `dataset.yaml` prompt-response pairs with a hybrid judge. That approach was removed in favor of Tier 3 session scenarios which test full agent workflows rather than isolated prompt/response pairs. A future Tier 2 may be reintroduced as an LLM-as-judge layer within Tier 3 (see feat-14 in `state.json`).
 
-Run: `make eval-behavioral`
+| Signal | Source | What it would tell us |
+|--------|--------|----------------------|
+| Negotiation quality | Session scenarios + LLM judge | Whether agents push back on vague criteria and accept strong ones |
+| Builder-evaluator interaction | Session scenarios + LLM judge | Whether builders respond correctly to FAIL/scrap recommendations |
+| Rule compliance | Session scenarios + structural checks | Whether rules actually change agent behavior vs. baseline |
 
 ### Tier 3: Session Scenario Evals (longer runs, requires Cursor SDK)
 

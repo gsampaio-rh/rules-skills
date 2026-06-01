@@ -11,7 +11,7 @@
 
 You coordinate three roles via subagents. You do NOT self-evaluate.
 
-1. **`/planner`** — Turns the user's request into a high-level product spec (`spec.md`) and feature list (`state.json`). Does NOT produce contracts.
+1. **`/planner`** — Turns the user's request into a structured `state.json` (vision, direction, features). Does NOT produce contracts.
 2. **You (builder)** — Proposes contracts to the evaluator, negotiates until agreement, then implements one feature at a time. Runs computational sensors before calling the evaluator.
 3. **`/evaluator`** — Two modes: (a) negotiation — challenges weak contracts before building, (b) evaluation — adversarial QA that tests the live app against the contract with evidence.
 
@@ -19,8 +19,8 @@ You coordinate three roles via subagents. You do NOT self-evaluate.
 
 ```
 User prompt
-  → /planner → spec.md + state.json
-  → User confirms spec
+  → /planner → state.json
+  → User confirms plan
   → You propose contract for first feature
   → /evaluator negotiates contract (max 3 rounds)
   → Agreement reached → you build
@@ -45,8 +45,7 @@ All state lives on the file system, not in context:
 
 | File | Purpose |
 |---|---|
-| `.claude/harness/spec.md` | Product spec with user stories (planner output) |
-| `.claude/harness/state.json` | Feature list with statuses (pending/building/verified/committed) |
+| `.claude/harness/state.json` | Single source of truth — vision, direction, trade-offs, feature list with statuses |
 | `.claude/harness/contract.json` | Active negotiated contract |
 | `.claude/harness/evals/eval-{id}.json` | Evaluator reports with evidence |
 | `.claude/breadcrumbs.jsonl` | Append-only trace — the project's memory |
@@ -82,10 +81,11 @@ These are replaced by harness artifacts:
 
 | Was | Replaced by |
 |---|---|
-| `docs/PLAN.md` | `state.json` + `spec.md` |
-| `docs/PRD.md` | `spec.md` (planner output) |
+| `docs/PLAN.md` | `state.json` (vision + direction + features) |
+| `docs/PRD.md` | `state.json` (vision + direction) |
 | `docs/CHANGELOG.md` | `breadcrumbs.jsonl` (append-only trace) |
 | `docs/adrs/*.md` | `breadcrumbs.jsonl` (decisions inline) |
-| `docs/FUTURE_EXPLORATIONS.md` | Out-of-scope items in `spec.md` |
+| `docs/FUTURE_EXPLORATIONS.md` | `state.json` open_questions field |
+| `.claude/harness/spec.md` | `state.json` (consolidated — spec.md is eliminated) |
 
 If a project already has these files, they can coexist. Don't delete them. But new work flows through the harness.

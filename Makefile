@@ -14,6 +14,7 @@ MODEL    ?= composer-2.5
 
 .PHONY: help validate setup sync-local
 .PHONY: eval eval-fast eval-session eval-session-dry eval-session-judge eval-session-report
+.PHONY: eval-session-long eval-session-long-dry eval-session-long-judge
 .PHONY: harness-metrics clean
 
 help: ## Show this help
@@ -66,6 +67,15 @@ eval-session-judge-full: ## Tier 3: judge with all tiers including LLM
 
 eval-session-report: ## Tier 3: aggregated report from judgments
 	$(PYTHON) tests/eval/session_report.py --save
+
+eval-session-long: ## Tier 3: run long scenarios (~10-15 min each, needs CURSOR_API_KEY)
+	$(PYTHON) tests/eval/session_runner.py --long --model $(MODEL)
+
+eval-session-long-dry: ## Tier 3: show long scenario plan
+	$(PYTHON) tests/eval/session_runner.py --long --dry-run
+
+eval-session-long-judge: ## Tier 3: judge completed long sessions
+	$(PYTHON) tests/eval/session_judge.py --tier structural
 
 # ─── Harness Metrics ─────────────────────────────────────────
 

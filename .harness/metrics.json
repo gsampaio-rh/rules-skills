@@ -1,51 +1,75 @@
 {
-  "timestamp": "2026-05-28T13:22:36.442123+00:00",
+  "timestamp": "2026-05-29T18:50:00Z",
   "project": "rules-skills",
   "features": {
-    "total": 6,
+    "total": 20,
     "by_status": {
-      "verified": 6
+      "verified": 13,
+      "pending": 7
     },
-    "features_completed": 6,
-    "features_pending": 0,
-    "completion_rate": 1.0
+    "features_completed": 13,
+    "features_pending": 7,
+    "completion_rate": 0.65
+  },
+  "eval_score": {
+    "current": 0.90,
+    "checks_passing": 310,
+    "checks_total": 344,
+    "scenarios_at_100pct": 8,
+    "scenarios_below_70pct": 2,
+    "weak_scenarios": ["protocol_evaluator_launch", "routing_simple_skip"],
+    "trajectory": [
+      { "phase": "baseline", "score": 0.27 },
+      { "phase": "sdk_bridge_fix", "score": 0.52 },
+      { "phase": "quick_wins_feat_7_8_9", "score": 0.59 },
+      { "phase": "phase_1", "score": 0.83 },
+      { "phase": "phase_1b", "score": 0.90 }
+    ]
   },
   "breadcrumbs": {
-    "total_entries": 60,
+    "total_entries": 93,
     "by_role": {
-      "builder": 53,
-      "system": 5,
-      "evaluator": 1,
-      "planner": 1
+      "builder": 75,
+      "system": 12,
+      "evaluator": 3,
+      "planner": 3
     },
     "by_type": {
-      "negotiate": 1,
-      "build": 37,
-      "verify": 6,
-      "checkpoint": 7,
-      "session_start": 5,
-      "decision": 1,
-      "negotiation": 1,
-      "cleanup": 1,
-      "plan": 1
+      "build": 45,
+      "verify": 10,
+      "checkpoint": 9,
+      "session_start": 12,
+      "decision": 5,
+      "negotiate": 3,
+      "plan": 3,
+      "cleanup": 2,
+      "evaluate": 2,
+      "progress": 2
     },
-    "negotiation_rounds": 2,
-    "build_evaluate_cycles": 6,
+    "negotiation_rounds": 3,
+    "build_evaluate_cycles": 9,
     "scrap_count": 0,
     "scrap_rate": 0.0,
-    "features_touched": 10
+    "features_touched": 20
   },
   "contract": {
     "active": true,
-    "feature_id": "feat-6",
-    "phase": "evaluating",
-    "verified": false,
-    "criteria_count": 6,
-    "edge_case_count": 2,
-    "negotiation_rounds": 0,
-    "has_rubrics": true
+    "feature_id": "feat-7+8+9",
+    "phase": "verified",
+    "verified": true,
+    "criteria_count": 5,
+    "edge_case_count": 3,
+    "negotiation_rounds": 1,
+    "has_rubrics": false
   },
   "evaluations": {
-    "total_reports": 0
+    "total_reports": 1,
+    "reports": ["evals/eval-feat-6.json"]
+  },
+  "gaps": {
+    "total": 8,
+    "behavioral": ["gap-2", "gap-4"],
+    "documentation": ["gap-5", "gap-6", "gap-7", "gap-8"],
+    "investigation": ["spike-1"]
   }
 }

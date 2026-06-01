@@ -57,7 +57,7 @@ except Exception:
     cat <<EOF
 {
   "decision": "block",
-  "reason": "PLAN GATE: The planner produced a spec with $FEATURE_COUNT features. Before starting development:\n1. Read .claude/harness/spec.md and present a summary to the user\n2. Ask the user to confirm the spec before proceeding\n3. Do NOT start contract negotiation or building until the user confirms\n\nThis ensures the user agrees with the direction before any code is written."
+  "reason": "PLAN GATE: The planner produced state.json with $FEATURE_COUNT features. Before starting development:\n1. Read .claude/harness/state.json and present vision, direction, and feature list to the user\n2. Ask the user to confirm the plan before proceeding\n3. Do NOT start contract negotiation or building until the user confirms\n\nThis ensures the user agrees with the direction before any code is written."
 }
 EOF
     exit 0

@@ -1,0 +1,88 @@
+id: long_multi_feature_coherence
+name: "Multi-feature coherence — REST API with incremental features"
+difficulty: hard
+estimated_duration: 12m
+timeout_s: 900
+tier: long
+
+seed_files:
+  README.md: |
+    # Bookstore API
+    A REST API for managing a bookstore.
+  requirements.txt: |
+    flask==3.0.0
+    flask-sqlalchemy==3.1.1
+  app.py: |
+    from flask import Flask
+    app = Flask(__name__)
+
+    @app.route("/health")
+    def health():
+        return {"status": "ok"}
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+
+initial_prompt: >
+  Build a REST API for a bookstore. Start with CRUD endpoints for books
+  (title, author, isbn, price, stock). Use SQLAlchemy with SQLite for
+  persistence. Include proper error handling and input validation.
+  This needs proper architecture — use the harness.
+
+follow_up_prompts:
+  - >
+    Add a search endpoint that supports full-text search across title and author,
+    with pagination (limit/offset) and sorting (by title, price, or date_added).
+  - >
+    Add a simple token-based auth system: POST /auth/token takes a username/password
+    and returns a bearer token. Protect the write endpoints (POST, PUT, DELETE)
+    with the token. Read endpoints stay public.
+  - >
+    Add a /stats endpoint that returns: total books, total stock value (sum of
+    price * stock), average price, and books per author (top 5). This should be
+    a single GET endpoint returning JSON.
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "python -c \"import json; s=json.load(open('.harness/state.json')); feats=s.get('features',s.get('feature_list',[])); assert len(feats)>=3; print('PASS')\""
+    timeout_s: 5
+  - command: "python -c \"import json; lines=[json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]; assert len(lines)>=6; print('PASS')\""
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' -not -path './__pycache__/*' | wc -l | awk '{if($1>=4) print \"PASS\"; else print \"FAIL\"}'"
+    timeout_s: 5
+  - command: "python -c \"from app import app; print('PASS')\" 2>/dev/null || python -c \"import importlib.util; import sys; spec=importlib.util.find_spec('app'); print('PASS' if spec else 'FAIL')\""
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent created .harness/state.json with at least 3 features"
+    - "Contract negotiation occurred (breadcrumbs show negotiate type)"
+    - "state.json tracks feature statuses across the session"
+  artifact_quality:
+    - "CRUD endpoints for books exist (GET, POST, PUT, DELETE)"
+    - "SQLAlchemy model with proper fields (title, author, isbn, price, stock)"
+    - "Search endpoint with pagination parameters"
+    - "Auth token endpoint and middleware for write protection"
+    - "Stats endpoint with aggregation logic"
+  behavioral:
+    - "Agent ran verification commands autonomously"
+    - "Progress tracked via breadcrumbs for each feature"
+    - "No apologies or unnecessary summaries"
+  negotiation_quality:
+    - "Acceptance criteria are binary-testable"
+    - "Edge cases cover invalid input and auth failures"
+  long_scenario:
+    coherence:
+      - "Search endpoint works with the book model from feature 1"
+      - "Auth does not break existing read endpoints"
+      - "Stats endpoint queries the same database as CRUD"
+      - "Later features don't regress earlier ones"
+    breadcrumb_density:
+      min_entries: 6
+      description: "At least 6 breadcrumbs across 4 features"
+    multi_contract:
+      - "Each major feature had its own contract cycle"
+      - "state.json shows progression from pending → building → verified"

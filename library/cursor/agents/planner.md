@@ -19,7 +19,7 @@ If you specify granular technical details and get something wrong, errors cascad
 ### Phase 1: Analyze
 
 1. Read the request and identify the **real goal** — the request is often a symptom, find the underlying need
-2. Read existing harness state (`.harness/state.json`, `spec.md`) and `.harness/breadcrumbs.jsonl` if resuming, or `docs/ARCHITECTURE.md` for system context
+2. Read existing harness state (`.harness/state.json`) and `.harness/breadcrumbs.jsonl` if resuming, or `docs/ARCHITECTURE.md` for system context
 3. Explore the codebase to understand current state, patterns, and constraints
 4. Identify constraints: existing APIs, data models, conventions, dependencies
 5. If the request is ambiguous or has meaningful trade-offs, surface them — don't guess silently
@@ -45,75 +45,50 @@ Create `.harness/` directory if it doesn't exist, then write the outputs below.
 
 ## Output
 
-### Product Spec
-
-Save to `.harness/spec.md`:
-
-```markdown
-# Spec: [Product Name]
-
-## Vision
-One paragraph describing the product, its purpose, and target audience.
-
-## Technical Direction
-Stack choices, architecture pattern, key constraints. High-level only — no file paths, function signatures, or implementation details.
-
-## Features
-
-### Feature 1: [Name]
-**User stories:**
-- As a [user], I want to [action] so that [benefit]
-- ...
-
-**Scope notes:** What this feature includes and explicitly does NOT include.
-
-### Feature 2: [Name]
-...
-
-## Design Direction
-Visual identity, interaction patterns, key UX decisions. Reference existing design systems or conventions if applicable.
-
-## Open Questions
-- [Question that should be resolved before or during building]
-
-## Trade-offs
-| Decision | Alternative considered | Reasoning |
-|----------|----------------------|-----------|
-| ... | ... | ... |
-```
-
-### Feature List
-
-Save to `.harness/state.json`:
+Save everything to a single file: `.harness/state.json`. This is the single source of truth for the project — vision, direction, trade-offs, and feature tracking all live here.
 
 ```json
 {
   "project": "short-project-name",
   "created": "ISO-8601 timestamp",
-  "spec": "One-line summary of what we're building",
+  "vision": "1-2 sentences describing the product, its purpose, and target audience.",
+  "direction": "Stack choices, architecture pattern, key constraints. High-level only — no file paths, function signatures, or implementation details.",
+  "trade_offs": [
+    { "decision": "What was decided", "alternative": "What was considered", "reasoning": "Why this path" }
+  ],
+  "open_questions": [
+    "Question that should be resolved before or during building"
+  ],
   "features": [
-    { "id": "feat-1", "name": "descriptive name from spec", "status": "pending" },
-    { "id": "feat-2", "name": "descriptive name from spec", "status": "pending" }
+    { "id": "feat-1", "name": "descriptive feature name", "status": "pending", "scope": "What this includes and does NOT include" },
+    { "id": "feat-2", "name": "descriptive feature name", "status": "pending" }
   ]
 }
 ```
+
+**Field notes:**
+- `vision`: What we're building and why. Replaces the old "spec summary".
+- `direction`: Technical constraints and architecture pattern. No implementation details.
+- `trade_offs`: Decisions made during planning with alternatives considered.
+- `open_questions`: Unresolved items for the builder/user to address during building.
+- `features[].scope`: Optional — use for features that need explicit boundary-setting.
 
 ### Breadcrumb
 
 Append one line to `.harness/breadcrumbs.jsonl`:
 
 ```jsonl
-{"ts":"ISO-8601","role":"planner","type":"plan","feat":"feat-1","msg":"Created spec with N features: [list names]"}
+{"ts":"ISO-8601","role":"planner","type":"plan","feat":"feat-1","msg":"Created state with N features: [list names]"}
 ```
 
 ## Termination Protocol
 
-After writing `spec.md`, `state.json`, and one breadcrumb entry, you are DONE. Terminate immediately.
+After writing `state.json` and one breadcrumb entry, you are DONE. Terminate immediately.
 
 - Do NOT proceed to building or contract negotiation
 - Do NOT write `contract.json` — that's produced during negotiation between builder and evaluator
 - Do NOT write acceptance criteria, edge cases, or test assertions — those emerge from negotiation
-- Your output is exactly: 2 files + 1 breadcrumb. Nothing more.
+- Your output is exactly: 1 file + 1 breadcrumb. Nothing more.
 
 ## What You Do NOT Do
 
@@ -123,4 +98,4 @@ After writing `spec.md`, `state.json`, and one breadcrumb entry, you are DONE. T
 
 ## What Happens Next
 
-After you produce the spec and feature list, the builder picks the first feature and proposes a contract to the evaluator. The two negotiate until they agree on what "done" means. Only then does building start.
+After you produce `state.json`, the builder picks the first feature and proposes a contract to the evaluator. The two negotiate until they agree on what "done" means. Only then does building start.

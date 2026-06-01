@@ -123,8 +123,8 @@ Skip only when the user explicitly says to, or for documentation-only changes.
 ## Adversarial Harness
 
 For non-trivial work (3+ files, user-facing, architectural):
-1. Launch `/planner` to produce a spec (`.claude/harness/spec.md`) and feature list (`.claude/harness/state.json`)
-2. Get user confirmation on the spec
+1. Launch `/planner` to produce `.claude/harness/state.json` (vision, direction, features)
+2. Get user confirmation on the plan
 3. Propose a contract for the first feature → `/evaluator` negotiates it
 4. Build one feature at a time → `/evaluator` tests against the contract
 5. Commit only after evaluator passes
@@ -136,4 +136,4 @@ The user can say "skip harness" to opt out. Hooks enforce this workflow:
 - `Stop` blocks if an unverified contract exists
 - `SubagentStop` routes between harness phases
 
-State files: `.claude/harness/spec.md`, `.claude/harness/state.json`, `.claude/harness/contract.json`, `.claude/breadcrumbs.jsonl`
+State files: `.claude/harness/state.json`, `.claude/harness/contract.json`, `.claude/breadcrumbs.jsonl`

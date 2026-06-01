@@ -53,7 +53,7 @@ User: "Add dark mode support to the dashboard"
 → /planner Add dark mode support to the dashboard. The app uses React + Tailwind.
   Check the current theme setup in src/styles/ and component structure.
 
-→ [planner produces spec.md and state.json, user confirms]
+→ [planner produces state.json, user confirms]
 
 → [builder proposes contract for feat-1]
 

@@ -49,7 +49,7 @@ Launch `/planner` with the user's request:
 /planner [paste or describe the user's request with relevant context]
 ```
 
-The planner produces `.harness/spec.md` (product spec) and `.harness/state.json` (feature list). Present to user for confirmation.
+The planner produces `.harness/state.json` (vision, direction, trade-offs, and feature list). Present to user for confirmation.
 
 ## Phase 1.5: Contract Negotiation
 
@@ -133,8 +133,7 @@ Scrap-and-restart is expected, not failure — models should discard work that i
 
 | File | Purpose | Who writes |
 |------|---------|------------|
-| `.harness/spec.md` | Product spec | Planner |
-| `.harness/state.json` | Feature list with statuses | Planner (init), Builder (updates) |
+| `.harness/state.json` | Single source of truth — vision, direction, trade-offs, features | Planner (init), Builder (updates) |
 | `.harness/contract.json` | Active contract | Builder (proposes), Evaluator (approves) |
 | `.harness/evals/eval-{id}.json` | Eval reports | Evaluator |
 | `.harness/breadcrumbs.jsonl` | Append-only trace | All agents |
@@ -162,8 +161,7 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 
 ## Output Artifacts
 
-- `.harness/spec.md` — product spec (planner)
-- `.harness/state.json` — feature tracking (all agents)
+- `.harness/state.json` — vision, direction, trade-offs, feature tracking (all agents)
 - `.harness/contract.json` — active contract (builder + evaluator)
 - `.harness/evals/eval-{id}.json` — evaluation reports (evaluator)
 - `.harness/breadcrumbs.jsonl` — append-only trace (all agents)

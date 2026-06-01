@@ -132,14 +132,14 @@ scripts/hooks-profile.sh status   # show current
 
 The adversarial harness is a structured build/verify cycle:
 
-1. **Plan** — `/planner` decomposes work into spec + features
+1. **Plan** — `/planner` decomposes work into `state.json` (vision, direction, features)
 2. **Negotiate** — Builder proposes contract, evaluator challenges
 3. **Build** — Implement one feature at a time
 4. **Verify** — `/evaluator` tests against contract with evidence
 5. **Commit** — Only after evaluator passes
 
 State lives in `.harness/` (git-tracked):
-- `state.json` — feature list with statuses
+- `state.json` — single source of truth (vision, direction, trade-offs, features)
 - `contract.json` — negotiated acceptance criteria
 - `breadcrumbs.jsonl` — append-only decision trace
 - `evals/` — evaluator reports (quality evidence)
@@ -147,24 +147,24 @@ State lives in `.harness/` (git-tracked):
 
 ## Eval Pipeline (`tests/eval/`)
 
-Behavioral testing that verifies rules actually change agent behavior.
+Two-tier behavioral testing that verifies rules actually change agent behavior. See [`EVAL_GUIDE.md`](EVAL_GUIDE.md) for full documentation.
 
 ```bash
-pip install -r tests/eval/requirements.txt
-export CURSOR_API_KEY="cursor_..."
-export OPENAI_API_KEY="sk-..."
-
-python tests/eval/auto_capture.py --dry-run    # preview
-python tests/eval/auto_capture.py              # capture responses
-python tests/eval/run_eval.py                  # judge with hybrid evaluator
+make eval-fast              # Tier 1: static checks (seconds, no API keys)
+make eval-session           # Tier 3: 23 session scenarios via Cursor SDK
+make eval-session-judge     # Judge completed sessions
+make eval-session-report    # Aggregated report table
+make eval                   # Both tiers
 ```
 
 | Component | Purpose |
 |-----------|---------|
-| `dataset.yaml` | 87 test cases with prompts and rubrics |
-| `auto_capture.py` | SDK-based capture with context injection |
-| `hybrid_judge.py` | Structural checks (Tier 1) + LLM fallback (Tier 2) |
-| `local_judge.py` | Orchestrates evaluation runs |
+| `contract_lint.py` | Tier 1: contract structure and criteria quality |
+| `harness_lint.py` | Tier 1: breadcrumb integrity, state consistency |
+| `session_runner.py` | Tier 3: runs scenarios in isolated git worktrees via SDK bridge |
+| `session_judge.py` | Tier 3: computational + structural + LLM scoring |
+| `session_report.py` | Tier 3: aggregated reporting across all scenarios |
+| `scenarios/*.yaml` | 23 behavioral scenario definitions |
 
 ## Sync (`sync-cursor.sh`)
 

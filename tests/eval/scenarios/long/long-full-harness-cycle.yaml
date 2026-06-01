@@ -1,0 +1,72 @@
+id: long_full_harness_cycle
+name: "Full harness cycle — plan, negotiate, build, evaluate, multi-feature"
+difficulty: hard
+estimated_duration: 10m
+timeout_s: 900
+tier: long
+
+seed_files:
+  README.md: |
+    # Markdown CLI
+    A CLI tool that converts markdown to HTML.
+  requirements.txt: |
+    markdown==3.6
+    click==8.1.7
+
+initial_prompt: >
+  Build a CLI tool that converts markdown files to HTML with a plugin system.
+  Requirements: (1) CLI accepts input file + output file args, (2) plugin system
+  lets users add custom transformations via Python files in a plugins/ directory,
+  (3) ships with a built-in "highlight" plugin that wraps code blocks in
+  <pre><code> with syntax class names. This is a non-trivial feature — use the
+  harness workflow. The tool should have at least 5 files with proper separation.
+
+follow_up_prompts:
+  - >
+    Now add a table-of-contents plugin that generates a TOC from headings and
+    inserts it at the top of the output HTML. It should be a separate plugin file
+    that integrates with the existing plugin system.
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "python -c \"import json; s=json.load(open('.harness/state.json')); assert len(s.get('features', s.get('feature_list', [])))>=2; print('PASS')\""
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' -not -path './__pycache__/*' | wc -l | awk '{if($1>=5) print \"PASS\"; else print \"FAIL\"}'"
+    timeout_s: 5
+  - command: "python -c \"import json; lines=[json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]; assert len(lines)>=4; print('PASS')\""
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent created .harness/state.json with at least 2 features"
+    - "Contract negotiation occurred for each feature"
+    - "Evaluator was launched at least once"
+    - "Contract reached verified phase"
+  artifact_quality:
+    - "CLI entry point with argparse or click for input/output args"
+    - "Plugin loader that discovers and runs plugins from a directory"
+    - "Built-in highlight plugin for code blocks"
+    - "Table-of-contents plugin added in second prompt"
+    - "At least 5 Python files with clear separation of concerns"
+  behavioral:
+    - "Agent ran verification commands autonomously"
+    - "Progress tracked via breadcrumbs throughout session"
+    - "No apologies or unnecessary summaries"
+  negotiation_quality:
+    - "Acceptance criteria are binary-testable"
+    - "At least 2 edge cases per contract"
+    - "Verification method involves running the CLI"
+  long_scenario:
+    coherence:
+      - "Second feature (TOC plugin) integrates with first feature's plugin system"
+      - "Adding TOC plugin did not break highlight plugin or core CLI"
+    breadcrumb_density:
+      min_entries: 4
+      description: "At least 4 breadcrumbs across the full session"
+    multi_contract:
+      - "Each feature had its own contract negotiation cycle"
