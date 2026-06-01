@@ -535,6 +535,9 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         proceed_patterns = re.compile(r"\b(shall I proceed|should I|want me to)\b", re.I)
         return not proceed_patterns.search(transcript_text)
 
+    if "no todowrite" in check_lower:
+        return "TodoWrite" not in transcript_text
+
     if "todowrite" in check_lower or "progress track" in check_lower:
         harness = session.get("artifacts", {}).get("harness", {})
         breadcrumbs = harness.get("breadcrumbs.jsonl", [])
@@ -545,7 +548,13 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         return has_build_entries >= 2 or "TodoWrite" in transcript_text
 
     if "push back" in check_lower or "pushback" in check_lower:
-        clarify_patterns = re.compile(r"\b(clarif|what do you mean|could you specify|more specific|narrow)\b", re.I)
+        clarify_patterns = re.compile(
+            r"\b(clarif|what do you mean|could you specify|more specific|narrow|"
+            r"before (I|we) (start|begin|implement|make)|let me (understand|scope|define)|"
+            r"what (specifically|exactly|areas|aspects)|I.d (suggest|recommend)|"
+            r"here.s (what|my plan)|focus on|propose|could you (elaborate|tell me more)|"
+            r"what (kind of|type of) improvement)\b", re.I,
+        )
         return bool(clarify_patterns.search(transcript_text))
 
     if "did not modify" in check_lower or "not refactor" in check_lower:
@@ -559,15 +568,20 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
 
     if "fresh thread" in check_lower or "session boundary" in check_lower or ("checkpoint" in check_lower and "task" in check_lower):
         boundary_patterns = re.compile(
-            r"\b(fresh thread|new session|new chat|checkpoint|let.s commit|commit (what|before)|"
-            r"suggest(ing)? (we )?(start|switch|open)|hand.?off)\b", re.I,
+            r"\b(fresh thread|new session|new chat|checkpoint|let.?s commit|"
+            r"(I.ll|let me|should (we |I )?)commit|commit (the|these|this|current|before)|"
+            r"before (we )?(continue|move on|proceed|adding)|wrap.*(up|this)|"
+            r"suggest(ing)? (we )?(start|switch|open)|hand.?off|"
+            r"save.*(progress|work)|separate.*(session|thread))\b", re.I,
         )
         return bool(boundary_patterns.search(transcript_text))
 
     if "silently accept all" in check_lower or "without pausing" in check_lower:
         boundary_patterns = re.compile(
-            r"\b(fresh thread|new session|checkpoint|commit first|let.s commit|hand.?off|"
-            r"too many|accumulating|scope creep|pause|break)\b", re.I,
+            r"\b(fresh thread|new session|checkpoint|commit first|let.?s commit|"
+            r"(I.ll|let me) commit|hand.?off|too many|accumulating|scope creep|"
+            r"pause|break|before.*(continu|proceed|mov)|wrap.*up|"
+            r"getting (large|big)|a lot of changes|separate)\b", re.I,
         )
         return bool(boundary_patterns.search(transcript_text))
 
@@ -610,6 +624,21 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
             r"shall (we|I).*(start|begin|work|continue))\b", re.I,
         )
         return bool(work_patterns.search(transcript_text))
+
+    if "proposed" in check_lower and "plan" in check_lower:
+        plan_patterns = re.compile(
+            r"\b(here.s (what|my)|plan:|approach:|strategy:|phase \d|step \d|"
+            r"I.ll (start|begin|first)|first.*(then|next)|1\.|(\d)\))\b", re.I,
+        )
+        return bool(plan_patterns.search(transcript_text))
+
+    if "presented" in check_lower and "option" in check_lower:
+        option_patterns = re.compile(
+            r"\b(option [A-C1-3]|approach \d|alternative|layout \d|"
+            r"design [A-C1-3]|could (go with|choose|pick)|"
+            r"here are (some|a few|two|three)|which (do you|would you))\b", re.I,
+        )
+        return bool(option_patterns.search(transcript_text))
 
     return True
 

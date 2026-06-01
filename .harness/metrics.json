@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-01T14:40:00Z",
+  "timestamp": "2026-06-01T15:05:00Z",
   "project": "rules-skills",
   "features": {
     "total": 28,
@@ -11,17 +11,17 @@
     "completion_rate": 0.79
   },
   "eval_score": {
-    "current": 0.85,
-    "checks_passing": 362,
-    "checks_total": 424,
+    "current": 0.88,
+    "checks_passing": 329,
+    "checks_total": 376,
     "scenarios_total": 27,
-    "scenarios_at_100pct": 5,
+    "scenarios_at_100pct": 8,
     "scenarios_below_70pct": 4,
     "weak_scenarios": [
-      "adversarial_hidden_complexity",
-      "behavioral_session_boundary",
       "routing_visual_ambiguity",
-      "routing_multi_skill_overlap"
+      "routing_multi_skill_overlap",
+      "adversarial_hidden_complexity",
+      "behavioral_session_boundary"
     ],
     "trajectory": [
       { "phase": "baseline", "score": 0.27 },
@@ -30,7 +30,8 @@
       { "phase": "phase_1", "score": 0.83 },
       { "phase": "phase_1b", "score": 0.90 },
       { "phase": "transcript_analysis_rules_scenarios", "score": 0.76 },
-      { "phase": "judge_fixes_gap_12_15_16", "score": 0.85 }
+      { "phase": "judge_fixes_gap_12_15_16", "score": 0.85 },
+      { "phase": "phase_1_judge_tuning", "score": 0.88 }
     ]
   },
   "gaps": {

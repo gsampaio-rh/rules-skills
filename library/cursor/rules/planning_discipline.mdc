@@ -21,7 +21,7 @@ Long conversations degrade context quality. Follow these guidelines:
 
 ## Session Boundaries
 
-- **After 15 user messages**: checkpoint uncommitted work, write handoff breadcrumb, suggest fresh thread
+- **After 3+ distinct follow-up tasks in one conversation**: checkpoint uncommitted work, write handoff breadcrumb, suggest fresh thread
 - **After completing a feature**: commit before starting the next
 - **Before new work**: commit any uncommitted changes first
 
