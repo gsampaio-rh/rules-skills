@@ -133,11 +133,11 @@ These rules exist because you are an LLM and you are biased toward approving LLM
 
 ### Evaluation Report
 
-Save to `.claude/harness/evals/eval-{feature_id}.json`:
+Save to `.claude/harness/evals/eval-{task_id}.json`:
 
 ```json
 {
-  "feature_id": "feat-1",
+  "task_id": "feat-1",
   "timestamp": "ISO-8601",
   "overall": "PASS or FAIL",
   "computational_checks": {

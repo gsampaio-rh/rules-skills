@@ -59,19 +59,21 @@ Save everything to a single file: `.claude/harness/state.json`. This is the sing
   "open_questions": [
     "Question that should be resolved before or during building"
   ],
-  "features": [
-    { "id": "feat-1", "name": "descriptive feature name", "status": "pending", "scope": "What this includes and does NOT include" },
-    { "id": "feat-2", "name": "descriptive feature name", "status": "pending" }
+  "tasks": [
+    { "id": "feat-1", "name": "descriptive task name", "type": "feature", "status": "pending", "scope": "What this includes and does NOT include" },
+    { "id": "spike-1", "name": "investigation task", "type": "spike", "status": "pending" }
   ]
 }
 ```
 
 **Field notes:**
+- `schema_version`: Always `2` for new state files.
 - `vision`: What we're building and why.
 - `direction`: Technical constraints and architecture pattern. No implementation details.
 - `trade_offs`: Decisions made during planning with alternatives considered.
 - `open_questions`: Unresolved items for the builder/user to address during building.
-- `features[].scope`: Optional — use for features that need explicit boundary-setting.
+- `tasks[].type`: Required. One of `feature`, `bug`, `spike`, `chore`.
+- `tasks[].scope`: Optional — use for tasks that need explicit boundary-setting.
 
 ### Breadcrumb
 

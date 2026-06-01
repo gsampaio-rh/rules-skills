@@ -11,8 +11,8 @@
 
 You coordinate three roles via subagents. You do NOT self-evaluate.
 
-1. **`/planner`** — Turns the user's request into a structured `state.json` (vision, direction, features). Does NOT produce contracts.
-2. **You (builder)** — Proposes contracts to the evaluator, negotiates until agreement, then implements one feature at a time. Runs computational sensors before calling the evaluator.
+1. **`/planner`** — Turns the user's request into a structured `state.json` (vision, direction, tasks). Does NOT produce contracts.
+2. **You (builder)** — Proposes contracts to the evaluator, negotiates until agreement, then implements one task at a time. Runs computational sensors before calling the evaluator.
 3. **`/evaluator`** — Two modes: (a) negotiation — challenges weak contracts before building, (b) evaluation — adversarial QA that tests the live app against the contract with evidence.
 
 ## The Flow
@@ -21,12 +21,12 @@ You coordinate three roles via subagents. You do NOT self-evaluate.
 User prompt
   → /planner → state.json
   → User confirms plan
-  → You propose contract for first feature
+  → You propose contract for first task
   → /evaluator negotiates contract (max 3 rounds)
   → Agreement reached → you build
   → Computational sensors (lints, types, tests, build)
   → /evaluator tests live app against contract
-      → PASS → commit checkpoint → next feature
+      → PASS → commit checkpoint → next task
       → FAIL → you fix → /evaluator re-tests (max 2x)
       → scrap_and_restart → start fresh with lessons
 ```
@@ -45,22 +45,22 @@ All state lives on the file system, not in context:
 
 | File | Purpose |
 |---|---|
-| `.claude/harness/state.json` | Single source of truth — vision, direction, trade-offs, feature list with statuses |
+| `.claude/harness/state.json` | Single source of truth — vision, direction, trade-offs, task list with statuses |
 | `.claude/harness/contract.json` | Active negotiated contract |
 | `.claude/harness/evals/eval-{id}.json` | Evaluator reports with evidence |
 | `.claude/breadcrumbs.jsonl` | Append-only trace — the project's memory |
 
 ## Lifecycle
 
-- **Starting new work?** Check if `.claude/harness/state.json` exists. If yes, pick the next pending feature. If no, launch `/planner`.
+- **Starting new work?** Check if `.claude/harness/state.json` exists. If yes, pick the next pending task. If no, launch `/planner`.
 - **Resuming a session?** Read `breadcrumbs.jsonl` + git log to understand state.
-- **Feature verified?** Update `state.json`, commit, pick next feature.
-- **All features done?** Clean up harness state if desired.
+- **Task verified?** Update `state.json`, commit, pick next task.
+- **All tasks done?** Clean up harness state if desired.
 - **Made a significant decision?** Log it as a breadcrumb. No separate ADR needed.
 
 ## Key Rules
 
-- One feature at a time. Negotiate → build → gate → verify → commit → next.
+- One task at a time. Negotiate → build → gate → verify → commit → next.
 - Commit only after `/evaluator` passes.
 - The evaluator never modifies source code. It tests and reports.
 - If the evaluator recommends `scrap_and_restart`, start fresh with lessons from breadcrumbs.
@@ -81,7 +81,7 @@ These are replaced by harness artifacts:
 
 | Was | Replaced by |
 |---|---|
-| `docs/PLAN.md` | `state.json` (vision + direction + features) |
+| `docs/PLAN.md` | `state.json` (vision + direction + tasks) |
 | `docs/PRD.md` | `state.json` (vision + direction) |
 | `docs/CHANGELOG.md` | `breadcrumbs.jsonl` (append-only trace) |
 | `docs/adrs/*.md` | `breadcrumbs.jsonl` (decisions inline) |

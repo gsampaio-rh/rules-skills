@@ -71,17 +71,19 @@ def load_eval_reports() -> list[dict]:
     return reports
 
 
-def compute_feature_metrics(state: dict) -> dict:
-    features = state.get("features", [])
-    status_counts = Counter(f.get("status", "unknown") for f in features)
+def compute_task_metrics(state: dict) -> dict:
+    tasks = state.get("tasks", [])
+    status_counts = Counter(t.get("status", "unknown") for t in tasks)
     completed = status_counts.get("verified", 0) + status_counts.get("committed", 0)
-    pending = len(features) - completed
+    pending = len(tasks) - completed
+    type_counts = Counter(t.get("type", "untyped") for t in tasks)
     return {
-        "total": len(features),
+        "total": len(tasks),
         "by_status": dict(status_counts),
-        "features_completed": completed,
-        "features_pending": pending,
-        "completion_rate": completed / max(len(features), 1),
+        "by_type": dict(type_counts),
+        "tasks_completed": completed,
+        "tasks_pending": pending,
+        "completion_rate": completed / max(len(tasks), 1),
     }
 
 
@@ -132,7 +134,7 @@ def compute_contract_metrics(contract: dict) -> dict:
 
     return {
         "active": True,
-        "feature_id": contract.get("feature_id", "unknown"),
+        "task_id": contract.get("task_id", "unknown"),
         "phase": contract.get("phase", "unknown"),
         "verified": contract.get("verified", False),
         "criteria_count": len(criteria),
@@ -167,7 +169,7 @@ def build_metrics() -> dict:
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "project": state.get("project", "unknown"),
-        "features": compute_feature_metrics(state),
+        "tasks": compute_task_metrics(state),
         "breadcrumbs": compute_breadcrumb_metrics(breadcrumbs),
         "contract": compute_contract_metrics(contract),
         "evaluations": compute_eval_metrics(eval_reports),
@@ -179,11 +181,15 @@ def print_dashboard(metrics: dict) -> None:
     print("HARNESS METRICS DASHBOARD")
     print("=" * 60)
 
-    feat = metrics["features"]
+    feat = metrics["tasks"]
     print(f"\n  Project: {metrics['project']}")
-    print(f"  Features: {feat['total']} total, {feat['completion_rate']:.0%} complete")
+    print(f"  Tasks: {feat['total']} total, {feat['completion_rate']:.0%} complete")
     for status, count in sorted(feat.get("by_status", {}).items()):
         print(f"    {status}: {count}")
+    if feat.get("by_type"):
+        print("  By type:")
+        for ttype, count in sorted(feat["by_type"].items()):
+            print(f"    {ttype}: {count}")
 
     bc = metrics["breadcrumbs"]
     print(f"\n  Breadcrumbs: {bc['total_entries']} entries")
@@ -194,7 +200,7 @@ def print_dashboard(metrics: dict) -> None:
 
     ct = metrics["contract"]
     if ct.get("active"):
-        print(f"\n  Active Contract: {ct['feature_id']} (phase={ct['phase']})")
+        print(f"\n  Active Contract: {ct['task_id']} (phase={ct['phase']})")
         print(f"    Criteria: {ct['criteria_count']}, Edge cases: {ct['edge_case_count']}")
         print(f"    Verified: {ct['verified']}")
     else:

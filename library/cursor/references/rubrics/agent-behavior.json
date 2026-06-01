@@ -32,7 +32,7 @@
     {
       "id": "compliance-contract-format",
       "category": "compliance",
-      "criterion": "Contracts contain all required fields: feature_id, acceptance_criteria (binary/testable), edge_cases (2+), verification_method",
+      "criterion": "Contracts contain all required fields: task_id, acceptance_criteria (binary/testable), edge_cases (2+), verification_method",
       "how_to_test": "Trigger contract negotiation. Validate JSON has required fields. Criteria must be binary assertions, not vague descriptions.",
       "severity": "high",
       "evidence_type": "artifact"

@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "ecommerce",
-      "features": [
+      "tasks": [
         {
-          "id": "ecommerce-platform",
+          "id": "ecommerce-platform", "type": "feature",
           "name": "E-commerce platform",
           "status": "pending"
         }
@@ -58,11 +58,11 @@ verify:
       import json, os
       if os.path.exists('.harness/state.json'):
           s = json.load(open('.harness/state.json'))
-          features = s.get('features', s.get('feature_list', []))
-          # Should have broken down into phases, not one giant feature
-          if len(features) == 1:
-              name = features[0].get('name', '').lower()
-              assert 'e-commerce' not in name and 'complete' not in name, 'Single monolithic feature — not scoped'
+          tasks = s.get('tasks', [])
+          # Should have broken down into phases, not one giant task
+          if len(tasks) == 1:
+              name = tasks[0].get('name', '').lower()
+              assert 'e-commerce' not in name and 'complete' not in name, 'Single monolithic task — not scoped'
       print('PASS')
       "
     timeout_s: 5

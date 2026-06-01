@@ -8,14 +8,14 @@ seed_files:
     {
       "project": "task-manager",
       "created": "2026-05-20T10:00:00Z",
-      "features": [
-        {"id": "feat-1", "name": "Task CRUD", "status": "committed"},
-        {"id": "feat-2", "name": "Task filtering and search", "status": "negotiated"}
+      "tasks": [
+        {"id": "feat-1", "type": "feature", "name": "Task CRUD", "status": "committed"},
+        {"id": "feat-2", "type": "feature", "name": "Task filtering and search", "status": "building"}
       ]
     }
   .harness/contract.json: |
     {
-      "feature_id": "feat-2",
+      "task_id": "feat-2",
       "feature": "Task filtering and search",
       "problem": "Users cannot find tasks efficiently in large lists",
       "proposed_solution": "Add filter by status, priority, and free-text search",

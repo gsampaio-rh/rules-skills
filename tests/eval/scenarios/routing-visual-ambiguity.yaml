@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "dashboard-app",
-      "features": [
+      "tasks": [
         {
-          "id": "dashboard-redesign",
+          "id": "dashboard-redesign", "type": "feature",
           "name": "Redesign dashboard layout for modern look",
           "status": "pending"
         }

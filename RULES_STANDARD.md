@@ -69,7 +69,7 @@ alwaysApply: <true/false>
 ## Harness State References
 
 Rules that reference harness state use `.harness/` (project root), not `.cursor/harness/`:
-- `.harness/state.json` — feature list
+- `.harness/state.json` — task list
 - `.harness/contract.json` — active contract
 - `.harness/breadcrumbs.jsonl` — decision trace
 

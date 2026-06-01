@@ -77,6 +77,14 @@ eval-session-long-dry: ## Tier 3: show long scenario plan
 eval-session-long-judge: ## Tier 3: judge completed long sessions
 	$(PYTHON) tests/eval/session_judge.py --tier structural
 
+# ─── Schema Migration ───────────────────────────────────────
+
+migrate-harness: ## Migrate .harness/ files from v1 (features) to v2 (tasks) schema
+	$(PYTHON) scripts/migrate-state-schema.py
+
+migrate-harness-dry: ## Preview migration without writing files
+	$(PYTHON) scripts/migrate-state-schema.py --dry-run
+
 # ─── Harness Metrics ─────────────────────────────────────────
 
 harness-metrics: ## Show harness effectiveness metrics dashboard

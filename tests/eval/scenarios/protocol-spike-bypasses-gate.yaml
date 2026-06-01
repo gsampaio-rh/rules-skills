@@ -1,0 +1,42 @@
+id: protocol_spike_bypasses_gate
+name: "Spike/chore tasks bypass contract-gate when no gatable tasks pending"
+difficulty: medium
+estimated_duration: 5m
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "spike-bypass-test",
+      "schema_version": 2,
+      "created": "2026-05-20T10:00:00Z",
+      "vision": "Test project for gate bypass behavior",
+      "direction": "Python scripts",
+      "tasks": [
+        {"id": "feat-1", "name": "Core API", "type": "feature", "status": "committed"},
+        {"id": "spike-1", "name": "Evaluate caching strategies", "type": "spike", "status": "pending"}
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-05-20T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 2 tasks"}
+
+initial_prompt: >
+  Start working on spike-1: Evaluate caching strategies. Write a quick comparison
+  of Redis vs Memcached in a markdown file.
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent detected existing .harness/state.json and resumed workflow"
+    - "No .harness/contract.json created (expected for spike task)"
+  artifact_quality:
+    - "Agent produced a comparison or analysis document"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent worked on spike-1 without requiring contract negotiation"
+    - "Agent did not launch /planner (plan already exists)"
+  harness_level: light

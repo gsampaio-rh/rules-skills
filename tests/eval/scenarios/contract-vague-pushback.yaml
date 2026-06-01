@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "items-api",
-      "features": [
+      "tasks": [
         {
-          "id": "improvements",
+          "id": "improvements", "type": "feature",
           "name": "App improvements",
           "status": "pending"
         }

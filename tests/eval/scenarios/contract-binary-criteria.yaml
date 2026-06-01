@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "db-api",
-      "features": [
+      "tasks": [
         {
-          "id": "caching-layer",
+          "id": "caching-layer", "type": "feature",
           "name": "Database query caching with TTL and invalidation",
           "status": "pending"
         }

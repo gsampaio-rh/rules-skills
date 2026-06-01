@@ -151,7 +151,7 @@ verify:
 
 post_hoc_rubric:
   harness_compliance:
-    - "Agent created .harness/state.json with features"
+    - "Agent created .harness/state.json with tasks"
     - "Contract negotiation occurred"
   artifact_quality:
     - "JWT auth implementation exists"

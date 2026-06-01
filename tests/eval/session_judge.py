@@ -69,6 +69,10 @@ def find_sessions(run_dir: Path, filter_str: str | None = None) -> list[Path]:
 
 # ─── Computational Checks ─────────────────────────────────────────────────────
 
+def _task_list(state: dict) -> list:
+    return state.get("tasks", [])
+
+
 VALID_BREADCRUMB_ROLES = {"planner", "builder", "evaluator", "system"}
 VALID_BREADCRUMB_TYPES = {
     "plan", "negotiate", "build", "verify", "eval", "checkpoint",
@@ -110,11 +114,12 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     level = _get_harness_level(rubric)
 
     state = harness.get("state.json", {})
-    has_state = bool(state and (state.get("features") or state.get("feature_list")))
+    state_tasks = _task_list(state)
+    has_state = bool(state and state_tasks)
     results.append({
-        "criterion": "Agent created .harness/state.json with features",
+        "criterion": "Agent created .harness/state.json with tasks",
         "result": "PASS" if has_state else "FAIL",
-        "evidence": f"{len(state.get('features', state.get('feature_list', [])))} features" if has_state else "No features in state",
+        "evidence": f"{len(state_tasks)} tasks" if has_state else "No tasks in state",
         "tier": "computational",
     })
 
@@ -910,22 +915,22 @@ def _check_multi_contract(breadcrumbs: list[dict], harness: dict, long_rubric: d
     ]
 
     state = harness.get("state.json", {})
-    features = state.get("features", state.get("feature_list", []))
-    feature_count = len(features) if isinstance(features, list) else 0
+    tasks = _task_list(state)
+    task_count = len(tasks) if isinstance(tasks, list) else 0
 
     for check_text in contract_checks:
         check_lower = check_text.lower()
 
-        if "each feature" in check_lower and "contract" in check_lower:
-            passed = len(negotiate_entries) >= max(feature_count - 1, 1)
+        if ("each feature" in check_lower or "each task" in check_lower) and "contract" in check_lower:
+            passed = len(negotiate_entries) >= max(task_count - 1, 1)
             results.append({
                 "criterion": check_text,
                 "result": "PASS" if passed else "FAIL",
-                "evidence": f"{len(negotiate_entries)} negotiate entries for {feature_count} features",
+                "evidence": f"{len(negotiate_entries)} negotiate entries for {task_count} tasks",
                 "tier": "computational",
             })
         elif "progression" in check_lower or "pending" in check_lower:
-            statuses = [f.get("status", "") for f in features if isinstance(f, dict)]
+            statuses = [t.get("status", "") for t in tasks if isinstance(t, dict)]
             has_progression = any(s in ("verified", "committed", "building") for s in statuses)
             results.append({
                 "criterion": check_text,

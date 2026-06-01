@@ -34,7 +34,7 @@ verify:
     timeout_s: 5
   - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
     timeout_s: 5
-  - command: "python -c \"import json; s=json.load(open('.harness/state.json')); assert len(s.get('features', s.get('feature_list', [])))>=2; print('PASS')\""
+  - command: "python -c \"import json; s=json.load(open('.harness/state.json')); assert len(s.get('tasks', []))>=2; print('PASS')\""
     timeout_s: 5
   - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' -not -path './__pycache__/*' | wc -l | awk '{if($1>=5) print \"PASS\"; else print \"FAIL\"}'"
     timeout_s: 5

@@ -7,9 +7,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "users-api",
-      "features": [
+      "tasks": [
         {
-          "id": "api-improvements",
+          "id": "api-improvements", "type": "feature",
           "name": "Pagination, filtering, sorting, and input validation",
           "status": "pending"
         }

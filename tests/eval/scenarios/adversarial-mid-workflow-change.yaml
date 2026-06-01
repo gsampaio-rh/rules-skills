@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "notification-service",
-      "features": [
+      "tasks": [
         {
-          "id": "notifications",
+          "id": "notifications", "type": "feature",
           "name": "Notification service with email, SMS, and push",
           "status": "pending"
         }

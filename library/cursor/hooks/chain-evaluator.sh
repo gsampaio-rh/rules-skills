@@ -34,19 +34,20 @@ if [ -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
   if [ "$AGE" -lt 300 ]; then
     echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] subagent-gate: planner finished — spec confirmation required" >> "$HOOK_LOG" 2>/dev/null
 
-    FEATURE_COUNT=$(python3 -c "
+    TASK_COUNT=$(python3 -c "
 import json
 try:
     with open('$STATE') as f:
         data = json.load(f)
-    print(len(data.get('features', [])))
+    tasks = data.get('tasks', [])
+    print(len(tasks))
 except Exception:
     print('?')
 " 2>/dev/null)
 
     cat <<EOF
 {
-  "followup_message": "PLAN GATE: The planner produced state.json with $FEATURE_COUNT features. Before starting development:\n1. Read .harness/state.json and present vision, direction, and feature list to the user\n2. Ask the user to confirm the plan before proceeding\n3. Do NOT start contract negotiation or building until the user confirms\n\nThis ensures the user agrees with the direction before any code is written."
+  "followup_message": "PLAN GATE: The planner produced state.json with $TASK_COUNT tasks. Before starting development:\n1. Read .harness/state.json and present vision, direction, and task list to the user\n2. Ask the user to confirm the plan before proceeding\n3. Do NOT start contract negotiation or building until the user confirms\n\nThis ensures the user agrees with the direction before any code is written."
 }
 EOF
     exit 0

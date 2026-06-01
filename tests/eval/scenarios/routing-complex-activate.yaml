@@ -19,9 +19,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "rest-api",
-      "features": [
+      "tasks": [
         {
-          "id": "auth-api",
+          "id": "auth-api", "type": "feature",
           "name": "REST API with JWT auth, rate limiting, and logging",
           "status": "pending"
         }

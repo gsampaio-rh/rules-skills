@@ -37,13 +37,14 @@ if os.path.isfile(state_path):
         with open(state_path) as f:
             state = json.load(f)
         project = state.get('project', 'unknown')
-        features = state.get('features', [])
-        total = len(features)
-        done = sum(1 for f in features if f.get('status') in ('verified', 'committed'))
-        pending = [f for f in features if f.get('status') == 'pending']
-        building = [f for f in features if f.get('status') == 'building']
+        tasks = state.get('tasks', [])
+        total = len(tasks)
+        done = sum(1 for t in tasks if t.get('status') in ('verified', 'committed'))
+        sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
+        pending = [t for t in sorted_tasks if t.get('status') == 'pending']
+        building = [t for t in sorted_tasks if t.get('status') == 'building']
 
-        parts.append(f'Harness active for \"{project}\": {done}/{total} features done.')
+        parts.append(f'Harness active for \"{project}\": {done}/{total} tasks done.')
 
         if building:
             b = building[0]
@@ -66,7 +67,7 @@ if os.path.isfile(contract_path):
         parts.append('Contract exists but could not be parsed.')
 elif building:
     b = building[0]
-    parts.append(f'CONTRACT REQUIRED: Feature \"{b.get(\"id\",\"?\")}\" is in building status but no contract.json exists. Before writing ANY implementation code, you MUST:')
+    parts.append(f'CONTRACT REQUIRED: Task \"{b.get(\"id\",\"?\")}\" is in building status but no contract.json exists. Before writing ANY implementation code, you MUST:')
     parts.append('1. Write .harness/contract.json with: feature, acceptance_criteria (binary-testable), edge_cases, verification_method')
     parts.append('2. Launch the evaluator subagent for contract negotiation')
     parts.append('3. Only after negotiation completes, proceed with implementation')

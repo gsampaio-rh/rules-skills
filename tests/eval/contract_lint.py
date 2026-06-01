@@ -24,7 +24,6 @@ VAGUE_PATTERNS = [
 ]
 
 REQUIRED_FIELDS = [
-    "feature_id",
     "feature",
     "acceptance_criteria",
     "edge_cases",
@@ -50,6 +49,9 @@ def lint_contract(contract: dict) -> tuple[list[str], list[str]]:
     for field in REQUIRED_FIELDS:
         if field not in contract:
             errors.append(f"Missing required field: {field}")
+
+    if "task_id" not in contract:
+        errors.append("Missing required field: task_id")
 
     criteria = contract.get("acceptance_criteria", [])
     if not isinstance(criteria, list):
@@ -140,11 +142,11 @@ def main() -> int:
             "status": "fail" if errors else "pass",
             "errors": errors,
             "warnings": warnings,
-            "feature_id": contract.get("feature_id", "unknown"),
+            "task_id": contract.get("task_id", "unknown"),
         }, indent=2))
     else:
-        feature = contract.get("feature_id", "unknown")
-        print(f"Contract lint: {feature} ({contract_path})")
+        task = contract.get("task_id", "unknown")
+        print(f"Contract lint: {task} ({contract_path})")
         if errors:
             for e in errors:
                 print(f"  ERROR: {e}")

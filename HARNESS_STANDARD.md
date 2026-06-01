@@ -38,31 +38,56 @@ Single source of truth for the project — replaces the former `spec.md` + `stat
 {
   "project": "project-name",
   "created": "ISO-8601 timestamp",
+  "schema_version": 2,
   "vision": "1-2 sentences describing the product, purpose, audience",
   "direction": "Technical direction, constraints, architecture pattern",
   "trade_offs": [
     { "decision": "...", "alternative": "...", "reasoning": "..." }
   ],
   "open_questions": ["Unresolved items for builder/user"],
-  "features": [
+  "tasks": [
     {
       "id": "feat-1",
-      "name": "Feature description",
-      "status": "pending|building|evaluating|verified|committed",
+      "name": "Task description",
+      "type": "feature|bug|spike|chore",
+      "status": "pending|building|evaluating|verified|committed|cancelled",
       "scope": "Optional: what this includes/excludes"
     }
   ]
 }
 ```
 
-**Required fields:** `project`, `created`, `vision`, `direction`, `features`.
-**Optional fields:** `trade_offs`, `open_questions`, `features[].scope`, `features[].priority`, `features[].type`, `features[].details`.
+**Required fields:** `project`, `created`, `vision`, `direction`, `tasks`.
+**Required per task:** `id`, `name`, `type`, `status`.
+**Optional fields:** `schema_version`, `trade_offs`, `open_questions`, `tasks[].scope`, `tasks[].priority`, `tasks[].details`.
+
+**Status enum** (lifecycle order):
+
+| Status | Meaning |
+|--------|---------|
+| `pending` | Planned, not started |
+| `building` | Contract negotiated, implementation in progress |
+| `evaluating` | Implementation done, evaluator testing |
+| `verified` | Evaluator passed, ready to commit |
+| `committed` | Committed to git (terminal) |
+| `cancelled` | Explicitly abandoned (terminal) |
+
+**Type enum:**
+
+| Type | Use for |
+|------|---------|
+| `feature` | User-facing deliverable |
+| `bug` | Behavior gap or product defect |
+| `spike` | Time-boxed investigation |
+| `chore` | Docs, tooling, maintenance |
+
+> **Migration:** v1 schemas used `features` instead of `tasks`. Consumers accept both keys during transition. Run `make migrate-harness` to upgrade.
 
 ### `contract.json`
 
 ```json
 {
-  "feature_id": "feat-1",
+  "task_id": "feat-1",
   "feature": "One-line description",
   "problem": "What problem does this solve?",
   "proposed_solution": "High-level approach",
@@ -96,12 +121,12 @@ Append-only JSONL. One line per significant action, written by all agents.
 | `msg` | yes | One-line summary |
 | `result` | no | Outcome, when applicable |
 
-### `evals/eval-{feature_id}.json`
+### `evals/eval-{task_id}.json`
 
 ```json
 {
-  "feature_id": "feat-1",
-  "feature": "Feature description",
+  "task_id": "feat-1",
+  "feature": "Task description",
   "timestamp": "ISO-8601",
   "criteria_results": [{"criterion": "...", "result": "PASS|FAIL", "evidence": "..."}],
   "edge_case_results": [{"case": "...", "result": "PASS|FAIL", "evidence": "..."}],
@@ -176,7 +201,7 @@ Three evaluation tiers provide progressively deeper signal:
 |-------|------|-----------------|
 | Contract structure | `contract_lint.py` | Missing fields, vague criteria, insufficient edge cases |
 | Breadcrumb integrity | `harness_lint.py` | Invalid JSON, missing fields, timestamp gaps |
-| State consistency | `harness_lint.py` | Duplicate feature IDs, stuck phases, cross-file mismatches |
+| State consistency | `harness_lint.py` | Duplicate task IDs, stuck phases, cross-file mismatches |
 | Rule/skill structure | `validate.py` | Token budget, missing sections, dead rules |
 
 Run: `make eval-fast`
@@ -209,8 +234,8 @@ Run: `make eval-session` (standard, ~20 min) → `make eval-session-long` (long,
 | Negotiation rounds | `harness_metrics.py` → `breadcrumbs` | Whether contracts converge quickly (1-2 rounds = good) |
 | Build-evaluate cycles | `harness_metrics.py` → `breadcrumbs` | How many fix-retest iterations per feature (fewer = better contracts) |
 | Scrap rate | `harness_metrics.py` → `breadcrumbs` | Ratio of scrapped features to total cycles (target: < 20%) |
-| Features completed/pending | `harness_metrics.py` → `state.json` | Overall throughput and backlog |
-| Completion rate | `harness_metrics.py` → `state.json` | Percentage of features reaching "verified" or "committed" |
+| Tasks completed/pending | `harness_metrics.py` → `state.json` | Overall throughput and backlog |
+| Completion rate | `harness_metrics.py` → `state.json` | Percentage of tasks reaching "verified" or "committed" |
 
 Run: `make harness-metrics` or `make harness-metrics-json`
 
@@ -227,9 +252,9 @@ Run: `make harness-metrics` or `make harness-metrics-json`
 
 Before a harness session is considered complete:
 
-- [ ] Every feature in `state.json` has status `verified` or `committed`
-- [ ] Every feature has a corresponding `contract.json` negotiation (check breadcrumbs for `negotiate` type)
-- [ ] Every feature has an eval report in `.harness/evals/`
+- [ ] Every task in `state.json` has status `verified` or `committed`
+- [ ] Every task has a corresponding `contract.json` negotiation (check breadcrumbs for `negotiate` type)
+- [ ] Every task has an eval report in `.harness/evals/`
 - [ ] No contract has `"verified": false` with `"phase": "evaluating"` (stuck state)
 - [ ] Breadcrumbs trace covers the full lifecycle: plan → negotiate → build → verify → checkpoint
 - [ ] `make harness-metrics` runs without errors and produces `.harness/metrics.json`

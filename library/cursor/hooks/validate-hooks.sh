@@ -144,7 +144,7 @@ fi
 
 # Test: planner just finished (state.json, no contract) → PLAN GATE
 rm -f .harness/contract.json 2>/dev/null
-echo '{"features":[{"id":"feat-1"},{"id":"feat-2"}]}' > .harness/state.json
+echo '{"tasks":[{"id":"feat-1"},{"id":"feat-2"}]}' > .harness/state.json
 touch .harness/state.json
 OUTPUT=$(echo '{}' | .cursor/hooks/chain-evaluator.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q "PLAN GATE"; then
@@ -202,7 +202,7 @@ fi
 
 # Test: harness active (state.json exists) → allow silently
 rm -f .harness/contract.json 2>/dev/null
-echo '{"features":[]}' > .harness/state.json
+echo '{"tasks":[]}' > .harness/state.json
 OUTPUT=$(echo '{"prompt":"implement a new authentication system with OAuth2"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q '^\{\}$'; then
   pass "harness-gate allows silently when harness is active"
@@ -275,13 +275,13 @@ else
 fi
 
 # Test: git commit with verified contract → allow + next-feature guidance
-echo '{"feature":"auth","feature_id":"feat-1","verified":true,"phase":"evaluating"}' > .harness/contract.json
-echo '{"features":[{"id":"feat-1","status":"verified"}]}' > .harness/state.json
+echo '{"feature":"auth","task_id":"feat-1","verified":true,"phase":"evaluating"}' > .harness/contract.json
+echo '{"tasks":[{"id":"feat-1","status":"verified"}]}' > .harness/state.json
 OUTPUT=$(echo '{"command":"git commit -m \"feat: auth done\""}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q "agent_message.*committed|next"; then
-  pass "pre-commit guides to next feature after verified commit"
+  pass "pre-commit guides to next task after verified commit"
 else
-  fail "pre-commit should guide to next feature: $(echo "$OUTPUT" | head -1)"
+  fail "pre-commit should guide to next task: $(echo "$OUTPUT" | head -1)"
 fi
 
 rm -f .harness/contract.json .harness/state.json 2>/dev/null
@@ -354,7 +354,7 @@ else
 fi
 
 # Test: state.json exists → inject context
-echo '{"project":"test-proj","features":[{"id":"feat-1","name":"Auth","status":"building"},{"id":"feat-2","name":"UI","status":"pending"}]}' > .harness/state.json
+echo '{"project":"test-proj","tasks":[{"id":"feat-1","name":"Auth","status":"building","type":"feature"},{"id":"feat-2","name":"UI","status":"pending","type":"feature"}]}' > .harness/state.json
 echo '{"feature":"Auth","phase":"building","verified":false}' > .harness/contract.json
 OUTPUT=$(echo '{}' | .cursor/hooks/harness-context.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q "additional_context"; then

@@ -9,9 +9,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "web-api",
-      "features": [
+      "tasks": [
         {
-          "id": "feat-1",
+          "id": "feat-1", "type": "feature",
           "name": "REST API with middleware pipeline",
           "status": "pending"
         }

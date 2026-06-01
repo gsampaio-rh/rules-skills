@@ -132,14 +132,14 @@ scripts/hooks-profile.sh status   # show current
 
 The adversarial harness is a structured build/verify cycle:
 
-1. **Plan** — `/planner` decomposes work into `state.json` (vision, direction, features)
+1. **Plan** — `/planner` decomposes work into `state.json` (vision, direction, tasks)
 2. **Negotiate** — Builder proposes contract, evaluator challenges
 3. **Build** — Implement one feature at a time
 4. **Verify** — `/evaluator` tests against contract with evidence
 5. **Commit** — Only after evaluator passes
 
 State lives in `.harness/` (git-tracked):
-- `state.json` — single source of truth (vision, direction, trade-offs, features)
+- `state.json` — single source of truth (vision, direction, trade-offs, tasks)
 - `contract.json` — negotiated acceptance criteria
 - `breadcrumbs.jsonl` — append-only decision trace
 - `evals/` — evaluator reports (quality evidence)

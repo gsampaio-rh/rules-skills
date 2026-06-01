@@ -32,8 +32,8 @@ Before producing a full spec, evaluate whether the harness is justified:
 
 ### Phase 3: Specify
 
-1. Break the request into discrete features, each independently deliverable
-2. For each feature, write **user stories** — what the user/caller sees and can do
+1. Break the request into discrete tasks, each independently deliverable
+2. For each task, write **user stories** — what the user/caller sees and can do
 3. Define a high-level technical direction (stack, architecture pattern) without specifying implementation details
 4. Look for opportunities to add AI-powered features where they would add genuine value
 5. Surface trade-offs explicitly — don't bury design decisions
@@ -51,6 +51,7 @@ Save everything to a single file: `.harness/state.json`. This is the single sour
 {
   "project": "short-project-name",
   "created": "ISO-8601 timestamp",
+  "schema_version": 2,
   "vision": "1-2 sentences describing the product, its purpose, and target audience.",
   "direction": "Stack choices, architecture pattern, key constraints. High-level only — no file paths, function signatures, or implementation details.",
   "trade_offs": [
@@ -59,26 +60,28 @@ Save everything to a single file: `.harness/state.json`. This is the single sour
   "open_questions": [
     "Question that should be resolved before or during building"
   ],
-  "features": [
-    { "id": "feat-1", "name": "descriptive feature name", "status": "pending", "scope": "What this includes and does NOT include" },
-    { "id": "feat-2", "name": "descriptive feature name", "status": "pending" }
+  "tasks": [
+    { "id": "feat-1", "name": "descriptive task name", "type": "feature", "status": "pending", "scope": "What this includes and does NOT include" },
+    { "id": "spike-1", "name": "investigation task", "type": "spike", "status": "pending" }
   ]
 }
 ```
 
 **Field notes:**
+- `schema_version`: Always `2` for new state files.
 - `vision`: What we're building and why. Replaces the old "spec summary".
 - `direction`: Technical constraints and architecture pattern. No implementation details.
 - `trade_offs`: Decisions made during planning with alternatives considered.
 - `open_questions`: Unresolved items for the builder/user to address during building.
-- `features[].scope`: Optional — use for features that need explicit boundary-setting.
+- `tasks[].type`: Required. One of `feature`, `bug`, `spike`, `chore`.
+- `tasks[].scope`: Optional — use for tasks that need explicit boundary-setting.
 
 ### Breadcrumb
 
 Append one line to `.harness/breadcrumbs.jsonl`:
 
 ```jsonl
-{"ts":"ISO-8601","role":"planner","type":"plan","feat":"feat-1","msg":"Created state with N features: [list names]"}
+{"ts":"ISO-8601","role":"planner","type":"plan","feat":"feat-1","msg":"Created state with N tasks: [list names]"}
 ```
 
 ## Termination Protocol
@@ -98,4 +101,4 @@ After writing `state.json` and one breadcrumb entry, you are DONE. Terminate imm
 
 ## What Happens Next
 
-After you produce `state.json`, the builder picks the first feature and proposes a contract to the evaluator. The two negotiate until they agree on what "done" means. Only then does building start.
+After you produce `state.json`, the builder picks the first task and proposes a contract to the evaluator. The two negotiate until they agree on what "done" means. Only then does building start.

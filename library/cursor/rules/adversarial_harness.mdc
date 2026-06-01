@@ -22,8 +22,8 @@ User says "skip harness" to opt out.
 
 ## Three Roles
 
-1. **`/planner`** — Produces `state.json` (vision, direction, features). No contracts, no code.
-2. **You (builder)** — Proposes contracts, negotiates with evaluator, implements one feature at a time.
+1. **`/planner`** — Produces `state.json` (vision, direction, tasks). No contracts, no code.
+2. **You (builder)** — Proposes contracts, negotiates with evaluator, implements one task at a time.
 3. **`/evaluator`** — Negotiates contracts AND tests the live app. Never modifies source code.
 
 ## Flow
@@ -32,16 +32,16 @@ User says "skip harness" to opt out.
 Non-trivial prompt → /planner → state.json → user confirms
 → propose contract → /evaluator negotiates (max 3 rounds)
 → build → sensors (lint, test) → /evaluator tests against contract
-→ PASS → commit → next feature | FAIL → fix → retest (max 2x)
+→ PASS → commit → next task | FAIL → fix → retest (max 2x)
 ```
 
 ## Contract Gate
 
-**Before any implementation Write when `state.json` has a building feature:**
+**Before any implementation Write when `state.json` has a building task:**
 
 1. Check `.harness/contract.json` — if missing, **write it first** (`feature`, `acceptance_criteria`, `edge_cases`, `verification_method`)
 2. Launch evaluator for negotiation → then implement
 
-Self-check: "Building feature + no contract? → stop, write contract."
+Self-check: "Building task + no contract? → stop, write contract."
 
 Full workflow: read the `adversarial-harness` skill.

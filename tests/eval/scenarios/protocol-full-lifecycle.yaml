@@ -11,9 +11,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "url-shortener",
-      "features": [
+      "tasks": [
         {
-          "id": "url-shortener-service",
+          "id": "url-shortener-service", "type": "feature",
           "name": "URL shortener with analytics",
           "status": "pending"
         }
@@ -64,9 +64,9 @@ verify:
       python -c "
       import json
       s = json.load(open('.harness/state.json'))
-      # State should exist and have features
-      features = s.get('features', s.get('feature_list', []))
-      assert len(features) >= 1, 'No features in state.json'
+      # State should exist and have tasks
+      tasks = s.get('tasks', [])
+      assert len(tasks) >= 1, 'No tasks in state.json'
       print('PASS')
       "
     timeout_s: 5

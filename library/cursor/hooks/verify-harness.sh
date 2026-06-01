@@ -73,24 +73,45 @@ if [ ! -f "$STATE" ]; then
   exit 0
 fi
 
-# Check if state.json has a feature in "building" status
-BUILDING_FEATURE=$(python3 -c "
+# Check if state.json has a task in "building" status (with type-aware bypass)
+BUILDING_RESULT=$(python3 -c "
 import json
 try:
     with open('$STATE') as f:
         data = json.load(f)
-    for feat in data.get('features', []):
-        if feat.get('status') == 'building':
-            print(feat.get('name', feat.get('id', 'unknown')))
-            break
+    tasks = data.get('tasks', [])
+    sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
+    building = [t for t in sorted_tasks if t.get('status') == 'building']
+    if not building:
+        print('NONE|')
     else:
-        print('')
+        current = building[0]
+        gatable = {'feature', 'bug', 'gap', 'fix'}
+        has_gatable = any(
+            t.get('type', 'feature') in gatable
+            for t in tasks if t.get('status') in ('pending', 'building')
+        )
+        skip = (
+            current.get('type', 'feature') not in gatable
+            and not has_gatable
+        )
+        name = current.get('name', current.get('id', 'unknown'))
+        print(f'{'SKIP' if skip else 'GATE'}|{name}')
 except Exception:
-    print('')
+    print('NONE|')
 " 2>/dev/null)
 
-if [ -z "$BUILDING_FEATURE" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: no building feature, passing" >> "$HOOK_LOG" 2>/dev/null
+BUILDING_ACTION=$(echo "$BUILDING_RESULT" | cut -d'|' -f1)
+BUILDING_FEATURE=$(echo "$BUILDING_RESULT" | cut -d'|' -f2)
+
+if [ "$BUILDING_ACTION" = "NONE" ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: no building task, passing" >> "$HOOK_LOG" 2>/dev/null
+  echo '{}'
+  exit 0
+fi
+
+if [ "$BUILDING_ACTION" = "SKIP" ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: type-aware bypass (spike/chore), passing" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi

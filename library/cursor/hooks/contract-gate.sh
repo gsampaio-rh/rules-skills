@@ -79,21 +79,44 @@ if echo "$target_path" | grep -qE '\.harness/|\.cursor/hooks/'; then
   exit 0
 fi
 
-# State exists, no contract, target is implementation code → DENY
-CURRENT_FEATURE=$(python3 -c "
+# Check if gate should be skipped for spike/chore tasks (type-aware bypass)
+GATE_RESULT=$(python3 -c "
 import json
 try:
     with open('$STATE') as f:
         data = json.load(f)
-    for feat in data.get('features', []):
-        if feat.get('status') in ('building', 'pending'):
-            print(feat.get('name', feat.get('id', 'unknown')))
-            break
+    tasks = data.get('tasks', [])
+    sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
+    pending = [t for t in sorted_tasks if t.get('status') == 'pending']
+    building = [t for t in sorted_tasks if t.get('status') == 'building']
+    current = building[0] if building else (pending[0] if pending else None)
+    if not current:
+        print('SKIP|unknown')
     else:
-        print('unknown')
+        gatable = {'feature', 'bug', 'gap', 'fix'}
+        has_gatable = any(
+            t.get('type', 'feature') in gatable
+            for t in tasks if t.get('status') in ('pending', 'building')
+        )
+        skip = (
+            current.get('type', 'feature') not in gatable
+            and current.get('status') == 'pending'
+            and not has_gatable
+        )
+        name = current.get('name', current.get('id', 'unknown'))
+        print(f'{'SKIP' if skip else 'GATE'}|{name}')
 except Exception:
-    print('unknown')
+    print('GATE|unknown')
 " 2>/dev/null)
+
+GATE_ACTION=$(echo "$GATE_RESULT" | cut -d'|' -f1)
+CURRENT_FEATURE=$(echo "$GATE_RESULT" | cut -d'|' -f2)
+
+if [ "$GATE_ACTION" = "SKIP" ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: type-aware bypass (spike/chore), allowing" >> "$HOOK_LOG" 2>/dev/null
+  echo '{}'
+  exit 0
+fi
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: DENIED write to $target_path (no contract, feature: $CURRENT_FEATURE)" >> "$HOOK_LOG" 2>/dev/null
 

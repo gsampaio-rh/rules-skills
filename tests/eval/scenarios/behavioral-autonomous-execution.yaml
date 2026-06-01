@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "mylib",
-      "features": [
+      "tasks": [
         {
-          "id": "retry-logic",
+          "id": "retry-logic", "type": "feature",
           "name": "API client retry with exponential backoff",
           "status": "pending"
         }

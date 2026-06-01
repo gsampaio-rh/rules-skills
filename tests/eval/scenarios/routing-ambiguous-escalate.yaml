@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "myapp",
-      "features": [
+      "tasks": [
         {
-          "id": "dark-mode",
+          "id": "dark-mode", "type": "feature",
           "name": "Dark mode with localStorage persistence",
           "status": "pending"
         }

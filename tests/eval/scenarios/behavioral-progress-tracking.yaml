@@ -7,9 +7,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "models-api",
-      "features": [
+      "tasks": [
         {
-          "id": "serialization-services",
+          "id": "serialization-services", "type": "feature",
           "name": "Serialization, type hints, and services layer with cascading deletes",
           "status": "pending"
         }

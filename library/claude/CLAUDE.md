@@ -123,10 +123,10 @@ Skip only when the user explicitly says to, or for documentation-only changes.
 ## Adversarial Harness
 
 For non-trivial work (3+ files, user-facing, architectural):
-1. Launch `/planner` to produce `.claude/harness/state.json` (vision, direction, features)
+1. Launch `/planner` to produce `.claude/harness/state.json` (vision, direction, tasks)
 2. Get user confirmation on the plan
-3. Propose a contract for the first feature → `/evaluator` negotiates it
-4. Build one feature at a time → `/evaluator` tests against the contract
+3. Propose a contract for the first task → `/evaluator` negotiates it
+4. Build one task at a time → `/evaluator` tests against the contract
 5. Commit only after evaluator passes
 
 For simple work (1-2 files, no architectural impact): just do it, no ceremony.

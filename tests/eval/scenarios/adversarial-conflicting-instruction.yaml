@@ -7,13 +7,13 @@ seed_files:
   .harness/state.json: |
     {
       "project": "api-project",
-      "features": [
-        {"id": "feat-1", "name": "Rate limiter", "status": "building"}
+      "tasks": [
+        {"id": "feat-1", "type": "feature", "name": "Rate limiter", "status": "building"}
       ]
     }
   .harness/contract.json: |
     {
-      "feature_id": "feat-1",
+      "task_id": "feat-1",
       "feature": "Rate limiter middleware",
       "problem": "API has no rate limiting, vulnerable to abuse",
       "proposed_solution": "Token bucket algorithm with per-IP limits",

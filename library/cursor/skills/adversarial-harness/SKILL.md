@@ -3,7 +3,7 @@ name: adversarial-harness
 description: >-
   Multi-agent harness with planner/builder/evaluator subagent roles, contract
   negotiation, adversarial verification, and breadcrumbs tracing. Use when: build
-  feature, implement feature, harness workflow, adversarial testing, QA workflow,
+  task, implement feature, harness workflow, adversarial testing, QA workflow,
   contract-first, multi-agent, complex implementation.
 disable-model-invocation: false
 ---
@@ -15,16 +15,16 @@ A tiny engineering team in your IDE: `/planner` sets direction → builder and `
 ## How This Skill Works
 
 ### Mode 1: Full Harness
-Multi-feature workflow with planner, contract negotiation, build, and adversarial evaluation. Use for non-trivial features touching 3+ files.
+Multi-task workflow with planner, contract negotiation, build, and adversarial evaluation. Use for non-trivial work touching 3+ files.
 
 ### Mode 2: Standalone Audit
-Launch a rubric audit without a full feature build. Uses the evaluator in rubric-only mode.
+Launch a rubric audit without a full task build. Uses the evaluator in rubric-only mode.
 
 ## Proactive Triggers
 
-- Non-trivial feature request touching 3+ files or requiring architectural decisions
+- Non-trivial request touching 3+ files or requiring architectural decisions
 - User says "build feature", "implement", "harness", "adversarial", "multi-agent"
-- `.harness/state.json` exists with pending features — resume the workflow
+- `.harness/state.json` exists with pending tasks — resume the workflow
 - Contract exists but is unverified — continue the build/evaluate cycle
 
 ## Subagent Architecture
@@ -32,7 +32,7 @@ Launch a rubric audit without a full feature build. Uses the evaluator in rubric
 | Role | Subagent | Purpose |
 |------|----------|---------|
 | Planner | `/planner` | Turns vague prompts into high-level product specs |
-| Builder | Main agent (you) | Implements features against the negotiated contract |
+| Builder | Main agent (you) | Implements tasks against the negotiated contract |
 | Evaluator | `/evaluator` | Adversarial QA — negotiates contracts AND tests the actual app |
 
 Subagent definitions live in `.cursor/agents/`. Hooks enforce the workflow:
@@ -49,7 +49,7 @@ Launch `/planner` with the user's request:
 /planner [paste or describe the user's request with relevant context]
 ```
 
-The planner produces `.harness/state.json` (vision, direction, trade-offs, and feature list). Present to user for confirmation.
+The planner produces `.harness/state.json` (vision, direction, trade-offs, and task list). Present to user for confirmation.
 
 ## Phase 1.5: Contract Negotiation
 
@@ -64,7 +64,7 @@ Before writing code, builder and evaluator negotiate what "done" means.
 
 ```json
 {
-  "feature_id": "feat-1",
+  "task_id": "feat-1",
   "feature": "One-line description",
   "problem": "What problem does this solve?",
   "proposed_solution": "High-level approach",
@@ -98,7 +98,7 @@ Work against the negotiated contract, not the original vague prompt.
 
 1. Read `.harness/contract.json` for acceptance criteria
 2. Set `"phase": "building"`, update `state.json` to `"building"`
-3. Implement the feature — one at a time
+3. Implement the task — one at a time
 4. Run computational sensors (lints, types, tests, build)
 5. Append breadcrumb to `.harness/breadcrumbs.jsonl`
 6. Do NOT self-judge — that's the evaluator's job
@@ -111,7 +111,7 @@ Set `"phase": "evaluating"`, then launch `/evaluator`:
 /evaluator Test the implementation against the contract at .harness/contract.json
 ```
 
-The evaluator reads the calibration guide, tests each criterion and edge case, and produces a report at `.harness/evals/eval-{feature_id}.json`.
+The evaluator reads the calibration guide, tests each criterion and edge case, and produces a report at `.harness/evals/eval-{task_id}.json`.
 
 | Result | Action |
 |--------|--------|
@@ -127,13 +127,13 @@ Scrap-and-restart is expected, not failure — models should discard work that i
 2. Update `state.json` → `"verified"`
 3. Append completion breadcrumb
 4. Stage changes, ask user before committing
-5. After commit, update to `"committed"`, pick next feature → Phase 1.5
+5. After commit, update to `"committed"`, pick next task → Phase 1.5
 
 ## State Files
 
 | File | Purpose | Who writes |
 |------|---------|------------|
-| `.harness/state.json` | Single source of truth — vision, direction, trade-offs, features | Planner (init), Builder (updates) |
+| `.harness/state.json` | Single source of truth — vision, direction, trade-offs, tasks | Planner (init), Builder (updates) |
 | `.harness/contract.json` | Active contract | Builder (proposes), Evaluator (approves) |
 | `.harness/evals/eval-{id}.json` | Eval reports | Evaluator |
 | `.harness/breadcrumbs.jsonl` | Append-only trace | All agents |
@@ -145,7 +145,7 @@ All state lives on the file system. Whether `.harness/` is git-tracked or gitign
 Append-only JSONL trace. Every agent appends one line per significant action.
 
 ```jsonl
-{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created state.json with 5 features"}
+{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created state.json with 5 tasks"}
 {"ts":"2026-05-23T09:52","role":"builder","type":"negotiate","feat":"feat-1","msg":"Proposed contract: 4 criteria, 2 edge cases"}
 {"ts":"2026-05-23T10:15","role":"evaluator","type":"eval","feat":"feat-1","msg":"PASS 6/6 criteria","result":"pass"}
 ```
@@ -155,20 +155,20 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 | `ts` | yes | ISO-8601 timestamp |
 | `role` | yes | `planner`, `builder`, `evaluator` |
 | `type` | yes | `plan`, `negotiate`, `build`, `verify`, `eval`, `checkpoint`, `decision`, `scrap` |
-| `feat` | no | Feature ID or `null` for non-harness work |
+| `feat` | no | Task ID (e.g. `feat-1`) or `null` for non-harness work |
 | `msg` | yes | One-line summary |
 | `result` | no | `pass`, `fail`, `blocked` |
 
 ## Output Artifacts
 
-- `.harness/state.json` — vision, direction, trade-offs, feature tracking (all agents)
+- `.harness/state.json` — vision, direction, trade-offs, task tracking (all agents)
 - `.harness/contract.json` — active contract (builder + evaluator)
 - `.harness/evals/eval-{id}.json` — evaluation reports (evaluator)
 - `.harness/breadcrumbs.jsonl` — append-only trace (all agents)
 
 ## Stop Conditions
 
-- All features in `state.json` are `"committed"` — harness complete
+- All tasks in `state.json` are `"committed"` — harness complete
 - User says "skip harness" or "just do it" — exit harness, work directly
 - Evaluator recommends `scrap_and_restart` after 2 retries — stop and report to user
 - Contract negotiation exceeds 3 rounds — escalate to user for decision

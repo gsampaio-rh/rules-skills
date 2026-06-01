@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "data-pipeline-cli",
-      "features": [
+      "tasks": [
         {
-          "id": "cli-interface",
+          "id": "cli-interface", "type": "feature",
           "name": "CLI interface for data pipeline",
           "status": "pending"
         }

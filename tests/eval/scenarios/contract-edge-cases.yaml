@@ -7,9 +7,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "file-server",
-      "features": [
+      "tasks": [
         {
-          "id": "file-upload",
+          "id": "file-upload", "type": "feature",
           "name": "File upload endpoint with size limits and extension validation",
           "status": "pending"
         }

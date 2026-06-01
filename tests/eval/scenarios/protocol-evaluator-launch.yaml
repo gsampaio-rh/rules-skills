@@ -11,9 +11,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "markdown-converter",
-      "features": [
+      "tasks": [
         {
-          "id": "md-to-html",
+          "id": "md-to-html", "type": "feature",
           "name": "Markdown-to-HTML converter with plugin system",
           "status": "pending"
         }

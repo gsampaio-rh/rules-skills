@@ -39,7 +39,7 @@ Computational sensors run first (cheap, fast). Inferential sensors run after (ex
 | Role | Subagent | Purpose |
 |------|----------|---------|
 | Planner | `/planner` | Turns vague prompts into high-level product specs |
-| Builder | Main agent (you) | Implements features against the negotiated contract |
+| Builder | Main agent (you) | Implements tasks against the negotiated contract |
 | Evaluator | `/evaluator` | Adversarial QA — negotiates contracts AND tests the actual app |
 
 Subagent definitions live in `.cursor/agents/` (Cursor) or `.claude/agents/` (Claude Code). Hooks enforce the workflow:
@@ -58,7 +58,7 @@ Launch the `/planner` subagent with the user's request.
 /planner [paste or describe the user's request with relevant context]
 ```
 
-The planner explores the codebase and produces `.harness/state.json` — the single source of truth containing vision, direction, trade-offs, and feature list.
+The planner explores the codebase and produces `.harness/state.json` — the single source of truth containing vision, direction, trade-offs, and task list.
 
 The planner does NOT produce contracts. It stays at the product level.
 
@@ -68,11 +68,11 @@ Present the plan to the user. Get confirmation before proceeding.
 
 ## Phase 1.5: Contract Negotiation
 
-Before writing a single line of code, the builder and evaluator negotiate what "done" means for the first feature. This bridges the gap between user stories (spec) and testable implementation (contract).
+Before writing a single line of code, the builder and evaluator negotiate what "done" means for the first task. This bridges the gap between user stories (spec) and testable implementation (contract).
 
 ### How it works
 
-1. **Builder proposes:** Read the feature from `state.json`. Write a contract to `.harness/contract.json` with `"phase": "negotiating"`:
+1. **Builder proposes:** Read the task from `state.json`. Write a contract to `.harness/contract.json` with `"phase": "negotiating"`:
    - What you will build (proposed_solution)
    - How success will be verified (acceptance_criteria)
    - What edge cases to test
@@ -94,7 +94,7 @@ Save to `.harness/contract.json`:
 
 ```json
 {
-  "feature_id": "feat-1",
+  "task_id": "feat-1",
   "feature": "One-line description",
   "problem": "What problem does this solve?",
   "proposed_solution": "High-level approach",
@@ -134,15 +134,15 @@ You are the builder. Work against the negotiated contract, not the original vagu
 
 1. Read `.harness/contract.json` for acceptance criteria
 2. Set `"phase": "building"` in `contract.json`
-3. Update `state.json` → set the feature status to `"building"`
-4. Implement the feature — one feature at a time
+3. Update `state.json` → set the task status to `"building"`
+4. Implement the task — one task at a time
 4. Run computational sensors before calling the evaluator:
    - Lints pass (`ReadLints` or project linter)
    - Type checks pass (if applicable)
    - Existing tests pass (if test suite exists)
    - Build succeeds (if build step exists)
 5. Append a breadcrumb to `.harness/breadcrumbs.jsonl`
-6. Do NOT judge whether the feature works — that's the evaluator's job
+6. Do NOT judge whether the task works — that's the evaluator's job
 7. Proceed to Phase 3
 
 ---
@@ -161,7 +161,7 @@ The evaluator:
 3. Verifies computational checks passed
 4. Tests each acceptance criterion by running the actual app
 5. Tests each edge case
-6. Produces a report at `.harness/evals/eval-{feature_id}.json`
+6. Produces a report at `.harness/evals/eval-{task_id}.json`
 7. Sets `verified: true` in the contract if all criteria pass
 
 ### After evaluation
@@ -192,8 +192,8 @@ After the evaluator passes:
 3. Append completion breadcrumb
 4. Stage changes and ask user before committing
 5. After commit, update status to `"committed"`
-6. Pick next pending feature from `state.json`
-7. Start contract negotiation for next feature → go to Phase 1.5
+6. Pick next pending task from `state.json`
+7. Start contract negotiation for next task → go to Phase 1.5
 
 ---
 
@@ -219,7 +219,7 @@ The single append-only trace log. Every agent appends one JSONL line per signifi
 Each line in `.harness/breadcrumbs.jsonl` is one JSON object:
 
 ```jsonl
-{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created state.json with 5 features"}
+{"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created state.json with 5 tasks"}
 {"ts":"2026-05-23T09:52","role":"builder","type":"negotiate","feat":"feat-1","msg":"Proposed contract: 4 criteria, 2 edge cases"}
 {"ts":"2026-05-23T09:54","role":"evaluator","type":"negotiate","feat":"feat-1","msg":"Pushed back: scope too broad, missing expired token edge case"}
 {"ts":"2026-05-23T10:05","role":"builder","type":"build","feat":"feat-1","msg":"Implemented JWT validation middleware"}
@@ -297,9 +297,9 @@ Every harness component encodes an assumption about what the model can't do on i
 
 | Component | Weaker Models | Stronger Models (Opus 4.6+) |
 |---|---|---|
-| Context resets | Fresh context per feature | Single continuous session + compaction |
+| Context resets | Fresh context per task | Single continuous session + compaction |
 | Sprint decomposition | One feature at a time, strictly gated | Can hold multi-hour builds coherently |
-| Evaluator frequency | Run after each feature | Run at end of full build |
+| Evaluator frequency | Run after each task | Run at end of full build |
 | Contract negotiation depth | Full 3-round negotiation | Reduce rounds if criteria are strong |
 | Planner granularity | Detailed sprint breakdown | High-level creative direction is enough |
 
@@ -342,12 +342,12 @@ User: "Add dark mode support to the dashboard"
 → [evaluator pushes back: "scope too big, tests too weak, missed edge case"]
 → [builder revises, agreement reached]
 
-→ [builder implements the feature, runs computational sensors]
+→ [builder implements the task, runs computational sensors]
 → /evaluator Test the dark mode implementation against the contract.
   Use browser tools to toggle theme, verify all components, check persistence.
 
 → [evaluator reports PASS/FAIL with evidence]
-→ [PASS → commit checkpoint → next feature]
+→ [PASS → commit checkpoint → next task]
 ```
 
 Simple work (no harness):

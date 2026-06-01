@@ -112,29 +112,58 @@ def lint_state(path: Path) -> tuple[list[str], list[str]]:
     if "project" not in state:
         warnings.append("Missing 'project' field")
 
-    features = state.get("features", [])
-    if not isinstance(features, list):
-        errors.append("'features' must be a list")
+    if "features" in state and "tasks" not in state:
+        errors.append("Legacy 'features' key found without 'tasks' — run make migrate-harness")
+        return errors, warnings
+    if "tasks" in state and "features" in state:
+        errors.append("Both 'tasks' and 'features' keys present — ambiguous schema, remove one")
         return errors, warnings
 
-    valid_statuses = {"pending", "building", "evaluating", "verified", "committed"}
+    tasks = state.get("tasks", [])
+    if not isinstance(tasks, list):
+        errors.append("'tasks' must be a list")
+        return errors, warnings
+
+    valid_statuses = {"pending", "building", "evaluating", "verified", "committed", "cancelled"}
+    valid_types = {"feature", "bug", "spike", "chore"}
+    legacy_type_aliases = {"gap": "bug", "fix": "bug"}
+    id_type_hints = {
+        "feat-": {"feature", "bug"},
+        "spike-": {"spike"},
+        "chore-": {"chore"},
+    }
     seen_ids: set[str] = set()
 
-    for i, feat in enumerate(features):
-        fid = feat.get("id", "")
+    for i, task in enumerate(tasks):
+        fid = task.get("id", "")
         if not fid:
-            errors.append(f"Feature {i}: missing 'id'")
+            errors.append(f"Task {i}: missing 'id'")
         elif fid in seen_ids:
-            errors.append(f"Feature {i}: duplicate id '{fid}'")
+            errors.append(f"Task {i}: duplicate id '{fid}'")
         else:
             seen_ids.add(fid)
 
-        if not feat.get("name"):
-            warnings.append(f"Feature {i} ({fid}): missing 'name'")
+        if not task.get("name"):
+            warnings.append(f"Task {i} ({fid}): missing 'name'")
 
-        status = feat.get("status", "")
+        status = task.get("status", "")
         if status and status not in valid_statuses:
-            errors.append(f"Feature {fid}: invalid status '{status}'")
+            errors.append(f"Task {fid}: invalid status '{status}'")
+
+        task_type = task.get("type", "")
+        if task_type:
+            if task_type in legacy_type_aliases:
+                warnings.append(
+                    f"Task {fid}: legacy type '{task_type}' — use '{legacy_type_aliases[task_type]}' instead"
+                )
+            elif task_type not in valid_types:
+                errors.append(f"Task {fid}: invalid type '{task_type}'")
+
+            for prefix, expected_types in id_type_hints.items():
+                if fid.startswith(prefix) and task_type not in expected_types and task_type not in legacy_type_aliases:
+                    warnings.append(
+                        f"Task {fid}: id prefix '{prefix}' suggests type in {expected_types}, but type is '{task_type}'"
+                    )
 
     return errors, warnings
 
@@ -157,16 +186,16 @@ def lint_cross_consistency(
     except (json.JSONDecodeError, OSError):
         return errors, warnings
 
-    features = state.get("features", [])
-    feature_ids = {f.get("id") for f in features if f.get("id")}
+    tasks = state.get("tasks", [])
+    task_ids = {t.get("id") for t in tasks if t.get("id")}
 
     if contract_path.exists():
         try:
             contract = json.loads(contract_path.read_text())
-            contract_fid = contract.get("feature_id", "")
-            if contract_fid and contract_fid not in feature_ids:
+            contract_tid = contract.get("task_id", "")
+            if contract_tid and contract_tid not in task_ids:
                 errors.append(
-                    f"Contract references '{contract_fid}' but state.json has no such feature"
+                    f"Contract references '{contract_tid}' but state.json has no such task"
                 )
 
             if contract.get("verified") and contract.get("phase") != "verified":
@@ -176,12 +205,12 @@ def lint_cross_consistency(
             pass
 
     stuck = [
-        f for f in features
-        if f.get("status") == "evaluating"
+        t for t in tasks
+        if t.get("status") == "evaluating"
     ]
     if stuck:
-        ids = [f.get("id", "?") for f in stuck]
-        warnings.append(f"Potentially stuck features (status=evaluating): {', '.join(ids)}")
+        ids = [t.get("id", "?") for t in stuck]
+        warnings.append(f"Potentially stuck tasks (status=evaluating): {', '.join(ids)}")
 
     return errors, warnings
 

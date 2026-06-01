@@ -8,9 +8,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "calculator",
-      "features": [
+      "tasks": [
         {
-          "id": "new-operations",
+          "id": "new-operations", "type": "feature",
           "name": "Add power, modulo, floor_divide and history feature",
           "status": "pending"
         }

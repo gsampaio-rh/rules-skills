@@ -7,9 +7,9 @@ seed_files:
   .harness/state.json: |
     {
       "project": "datatool-cli",
-      "features": [
+      "tasks": [
         {
-          "id": "verbose-flag",
+          "id": "verbose-flag", "type": "feature",
           "name": "Add --verbose flag to CLI with detailed progress",
           "status": "pending"
         }

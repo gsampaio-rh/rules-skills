@@ -47,7 +47,7 @@ verify:
     timeout_s: 5
   - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
     timeout_s: 5
-  - command: "python -c \"import json; s=json.load(open('.harness/state.json')); feats=s.get('features',s.get('feature_list',[])); assert len(feats)>=3; print('PASS')\""
+  - command: "python -c \"import json; s=json.load(open('.harness/state.json')); assert len(s.get('tasks',[]))>=3; print('PASS')\""
     timeout_s: 5
   - command: "python -c \"import json; lines=[json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]; assert len(lines)>=6; print('PASS')\""
     timeout_s: 5

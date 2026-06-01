@@ -9,10 +9,10 @@ seed_files:
     {
       "project": "cli-tool",
       "created": "2026-05-20T10:00:00Z",
-      "features": [
-        {"id": "feat-1", "name": "CLI argument parsing", "status": "committed"},
-        {"id": "feat-2", "name": "Config file support", "status": "committed"},
-        {"id": "feat-3", "name": "Plugin system with auto-discovery", "status": "pending"}
+      "tasks": [
+        {"id": "feat-1", "type": "feature", "name": "CLI argument parsing", "status": "committed"},
+        {"id": "feat-2", "type": "feature", "name": "Config file support", "status": "committed"},
+        {"id": "feat-3", "type": "feature", "name": "Plugin system with auto-discovery", "status": "pending"}
       ]
     }
   .harness/breadcrumbs.jsonl: |

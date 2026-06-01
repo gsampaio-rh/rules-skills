@@ -1,40 +1,57 @@
 {
-  "timestamp": "2026-06-01T17:15:00Z",
+  "timestamp": "2026-06-01T19:26:31.357664+00:00",
   "project": "rules-skills",
-  "features": {
-    "total": 28,
+  "tasks": {
+    "total": 48,
     "by_status": {
-      "verified": 25,
-      "building": 0,
-      "pending": 3
+      "verified": 40,
+      "pending": 8
     },
-    "completion_rate": 0.89
+    "by_type": {
+      "feature": 27,
+      "chore": 3,
+      "bug": 17,
+      "spike": 1
+    },
+    "tasks_completed": 40,
+    "tasks_pending": 8,
+    "completion_rate": 0.8333333333333334
   },
-  "eval_score": {
-    "current": 0.93,
-    "checks_passing": 368,
-    "checks_total": 394,
-    "scenarios_total": 27,
-    "scenarios_at_100pct": 10,
-    "scenarios_below_70pct": 0,
-    "weak_scenarios": [],
-    "trajectory": [
-      { "phase": "baseline", "score": 0.27 },
-      { "phase": "sdk_bridge_fix", "score": 0.52 },
-      { "phase": "quick_wins_feat_7_8_9", "score": 0.59 },
-      { "phase": "phase_1", "score": 0.83 },
-      { "phase": "phase_1b", "score": 0.90 },
-      { "phase": "transcript_analysis_rules_scenarios", "score": 0.76 },
-      { "phase": "judge_fixes_gap_12_15_16", "score": 0.85 },
-      { "phase": "phase_1_judge_tuning", "score": 0.88 },
-      { "phase": "phase_2_hook_enforcement", "score": 0.93 }
-    ]
+  "breadcrumbs": {
+    "total_entries": 131,
+    "by_role": {
+      "builder": 104,
+      "system": 21,
+      "evaluator": 3,
+      "planner": 3
+    },
+    "by_type": {
+      "negotiate": 3,
+      "build": 73,
+      "verify": 12,
+      "checkpoint": 11,
+      "session_start": 15,
+      "decision": 8,
+      "negotiation": 1,
+      "cleanup": 1,
+      "plan": 3,
+      "handoff": 2,
+      "evaluation": 1,
+      "eval": 1
+    },
+    "negotiation_rounds": 4,
+    "build_evaluate_cycles": 13,
+    "scrap_count": 0,
+    "scrap_rate": 0.0,
+    "features_touched": 35
   },
-  "gaps": {
-    "total": 16,
-    "verified": 14,
-    "pending": 2,
-    "blocking": [],
-    "next_session": ["gap-2", "gap-4", "gap-11", "gap-14", "spike-1"]
+  "contract": {
+    "active": false
+  },
+  "evaluations": {
+    "total_reports": 1,
+    "pass_count": 0,
+    "fail_count": 1,
+    "pass_rate": 0.0
   }
 }

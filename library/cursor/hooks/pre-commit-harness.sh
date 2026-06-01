@@ -119,7 +119,7 @@ import json
 try:
     with open('$CONTRACT') as f:
         data = json.load(f)
-    fid = data.get('feature_id', data.get('feature', ''))
+    fid = data.get('task_id', data.get('feature', ''))
     print(f'\"{fid}\"' if fid else 'null')
 except Exception:
     print('null')
@@ -154,12 +154,12 @@ except Exception:
   PHASE=$(echo "$CONTRACT_STATE" | cut -d'|' -f3)
 
   if [ "$VERIFIED" = "True" ]; then
-    GUIDANCE="POST-COMMIT (harness active): Feature \"$FEATURE\" is verified. After this commit: (1) Update .harness/state.json — set feature status to 'committed'. (2) Pick the next pending feature from state.json and start contract negotiation."
+    GUIDANCE="POST-COMMIT (harness active): Task \"$FEATURE\" is verified. After this commit: (1) Update .harness/state.json — set task status to 'committed'. (2) Pick the next pending task from state.json and start contract negotiation."
   else
-    GUIDANCE="POST-COMMIT WARNING: Committing while contract for \"$FEATURE\" is unverified (phase=$PHASE). If this is a partial checkpoint, that's fine. But don't mark the feature as done until the /evaluator passes."
+    GUIDANCE="POST-COMMIT WARNING: Committing while contract for \"$FEATURE\" is unverified (phase=$PHASE). If this is a partial checkpoint, that's fine. But don't mark the task as done until the /evaluator passes."
   fi
 elif [ -f "$STATE" ]; then
-  GUIDANCE="POST-COMMIT (harness active): Commit recorded. Check .harness/state.json for the next pending feature."
+  GUIDANCE="POST-COMMIT (harness active): Commit recorded. Check .harness/state.json for the next pending task."
 fi
 
 HAS_API_CHANGES=""

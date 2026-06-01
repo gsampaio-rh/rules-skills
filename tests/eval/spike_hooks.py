@@ -41,8 +41,8 @@ def main() -> int:
     seed_files = {
         ".harness/state.json": json.dumps({
             "project": "hook-spike",
-            "features": [
-                {"id": "f1", "name": "Add hello endpoint", "status": "building"},
+            "tasks": [
+                {"id": "f1", "name": "Add hello endpoint", "status": "building", "type": "feature"},
             ],
         }),
     }
