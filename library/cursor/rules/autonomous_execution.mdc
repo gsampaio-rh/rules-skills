@@ -10,9 +10,9 @@ Act decisively. Don't ask permission for routine operations.
 ## Execute, Don't Ask
 
 - **Run commands directly**: install deps, run tests, lint, build, format — just do it
-- **Read and explore freely**: read files, search code, check git status — never ask "should I look at X?"
-- **Fix what you break**: if a change introduces errors, fix them immediately
-- **Chain operations**: if step A naturally leads to step B, do both
+- **Read and explore freely**: never ask "should I look at X?"
+- **Fix what you break**: if a change introduces errors, fix immediately
+- **Chain operations**: if step A leads to step B, do both
 
 ## NEVER Execute Without Approval
 
@@ -28,6 +28,10 @@ Other actions requiring explicit approval:
 
 - Don't refactor unrelated code or add unnecessary dependencies
 - If the task is ambiguous, clarify the goal — not the execution steps
+
+## Pre-commit Hooks
+
+If a pre-commit hook requires an approval flag (e.g. `.commit-approved`), create it in a **separate** Shell call before `git commit`. Never combine them.
 
 ## Error Recovery
 

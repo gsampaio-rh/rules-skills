@@ -20,6 +20,7 @@ alwaysApply: true
 - User-facing features (UI, API, notifications)
 - Architectural decisions (new services, data models)
 - Vague enough for multiple valid implementations
+- Visual/UI work with multiple valid layouts (even if 1-2 files)
 
 User says "skip harness" to opt out.
 

@@ -104,5 +104,6 @@ post_hoc_rubric:
     - "No apologies or unnecessary summaries"
     - "Agent read existing contract and worked against its criteria"
     - "Verification commands run after implementation"
+    - "Agent focused on existing contract and pending work, not full project exploration"
   negotiation_quality:
     - "Did not re-negotiate (contract was already negotiated)"

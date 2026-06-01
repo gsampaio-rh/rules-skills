@@ -20,22 +20,18 @@ Write code that both AI and humans can easily understand, modify, and extend. Ma
 
 ## DRY (Don't Repeat Yourself)
 - Extract repeated code into reusable functions
-- Share common logic through proper abstraction
 - Maintain single sources of truth
 
 ## Meaningful Names
-- Variables, functions, and classes should reveal their purpose
-- Avoid abbreviations unless universally understood
+- Names should reveal purpose; avoid abbreviations unless universal
 - `handle_user_profile_update` > `handle_update`
 
 ## Smart Comments
-- Don't comment on what the code does — make code self-documenting
-- Use comments to explain **why** something is done a certain way
+- Comment **why**, not what — make code self-documenting
 - Use `TODO:` for future improvements with context
 
 ## Clean Structure
-- Keep related code together, organize in a logical hierarchy
-- Use consistent file and folder naming conventions
+- Keep related code together in a logical hierarchy
 - Encapsulate implementation details, expose clear interfaces
 
 ## Sizing

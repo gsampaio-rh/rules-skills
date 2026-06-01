@@ -25,6 +25,10 @@ alwaysApply: true
 - Don't ask to verify implementations visible in context
 - Always provide links to real files, not placeholders
 
+## Harness-Aware Session Start
+
+When `.harness/state.json` exists: read last 5 breadcrumbs + next pending feature, present focused summary, ask what to work on. Skip full project exploration.
+
 ## Change Management
 - Don't suggest updates when no modifications are needed
 - Don't show current implementation unless specifically requested

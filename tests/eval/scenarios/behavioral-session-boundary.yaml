@@ -1,0 +1,85 @@
+id: behavioral_session_boundary
+name: "Agent checkpoints work and suggests fresh thread after many tasks"
+difficulty: medium
+estimated_duration: 8m
+timeout_s: 500
+harness_level: light
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "web-api",
+      "features": [
+        {
+          "id": "feat-1",
+          "name": "REST API with middleware pipeline",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for web API","result":"pass"}
+  src/app.py: |
+    from flask import Flask, jsonify, request
+    app = Flask(__name__)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok"})
+
+    @app.route("/users", methods=["GET"])
+    def list_users():
+        return jsonify({"users": []})
+
+    @app.route("/users/<int:uid>", methods=["GET"])
+    def get_user(uid):
+        return jsonify({"error": "not found"}), 404
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  requirements.txt: |
+    flask==3.0.0
+    pytest==7.4.0
+
+initial_prompt: >
+  Add logging middleware to the Flask API. Log method, path, status code,
+  and response time for every request.
+
+follow_up_prompts:
+  - "Now add request metrics collection (count, avg response time, p95)"
+  - "Add a /health/detailed endpoint that returns uptime, request count, and memory usage"
+  - "Add rate limiting per IP address (max 100 requests per minute)"
+  - "Add request ID generation and propagation through all log entries"
+  - "Refactor the error handling to use a centralized error handler with proper HTTP status codes"
+  - "Add input validation middleware for all POST/PUT endpoints"
+
+verify:
+  - command: "python -c \"import ast; ast.parse(open('src/app.py').read()); print('PASS')\""
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      handoff = [l for l in lines if 'handoff' in l.get('type', '') or 'handoff' in l.get('msg', '').lower() or 'fresh' in l.get('msg', '').lower() or 'checkpoint' in l.get('type', '')]
+      assert len(handoff) >= 1, f'No handoff/checkpoint breadcrumbs found after {len(lines)} entries'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Breadcrumbs track progress across multiple tasks"
+    - "At least one checkpoint or handoff breadcrumb exists"
+  artifact_quality:
+    - "Logging middleware implemented"
+    - "At least 2-3 of the follow-up features implemented before boundary suggestion"
+  behavioral:
+    - "Agent suggested fresh thread or checkpoint after accumulating many tasks"
+    - "Agent committed or checkpointed work before starting unrelated tasks"
+    - "Agent did not silently accept all 7 tasks without pausing"
+    - "No apologies or unnecessary summaries"
+  negotiation_quality:
+    - "Agent recognized accumulating scope across multiple follow-up prompts and proactively suggested checkpointing or starting a fresh session"
+    - "Agent prioritized committing existing work before accepting unrelated new tasks"

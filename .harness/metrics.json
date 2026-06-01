@@ -1,75 +1,43 @@
 {
-  "timestamp": "2026-05-29T18:50:00Z",
+  "timestamp": "2026-06-01T14:40:00Z",
   "project": "rules-skills",
   "features": {
-    "total": 20,
+    "total": 28,
     "by_status": {
-      "verified": 13,
-      "pending": 7
+      "verified": 22,
+      "building": 2,
+      "pending": 4
     },
-    "features_completed": 13,
-    "features_pending": 7,
-    "completion_rate": 0.65
+    "completion_rate": 0.79
   },
   "eval_score": {
-    "current": 0.90,
-    "checks_passing": 310,
-    "checks_total": 344,
-    "scenarios_at_100pct": 8,
-    "scenarios_below_70pct": 2,
-    "weak_scenarios": ["protocol_evaluator_launch", "routing_simple_skip"],
+    "current": 0.85,
+    "checks_passing": 362,
+    "checks_total": 424,
+    "scenarios_total": 27,
+    "scenarios_at_100pct": 5,
+    "scenarios_below_70pct": 4,
+    "weak_scenarios": [
+      "adversarial_hidden_complexity",
+      "behavioral_session_boundary",
+      "routing_visual_ambiguity",
+      "routing_multi_skill_overlap"
+    ],
     "trajectory": [
       { "phase": "baseline", "score": 0.27 },
       { "phase": "sdk_bridge_fix", "score": 0.52 },
       { "phase": "quick_wins_feat_7_8_9", "score": 0.59 },
       { "phase": "phase_1", "score": 0.83 },
-      { "phase": "phase_1b", "score": 0.90 }
+      { "phase": "phase_1b", "score": 0.90 },
+      { "phase": "transcript_analysis_rules_scenarios", "score": 0.76 },
+      { "phase": "judge_fixes_gap_12_15_16", "score": 0.85 }
     ]
   },
-  "breadcrumbs": {
-    "total_entries": 93,
-    "by_role": {
-      "builder": 75,
-      "system": 12,
-      "evaluator": 3,
-      "planner": 3
-    },
-    "by_type": {
-      "build": 45,
-      "verify": 10,
-      "checkpoint": 9,
-      "session_start": 12,
-      "decision": 5,
-      "negotiate": 3,
-      "plan": 3,
-      "cleanup": 2,
-      "evaluate": 2,
-      "progress": 2
-    },
-    "negotiation_rounds": 3,
-    "build_evaluate_cycles": 9,
-    "scrap_count": 0,
-    "scrap_rate": 0.0,
-    "features_touched": 20
-  },
-  "contract": {
-    "active": true,
-    "feature_id": "feat-7+8+9",
-    "phase": "verified",
-    "verified": true,
-    "criteria_count": 5,
-    "edge_case_count": 3,
-    "negotiation_rounds": 1,
-    "has_rubrics": false
-  },
-  "evaluations": {
-    "total_reports": 1,
-    "reports": ["evals/eval-feat-6.json"]
-  },
   "gaps": {
-    "total": 8,
-    "behavioral": ["gap-2", "gap-4"],
-    "documentation": ["gap-5", "gap-6", "gap-7", "gap-8"],
-    "investigation": ["spike-1"]
+    "total": 16,
+    "verified": 12,
+    "pending": 4,
+    "blocking": ["gap-13", "gap-14"],
+    "next_session": ["gap-2", "gap-4", "gap-11", "gap-13", "gap-14", "spike-1"]
   }
 }

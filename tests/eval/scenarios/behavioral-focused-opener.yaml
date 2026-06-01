@@ -1,0 +1,76 @@
+id: behavioral_focused_opener
+name: "Agent gives focused opener when state.json exists"
+difficulty: easy
+estimated_duration: 4m
+harness_level: light
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "cli-tool",
+      "created": "2026-05-20T10:00:00Z",
+      "features": [
+        {"id": "feat-1", "name": "CLI argument parsing", "status": "committed"},
+        {"id": "feat-2", "name": "Config file support", "status": "committed"},
+        {"id": "feat-3", "name": "Plugin system with auto-discovery", "status": "pending"}
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-05-20T10:05:00Z","role":"builder","type":"build","feat":"feat-1","msg":"Implemented CLI arg parsing with argparse","result":"pass"}
+    {"ts":"2026-05-20T11:00:00Z","role":"evaluator","type":"eval","feat":"feat-1","msg":"All 5 criteria PASS","result":"pass"}
+    {"ts":"2026-05-20T11:05:00Z","role":"builder","type":"checkpoint","feat":"feat-1","msg":"Committed feat-1","result":"pass"}
+    {"ts":"2026-05-21T09:00:00Z","role":"builder","type":"negotiate","feat":"feat-2","msg":"Proposed contract for config file support"}
+    {"ts":"2026-05-21T09:30:00Z","role":"builder","type":"build","feat":"feat-2","msg":"YAML/TOML config loading with schema validation","result":"pass"}
+    {"ts":"2026-05-21T10:00:00Z","role":"evaluator","type":"eval","feat":"feat-2","msg":"6/6 criteria PASS, 2/2 edge cases PASS","result":"pass"}
+    {"ts":"2026-05-21T10:05:00Z","role":"builder","type":"checkpoint","feat":"feat-2","msg":"Committed feat-2","result":"pass"}
+    {"ts":"2026-05-21T14:00:00Z","role":"system","type":"session_start","feat":null,"msg":"New chat session started","result":"pass"}
+    {"ts":"2026-05-21T14:30:00Z","role":"builder","type":"build","feat":null,"msg":"Fixed config schema validation edge case with nested keys","result":"pass"}
+    {"ts":"2026-05-21T15:00:00Z","role":"system","type":"session_start","feat":null,"msg":"New chat session started","result":"pass"}
+  src/cli.py: |
+    import argparse
+
+    def parse_args():
+        parser = argparse.ArgumentParser(description="CLI Tool")
+        parser.add_argument("command", choices=["run", "config", "plugin"])
+        parser.add_argument("--config", default="config.yaml")
+        parser.add_argument("--verbose", action="store_true")
+        return parser.parse_args()
+
+    if __name__ == "__main__":
+        args = parse_args()
+        print(f"Running: {args.command}")
+  src/config.py: |
+    import yaml
+
+    def load_config(path):
+        with open(path) as f:
+            return yaml.safe_load(f)
+  src/plugins/__init__.py: ""
+  requirements.txt: |
+    pyyaml>=6.0
+
+initial_prompt: >
+  Check this project.
+
+follow_up_prompts: []
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent read breadcrumbs or state.json early in session"
+  artifact_quality:
+    - "Agent identified feat-3 (plugin system) as the next pending feature"
+  behavioral:
+    - "Agent read breadcrumbs or state.json as one of its first actions"
+    - "Agent presented focused summary (pending feature, last activity)"
+    - "Agent did NOT produce a long project exploration or full README-style summary"
+    - "Agent asked what to work on or suggested starting feat-3"
+    - "No apologies or unnecessary summaries"
+  negotiation_quality:
+    - "Agent provided a contextual summary based on harness state (pending features, recent breadcrumbs) rather than a generic project exploration"
+    - "Agent transitioned quickly from context recovery to asking the user what to work on"

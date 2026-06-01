@@ -1,0 +1,100 @@
+id: routing_visual_ambiguity
+name: "Visual/UI redesign with multiple valid layouts triggers harness"
+difficulty: medium
+estimated_duration: 6m
+timeout_s: 450
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "dashboard-app",
+      "features": [
+        {
+          "id": "dashboard-redesign",
+          "name": "Redesign dashboard layout for modern look",
+          "status": "pending"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"checkpoint","feat":null,"msg":"Harness initialized for dashboard redesign","result":"pass"}
+  src/dashboard.py: |
+    from flask import Flask, render_template_string
+    app = Flask(__name__)
+
+    DASHBOARD_HTML = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Dashboard</title></head>
+    <body>
+      <h1>Analytics Dashboard</h1>
+      <div style="display:flex; gap:20px;">
+        <div style="border:1px solid #ccc; padding:10px; width:200px;">
+          <h3>Users</h3><p>1,234</p>
+        </div>
+        <div style="border:1px solid #ccc; padding:10px; width:200px;">
+          <h3>Revenue</h3><p>$45,678</p>
+        </div>
+        <div style="border:1px solid #ccc; padding:10px; width:200px;">
+          <h3>Orders</h3><p>567</p>
+        </div>
+      </div>
+      <div style="margin-top:20px; border:1px solid #ccc; padding:10px;">
+        <h3>Recent Activity</h3>
+        <ul>
+          <li>User signed up - 2 min ago</li>
+          <li>Order placed - 5 min ago</li>
+          <li>Payment received - 12 min ago</li>
+        </ul>
+      </div>
+    </body>
+    </html>
+    """
+
+    @app.route("/")
+    def dashboard():
+        return render_template_string(DASHBOARD_HTML)
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  Redesign the dashboard layout. Make it look more modern and professional.
+  I want it to feel like a real analytics platform, not a prototype.
+
+follow_up_prompts: []
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl')]
+      types = [l.get('type') for l in lines if isinstance(l, dict)]
+      has_plan_or_negotiate = any(t in ('plan', 'negotiate', 'negotiation', 'decision', 'clarify') for t in types)
+      has_planner = any(l.get('role') == 'planner' for l in lines if isinstance(l, dict))
+      assert has_plan_or_negotiate or has_planner, f'No planning activity found. Types: {types}'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent activated harness for visual redesign (multiple valid layouts)"
+    - "Planner or plan presented options before building"
+    - "Breadcrumbs show planning or negotiation activity"
+  artifact_quality:
+    - "Dashboard HTML/template was redesigned with improved styling"
+    - "Layout uses CSS classes or custom properties instead of inline styles"
+  behavioral:
+    - "Agent did NOT jump straight to implementation without presenting options"
+    - "Agent presented design options or asked clarifying questions about visual preferences"
+    - "No apologies or unnecessary summaries"
+  negotiation_quality:
+    - "Agent presented 2+ distinct visual design options with trade-offs before implementing"
+    - "Agent asked clarifying questions about aesthetic preferences rather than assuming a single solution"

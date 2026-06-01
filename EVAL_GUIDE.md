@@ -26,7 +26,7 @@ make eval-session-long-judge # Judge long scenario results
 │         Tier 1               │         Tier 3                    │
 │       Fast Static            │     Session Scenarios             │
 │                              │                                   │
-│  contract_lint.py            │  scenarios/*.yaml (23 scenarios)  │
+│  contract_lint.py            │  scenarios/*.yaml (27 scenarios)  │
 │  harness_lint.py             │  session_runner.py                │
 │  validate.py                 │  session_judge.py                 │
 │                              │  session_report.py                │
@@ -78,7 +78,7 @@ make eval-session-judge-full   # Judge with LLM tier too
 make eval-session-report       # Aggregated report
 ```
 
-**Needs**: `CURSOR_API_KEY`. For LLM judging tier, also needs `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
+**Needs**: `CURSOR_API_KEY`. The LLM judging tier uses the same `CURSOR_API_KEY` via `cursor_sdk`.
 
 ### How it works
 
@@ -163,7 +163,7 @@ post_hoc_rubric:
     - "Acceptance criteria are binary-testable"
 ```
 
-Scenarios live in `tests/eval/scenarios/` (23 scenarios). Each YAML file defines one scenario.
+Scenarios live in `tests/eval/scenarios/` (27 scenarios). Each YAML file defines one scenario.
 
 ### Judging tiers
 
@@ -280,13 +280,13 @@ tests/eval/
 ├── session_judge.py          # Tier 3: post-hoc judging (computational + structural + LLM)
 ├── session_report.py         # Tier 3: aggregated reporting
 ├── harness_metrics.py        # Harness effectiveness dashboard
-├── scenarios/                # 23 standard scenario YAML definitions
-│   ├── routing-*.yaml        # 5 routing scenarios
+├── scenarios/                # 27 standard scenario YAML definitions
+│   ├── routing-*.yaml        # 6 routing scenarios
 │   ├── contract-*.yaml       # 5 contract quality scenarios
 │   ├── protocol-*.yaml       # 3 protocol lifecycle scenarios
 │   ├── adversarial-*.yaml    # 4 adversarial scenarios
-│   ├── behavioral-*.yaml     # 3 behavioral scenarios
-│   ├── skill-*.yaml          # 3 skill activation scenarios
+│   ├── behavioral-*.yaml     # 5 behavioral scenarios
+│   ├── skill-*.yaml          # 4 skill activation scenarios
 │   └── long/                 # 3 long-running scenarios (10-15 min each)
 │       ├── long-full-harness-cycle.yaml
 │       ├── long-multi-feature-coherence.yaml
@@ -416,4 +416,4 @@ Recommended pipeline:
 - run: make eval-session-report
 ```
 
-Tier 1 runs in seconds with no API keys — it should block every PR. Tier 3 needs `CURSOR_API_KEY` and takes ~20 min for the full 23-scenario suite.
+Tier 1 runs in seconds with no API keys — it should block every PR. Tier 3 needs `CURSOR_API_KEY` and takes ~25 min for the full 27-scenario suite.

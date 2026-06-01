@@ -81,6 +81,7 @@ post_hoc_rubric:
     - "No apologies or unnecessary summaries"
     - "Agent did NOT self-evaluate (left it to /evaluator)"
     - "Verification commands run autonomously"
+    - "Evaluator did not modify source files (only .harness/ writes allowed)"
   negotiation_quality:
     - "Contract separates parser core from plugin system"
     - "Acceptance criteria cover both parsing accuracy and plugin extensibility"

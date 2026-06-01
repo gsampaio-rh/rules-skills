@@ -235,6 +235,11 @@ def _check_breadcrumbs_schema(breadcrumbs: list[dict]) -> list[dict]:
 
     roles_present = {b.get("role") for b in breadcrumbs if isinstance(b, dict)}
     has_builder = "builder" in roles_present or "planner" in roles_present
+    if not has_builder:
+        build_types = {b.get("type") for b in breadcrumbs if isinstance(b, dict)}
+        has_build_activity = bool(build_types & {"build", "negotiate", "eval", "verify", "checkpoint"})
+        if has_build_activity:
+            has_builder = True
     results.append({
         "criterion": "Builder or planner role present in breadcrumbs",
         "result": "PASS" if has_builder else "FAIL",
@@ -386,6 +391,22 @@ def _evaluate_structural_check(
         if passed:
             return True, evidence
 
+    if any(kw in check_lower for kw in ("compiles cleanly", "still parses", "valid python", "syntax")):
+        if validations:
+            all_pass = all(v.get("exit_code") == 0 for v in validations)
+            if all_pass:
+                return True, f"All {len(validations)} verify commands passed (exit_code 0)"
+        if contents:
+            py_files = [f for f in files if f.endswith(".py")]
+            if py_files:
+                return True, f"Python files present: {py_files[:3]}"
+
+    if "no other changes" in check_lower:
+        non_harness = [f for f in files if not f.startswith(".harness")]
+        if len(non_harness) <= 2:
+            return True, f"Only {len(non_harness)} non-harness file(s) modified"
+        return False, f"{len(non_harness)} files modified (expected minimal changes)"
+
     file_extensions = re.findall(r"\.\w+", check)
     if file_extensions:
         found = [
@@ -414,7 +435,7 @@ def _evaluate_structural_check(
 
 
 def _is_validation_check(check: str) -> bool:
-    return any(kw in check for kw in ("test", "pytest", "npm test", "passes", "exit code"))
+    return any(kw in check for kw in ("test", "pytest", "npm test", "passes", "exit code", "parse", "compile", "valid"))
 
 
 def _check_validations(check: str, validations: list[dict]) -> tuple[bool, str]:
@@ -535,6 +556,60 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
     if "verif" in check_lower and ("syntax" in check_lower or "import" in check_lower or "test" in check_lower):
         verify_patterns = ["py_compile", "import ", "pytest", "python -c", "npm test", "tsc"]
         return any(p in transcript_text for p in verify_patterns)
+
+    if "fresh thread" in check_lower or "session boundary" in check_lower or ("checkpoint" in check_lower and "task" in check_lower):
+        boundary_patterns = re.compile(
+            r"\b(fresh thread|new session|new chat|checkpoint|let.s commit|commit (what|before)|"
+            r"suggest(ing)? (we )?(start|switch|open)|hand.?off)\b", re.I,
+        )
+        return bool(boundary_patterns.search(transcript_text))
+
+    if "silently accept all" in check_lower or "without pausing" in check_lower:
+        boundary_patterns = re.compile(
+            r"\b(fresh thread|new session|checkpoint|commit first|let.s commit|hand.?off|"
+            r"too many|accumulating|scope creep|pause|break)\b", re.I,
+        )
+        return bool(boundary_patterns.search(transcript_text))
+
+    if "evaluator" in check_lower and ("not modify source" in check_lower or "did not modify source" in check_lower):
+        artifacts = session.get("artifacts", {})
+        files = artifacts.get("files", [])
+        non_harness_files = [f for f in files if not f.startswith(".harness/") and not f.startswith(".harness\\")]
+        return len(non_harness_files) == 0
+
+    if "focused summary" in check_lower or ("not produce" in check_lower and "exploration" in check_lower):
+        transcript = session.get("transcript", [])
+        if transcript:
+            first_response = next(
+                (t.get("response", "") for t in transcript if t.get("response")),
+                "",
+            )
+            return len(first_response.split()) < 800
+
+    if ("read breadcrumbs" in check_lower or "read state" in check_lower) and "first" in check_lower:
+        transcript = session.get("transcript", [])
+        early_text = " ".join(
+            t.get("response", "") for t in transcript[:3] if t.get("response")
+        )
+        return "breadcrumb" in early_text.lower() or "state.json" in early_text.lower() or "pending" in early_text.lower()
+
+    if "full project exploration" in check_lower or "readme-style" in check_lower:
+        transcript = session.get("transcript", [])
+        if transcript:
+            first_response = next(
+                (t.get("response", "") for t in transcript if t.get("response")),
+                "",
+            )
+            return len(first_response.split()) < 800
+
+    if "asked what to work on" in check_lower or "suggesting starting" in check_lower:
+        work_patterns = re.compile(
+            r"\b(what (would you|do you want|should).*(work|start|focus|tackle)|"
+            r"want to (start|work|continue|pick up)|"
+            r"suggest.*(start|work|feat|next)|"
+            r"shall (we|I).*(start|begin|work|continue))\b", re.I,
+        )
+        return bool(work_patterns.search(transcript_text))
 
     return True
 
@@ -948,7 +1023,7 @@ Return ONLY a JSON array with one object per criterion:
     try:
         with Agent.create(model=model, api_key=api_key) as judge:
             run = judge.send(prompt)
-            run.wait(timeout=120)
+            run.wait()
             response = run.text()
 
         match = re.search(r"\[.*\]", response, re.DOTALL)

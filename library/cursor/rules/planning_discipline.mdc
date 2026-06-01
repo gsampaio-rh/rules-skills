@@ -19,6 +19,12 @@ Long conversations degrade context quality. Follow these guidelines:
 - If the conversation exceeds 30+ user messages on different topics, the context is likely stale — rely on reading files fresh rather than conversation memory
 - Use .cursor/rules/ to persist project constraints instead of repeating them each conversation
 
+## Session Boundaries
+
+- **After 15 user messages**: checkpoint uncommitted work, write handoff breadcrumb, suggest fresh thread
+- **After completing a feature**: commit before starting the next
+- **Before new work**: commit any uncommitted changes first
+
 ## One Objective Per Prompt
 
 When receiving a multi-objective request, address them sequentially:
