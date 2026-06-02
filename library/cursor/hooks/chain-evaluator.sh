@@ -10,11 +10,11 @@
 #   phase=evaluating + unverified   → evaluator done but failed, re-launch
 #   phase=evaluating + verified     → pass through
 
-input=$(cat)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "subagent-gate"
 
-HOOK_LOG=".cursor/hooks.log"
 EVALUATOR_FLAG=".cursor/hooks/.evaluator-active"
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] subagent-gate: triggered" >> "$HOOK_LOG" 2>/dev/null
 
 # Clear evaluator flag on any subagent completion (evaluator finished)
 if [ -f "$EVALUATOR_FLAG" ]; then
@@ -27,9 +27,7 @@ STATE=".harness/state.json"
 
 # Scenario 1: planner just finished — state.json exists but no contract yet
 if [ -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
-  NOW=$(date +%s)
-  MTIME=$(stat -f %m "$STATE" 2>/dev/null || stat -c %Y "$STATE" 2>/dev/null || echo 0)
-  AGE=$((NOW - MTIME))
+  AGE=$(hooks_file_age "$STATE")
 
   if [ "$AGE" -lt 300 ]; then
     echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] subagent-gate: planner finished — spec confirmation required" >> "$HOOK_LOG" 2>/dev/null

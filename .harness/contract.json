@@ -1,0 +1,33 @@
+{
+  "task_id": "chore-1",
+  "feature": "Extract hooks-lib.sh + fix correctness bugs from spike-5 audit",
+  "phase": "evaluating",
+  "verified": true,
+  "acceptance_criteria": [
+    "hooks-lib.sh exists with 8 functions: hooks_init, hooks_log, hooks_extract_path, hooks_read_state, hooks_file_age, hooks_skip_detected, hooks_git_total_count, hooks_git_impl_count",
+    "All 10 runtime hooks source hooks-lib.sh",
+    "hooks_extract_path reads from $HOOK_INPUT not stdin",
+    "hooks_read_state returns raw fields; callers apply own GATE/SKIP logic",
+    "Two git count functions: hooks_git_total_count (all files) and hooks_git_impl_count (impl-only filter)",
+    "BUG-1 fixed: harness-context.sh handles contract-without-state (no NameError)",
+    "BUG-2 fixed: contract-gate.sh has single path extraction call (no duplicate 17-line blocks)",
+    "BUG-3 fixed: verify-harness.sh EVALS_DIR removed",
+    "BUG-4 fixed: verify-harness.sh duplicate BREADCRUMBS removed",
+    "BUG-5 fixed: hooks-profile.sh messages match actual JSON configs",
+    "BUG-6 fixed: evaluator-guard.sh extracts toolInput.filePath (unified with contract-gate)",
+    "BUG-7 fixed: verify-harness.sh malformed contract produces {} (no HARNESS GATE false positive)",
+    "validate-hooks.sh passes with >37 tests",
+    "make validate passes",
+    "LOC reduction ~200 from baseline 1722 (runtime hooks only, excludes validate-hooks.sh)"
+  ],
+  "edge_cases": [
+    "hooks_extract_path with empty/malformed JSON returns empty string",
+    "hooks_read_state with no tasks returns zero counts and empty IDs",
+    "hooks_skip_detected with missing breadcrumbs file returns 1 (not found)",
+    "Malformed contract.json does not trigger HARNESS GATE in verify-harness",
+    "Contract exists without state.json: harness-context emits context (not empty {})"
+  ],
+  "verification_method": "bash library/cursor/hooks/validate-hooks.sh (full pass); make validate; LOC check via wc -l; BUG reproductions from audit",
+  "negotiation_rounds": 0,
+  "negotiation_skip_reason": "chore type with evaluator-approved plan (v2); 11 challenges addressed in 2 adversarial review rounds"
+}

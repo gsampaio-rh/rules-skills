@@ -8,9 +8,10 @@
 #   - Cleared by chain-evaluator.sh on subagentStop
 #   - Staleness: ignored if older than 30 minutes (crash recovery)
 
-input=$(cat)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "evaluator-guard"
 
-HOOK_LOG=".cursor/hooks.log"
 FLAG=".cursor/hooks/.evaluator-active"
 
 # Fast exit: evaluator not active
@@ -20,27 +21,17 @@ if [ ! -f "$FLAG" ]; then
 fi
 
 # Staleness check: if flag is older than 30 minutes, it's stale (crash recovery)
-NOW=$(date +%s)
-MTIME=$(stat -f %m "$FLAG" 2>/dev/null || stat -c %Y "$FLAG" 2>/dev/null || echo 0)
-AGE=$((NOW - MTIME))
+AGE=$(hooks_file_age "$FLAG")
 
 if [ "$AGE" -gt 1800 ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] evaluator-guard: stale flag ($AGE seconds old), removing" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "evaluator-guard" "stale flag ($AGE seconds old), removing"
   rm -f "$FLAG"
   echo '{}'
   exit 0
 fi
 
-# Extract target path
-target_path=$(echo "$input" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    inp = data.get('input', data)
-    print(inp.get('path', inp.get('file_path', '')))
-except Exception:
-    print('')
-" 2>/dev/null)
+# Extract target path using unified walk (fixes BUG-6: adds filePath, toolInput, tool_input)
+target_path=$(hooks_extract_path "$HOOK_INPUT")
 
 if [ -z "$target_path" ]; then
   echo '{}'
@@ -49,13 +40,13 @@ fi
 
 # Evaluator is allowed to write ONLY to harness paths and breadcrumbs
 if echo "$target_path" | grep -qE '\.harness/'; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] evaluator-guard: allowed harness write: $target_path" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "evaluator-guard" "allowed harness write: $target_path"
   echo '{}'
   exit 0
 fi
 
 # Any other write is blocked
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] evaluator-guard: DENIED impl write: $target_path" >> "$HOOK_LOG" 2>/dev/null
+hooks_log "evaluator-guard" "DENIED impl write: $target_path"
 
 cat <<EOF
 {

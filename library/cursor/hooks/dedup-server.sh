@@ -3,9 +3,10 @@
 # If a dev server is already listening on a common port, blocks the command
 # and tells the agent to reuse the existing one.
 
-input=$(cat)
-
-HOOK_LOG=".cursor/hooks.log"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "dedup-server"
+input="$HOOK_INPUT"
 
 command=$(echo "$input" | python3 -c "
 import sys, json

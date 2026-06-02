@@ -11,10 +11,10 @@
 # the deny loop: first attempt → deny + instruct, agent asks user, agent
 # writes flag + retries → allow + delete flag.
 
-input=$(cat)
-
-HOOK_LOG=".cursor/hooks.log"
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: triggered" >> "$HOOK_LOG" 2>/dev/null
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "pre-commit"
+input="$HOOK_INPUT"
 
 BREADCRUMBS=".harness/breadcrumbs.jsonl"
 CONTRACT=".harness/contract.json"

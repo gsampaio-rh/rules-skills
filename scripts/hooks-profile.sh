@@ -26,15 +26,15 @@ case "$PROFILE" in
     lean)
         cp "$LIBRARY_DIR/hooks.lean.json" "$HOOKS_JSON"
         echo "lean" > "$PROFILE_FILE"
-        echo "Switched to LEAN profile (no harness enforcement)"
-        echo "  Active: dedup-server, enforce-progress (Tier 1), context-health"
-        echo "  Inactive: contract-gate, evaluator-guard, verify-harness, harness-gate, chain-evaluator, pre-commit-harness"
+        echo "Switched to LEAN profile (lightweight harness enforcement)"
+        echo "  Active: harness-context, harness-gate, contract-gate, dedup-server, verify-harness, enforce-progress, context-health"
+        echo "  Inactive: evaluator-guard, pre-commit-harness, chain-evaluator, LLM prompt hooks"
         ;;
     full)
         cp "$LIBRARY_DIR/hooks.full.json" "$HOOKS_JSON"
         echo "full" > "$PROFILE_FILE"
         echo "Switched to FULL profile (all harness enforcement active)"
-        echo "  Active: ALL hooks including contract-gate, verify-harness, LLM prompt hooks"
+        echo "  Active: ALL hooks — harness-context, harness-gate, evaluator-guard, contract-gate, dedup-server, pre-commit-harness, verify-harness, enforce-progress, context-health, chain-evaluator, LLM prompt hooks"
         echo "  Note: .harness/state.json must exist for enforcement to trigger"
         ;;
     status)

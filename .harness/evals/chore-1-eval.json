@@ -1,0 +1,117 @@
+{
+  "task_id": "chore-1",
+  "evaluator": "adversarial",
+  "timestamp": "2026-06-02T21:10:00Z",
+  "verdict": "PASS",
+  "criteria_results": [
+    {
+      "criterion": "hooks-lib.sh exists with 8 functions",
+      "result": "PASS",
+      "evidence": "library/cursor/hooks/hooks-lib.sh defines hooks_init, hooks_log, hooks_extract_path, hooks_read_state, hooks_file_age, hooks_skip_detected, hooks_git_total_count, hooks_git_impl_count (lines 8–134)"
+    },
+    {
+      "criterion": "All 10 runtime hooks source hooks-lib.sh",
+      "result": "PASS",
+      "evidence": "grep found 'source \"$SCRIPT_DIR/hooks-lib.sh\"' in harness-context.sh, harness-gate.sh, contract-gate.sh, evaluator-guard.sh, dedup-server.sh, pre-commit-harness.sh, verify-harness.sh, enforce-progress.sh, context-health.sh, chain-evaluator.sh"
+    },
+    {
+      "criterion": "hooks_extract_path reads from $1 or $HOOK_INPUT, not hook stdin",
+      "result": "PASS",
+      "evidence": "Implementation uses local json=\"${1:-$HOOK_INPUT}\" (line 30). Piped JSON without HOOK_INPUT returns empty []; with HOOK_INPUT set returns [/foo]. Python sys.stdin only consumes echoed $json, not hook stdin."
+    },
+    {
+      "criterion": "hooks_read_state returns raw JSON fields; callers apply GATE/SKIP",
+      "result": "PASS",
+      "evidence": "hooks_read_state outputs building_id, building_type, pending_id, has_gatable, task_count, done_count (lines 74–85). verify-harness.sh:84–102 and contract-gate.sh:83–119 consume raw fields and compute GATE/SKIP locally."
+    },
+    {
+      "criterion": "hooks_git_total_count counts all files; hooks_git_impl_count filters impl-only",
+      "result": "PASS",
+      "evidence": "hooks_git_total_count (lines 116–122) sums unfiltered git diff/staged/untracked. hooks_git_impl_count (lines 127–133) applies filter '\\.cursor/|breadcrumbs|\\.md$|\\.json$|\\.yaml$'. Live repo: total=18, impl=13 in clean subshell."
+    },
+    {
+      "criterion": "BUG-1: harness-context handles contract-without-state",
+      "result": "PASS",
+      "evidence": "With state.json removed and contract phase=building, harness-context.sh output contained {\"additional_context\": \"Contract for \\\"unknown\\\": phase=building...\"} (not empty {}). state.json restored from /tmp/state-bak.json."
+    },
+    {
+      "criterion": "BUG-2: contract-gate.sh no inline path extraction Python",
+      "result": "PASS",
+      "evidence": "grep -c 'for key in' library/cursor/hooks/contract-gate.sh → 0. Single hooks_extract_path call at line 66."
+    },
+    {
+      "criterion": "BUG-3: verify-harness.sh EVALS_DIR removed",
+      "result": "PASS",
+      "evidence": "grep -c 'EVALS_DIR' library/cursor/hooks/verify-harness.sh → 0"
+    },
+    {
+      "criterion": "BUG-4: verify-harness.sh single BREADCRUMBS declaration",
+      "result": "PASS",
+      "evidence": "grep -c 'BREADCRUMBS=' library/cursor/hooks/verify-harness.sh → 1 (line 16)"
+    },
+    {
+      "criterion": "BUG-5: hooks-profile.sh messages match lean/full JSON configs",
+      "result": "PASS",
+      "evidence": "Lean echo lists harness-context, harness-gate, contract-gate, dedup-server, verify-harness, enforce-progress, context-health — matches hooks.lean.json commands. Full echo lists all hooks including evaluator-guard, pre-commit-harness, chain-evaluator, LLM prompts — matches hooks.full.json."
+    },
+    {
+      "criterion": "BUG-6: evaluator-guard extracts toolInput.filePath",
+      "result": "PASS",
+      "evidence": "With .evaluator-active flag and input {\"toolInput\":{\"filePath\":\"/src/app.py\"}}, output contained \"permission\": \"deny\" blocking /src/app.py"
+    },
+    {
+      "criterion": "BUG-7: malformed contract produces {} without HARNESS GATE",
+      "result": "PASS",
+      "evidence": "With contract.json set to '{not valid', verify-harness.sh output was {} with no followup_message. hooks.log: 'contract JSON malformed, skipping'"
+    },
+    {
+      "criterion": "validate-hooks.sh passes with >37 tests, 0 failures",
+      "result": "PASS",
+      "evidence": "bash library/cursor/hooks/validate-hooks.sh → Summary: 52 passed, 0 failed, 0 warnings (exit 0)"
+    },
+    {
+      "criterion": "make validate passes",
+      "result": "PASS",
+      "evidence": "make validate → Results: 0 errors, 2 warnings, PASSED (exit 0)"
+    },
+    {
+      "criterion": "LOC reduction: runtime hooks total < 1722",
+      "result": "PASS",
+      "evidence": "wc -l on 10 runtime hooks + hooks-lib.sh → 1372 total (baseline 1722, reduction 350 lines)"
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "hooks_extract_path with empty/malformed JSON returns empty string",
+      "result": "PASS",
+      "evidence": "hooks_extract_path '' → ''; hooks_extract_path '{bad json' → ''"
+    },
+    {
+      "case": "hooks_read_state with no tasks returns zero counts and empty IDs",
+      "result": "PASS",
+      "evidence": "{\"tasks\":[]} → all IDs empty, task_count=0, done_count=0, has_gatable=false"
+    },
+    {
+      "case": "hooks_skip_detected with missing breadcrumbs returns 1",
+      "result": "PASS",
+      "evidence": "hooks_skip_detected /nonexistent/breadcrumbs.jsonl → exit_code=1"
+    },
+    {
+      "case": "Malformed contract does not trigger HARNESS GATE",
+      "result": "PASS",
+      "evidence": "BUG-7 reproduction + validate-hooks tests 'verify-harness handles malformed contract' and 'does not fire HARNESS GATE on malformed contract' both pass"
+    },
+    {
+      "case": "Contract without state.json: harness-context emits context",
+      "result": "PASS",
+      "evidence": "BUG-1 reproduction + validate-hooks test 'harness-context handles contract-without-state (BUG-1 fix)' pass"
+    }
+  ],
+  "computational_checks": {
+    "validate-hooks": "PASS — 52/52",
+    "make_validate": "PASS — 0 errors",
+    "loc": "PASS — 1372 < 1722"
+  },
+  "recommendation": "accept",
+  "summary": "hooks-lib.sh extraction and all 7 bug fixes verified via reproduction commands, 52/52 hook tests, make validate, and LOC 1372 (350 below baseline). All acceptance criteria and edge cases pass."
+}

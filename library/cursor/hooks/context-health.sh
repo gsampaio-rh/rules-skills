@@ -17,10 +17,9 @@
 #   1 signal  → WARNING: suggest new chat
 #   2+ signals → CRITICAL: insist on new chat with handoff
 
-input=$(cat)
-
-HOOK_LOG=".cursor/hooks.log"
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] context-health: triggered" >> "$HOOK_LOG" 2>/dev/null
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "context-health"
 
 BREADCRUMBS=".harness/breadcrumbs.jsonl"
 

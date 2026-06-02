@@ -34,6 +34,16 @@ else
   fi
 fi
 
+# --- Prerequisite check ---
+if [ ! -d ".cursor/hooks" ]; then
+  echo -e "${RED}Prerequisites missing:${RESET}"
+  echo "  - .cursor/hooks/ directory not found"
+  echo "  Run 'make setup' or 'make sync-local' to populate .cursor/ from library/cursor/."
+  echo ""
+  echo -e "${BOLD}Summary:${RESET} ${RED}Cannot run — missing prerequisites${RESET}"
+  exit 1
+fi
+
 # --- 2. Check all referenced hook scripts exist and are executable ---
 echo ""
 echo -e "${BOLD}2. Hook scripts${RESET}"
@@ -220,13 +230,15 @@ else
 fi
 
 # Test: non-trivial prompt without harness → allow + inject routing
-rm -f .harness/state.json .harness/contract.json 2>/dev/null
-OUTPUT=$(echo '{"prompt":"implement a new authentication service with OAuth2 integration and database schema"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "agent_message.*planner|HARNESS ROUTING"; then
+# Prompt must be >100 chars and NOT match SIMPLE_PATTERNS to trigger routing
+rm -f .harness/state.json .harness/contract.json .harness/.routing-pending 2>/dev/null
+OUTPUT=$(echo '{"prompt":"implement a new authentication service with OAuth2 integration, database schema migrations, role-based access control, and session management across multiple microservices"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "HARNESS ROUTING|followup_message.*planner"; then
   pass "harness-gate injects planner routing for non-trivial prompt (does NOT block)"
 else
   fail "harness-gate should inject routing instructions for non-trivial prompt: $(echo "$OUTPUT" | head -1)"
 fi
+rm -f .harness/.routing-pending 2>/dev/null
 
 # Test: "skip harness" opt-out → allow silently
 rm -f .harness/state.json .harness/contract.json 2>/dev/null
@@ -239,7 +251,9 @@ fi
 
 # --- pre-commit-harness (beforeShellExecution) tests ---
 
-# Test: non-git-commit command → allow silently
+COMMIT_GATE=".cursor/hooks/.commit-approved"
+
+# Test: non-git-commit command → allow silently (no flag needed)
 OUTPUT=$(echo '{"command":"git status"}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q '"permission".*"allow"'; then
   pass "pre-commit allows non-commit git commands"
@@ -248,15 +262,19 @@ else
 fi
 
 # Test: git commit without harness → allow + auto-breadcrumb
-rm -f .harness/contract.json .harness/state.json 2>/dev/null
+# Requires .commit-approved flag (commit gate workflow from feat-17)
+rm -f .harness/contract.json .harness/state.json "$COMMIT_GATE" 2>/dev/null
 BREADCRUMB_BEFORE=""
 [ -f .harness/breadcrumbs.jsonl ] && BREADCRUMB_BEFORE=$(wc -l < .harness/breadcrumbs.jsonl | tr -d ' ')
+mkdir -p "$(dirname "$COMMIT_GATE")" 2>/dev/null
+echo "approved" > "$COMMIT_GATE"
 OUTPUT=$(echo '{"command":"git commit -m \"test commit\""}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
+rm -f "$COMMIT_GATE" 2>/dev/null
 BREADCRUMB_AFTER=$(wc -l < .harness/breadcrumbs.jsonl 2>/dev/null | tr -d ' ')
 if echo "$OUTPUT" | rg -q '"permission".*"allow"'; then
-  pass "pre-commit allows git commit"
+  pass "pre-commit allows git commit (with .commit-approved flag)"
 else
-  fail "pre-commit should allow git commit: $(echo "$OUTPUT" | head -1)"
+  fail "pre-commit should allow git commit with flag: $(echo "$OUTPUT" | head -1)"
 fi
 if [ "${BREADCRUMB_AFTER:-0}" -gt "${BREADCRUMB_BEFORE:-0}" ]; then
   pass "pre-commit auto-records breadcrumb on commit"
@@ -264,27 +282,42 @@ else
   fail "pre-commit should auto-append breadcrumb"
 fi
 
+# Test: git commit WITHOUT .commit-approved → deny (commit gate enforcement)
+rm -f "$COMMIT_GATE" 2>/dev/null
+OUTPUT=$(echo '{"command":"git commit -m \"sneaky commit\""}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '"permission".*"deny"'; then
+  pass "pre-commit denies git commit without .commit-approved flag"
+else
+  fail "pre-commit should deny without flag: $(echo "$OUTPUT" | head -1)"
+fi
+
 # Test: git commit with active harness (unverified contract) → allow + warning
-mkdir -p .harness 2>/dev/null
+mkdir -p .harness "$(dirname "$COMMIT_GATE")" 2>/dev/null
+rm -f "$COMMIT_GATE" 2>/dev/null
 echo '{"feature":"auth","verified":false,"phase":"building"}' > .harness/contract.json
+echo "approved" > "$COMMIT_GATE"
 OUTPUT=$(echo '{"command":"git commit -m \"wip\""}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "agent_message.*unverified|WARNING"; then
+rm -f "$COMMIT_GATE" 2>/dev/null
+if echo "$OUTPUT" | rg -q '"permission".*"allow"' && echo "$OUTPUT" | rg -q "unverified|WARNING"; then
   pass "pre-commit warns when committing with unverified contract"
 else
-  fail "pre-commit should warn about unverified contract: $(echo "$OUTPUT" | head -1)"
+  fail "pre-commit should allow+warn about unverified contract: $(echo "$OUTPUT" | head -1)"
 fi
 
 # Test: git commit with verified contract → allow + next-feature guidance
+rm -f "$COMMIT_GATE" 2>/dev/null
 echo '{"feature":"auth","task_id":"feat-1","verified":true,"phase":"evaluating"}' > .harness/contract.json
 echo '{"tasks":[{"id":"feat-1","status":"verified"}]}' > .harness/state.json
+echo "approved" > "$COMMIT_GATE"
 OUTPUT=$(echo '{"command":"git commit -m \"feat: auth done\""}' | .cursor/hooks/pre-commit-harness.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "agent_message.*committed|next"; then
+rm -f "$COMMIT_GATE" 2>/dev/null
+if echo "$OUTPUT" | rg -q '"permission".*"allow"' && echo "$OUTPUT" | rg -q 'committed|next'; then
   pass "pre-commit guides to next task after verified commit"
 else
   fail "pre-commit should guide to next task: $(echo "$OUTPUT" | head -1)"
 fi
 
-rm -f .harness/contract.json .harness/state.json 2>/dev/null
+rm -f .harness/contract.json .harness/state.json "$COMMIT_GATE" 2>/dev/null
 
 # --- context-health (stop) tests ---
 
@@ -342,15 +375,76 @@ fi
 
 rm -f .harness/breadcrumbs.jsonl 2>/dev/null
 
+# --- contract-gate (preToolUse) tests ---
+
+# Test: no state, no routing-pending → allow
+rm -f .harness/state.json .harness/contract.json .harness/.routing-pending 2>/dev/null
+OUTPUT=$(echo '{"input":{"path":"/src/app.py"}}' | .cursor/hooks/contract-gate.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "contract-gate allows when no harness active"
+else
+  fail "contract-gate should allow when no harness: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: cold-start deny (routing-pending, no state)
+mkdir -p .harness
+echo "2026-01-01" > .harness/.routing-pending
+OUTPUT=$(echo '{"input":{"path":"/src/app.py"}}' | .cursor/hooks/contract-gate.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "permission.*deny"; then
+  pass "contract-gate denies cold-start write"
+else
+  fail "contract-gate should deny cold-start write: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: cold-start allows .harness/ writes
+OUTPUT=$(echo '{"input":{"path":".harness/state.json"}}' | .cursor/hooks/contract-gate.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "contract-gate allows .harness/ path in cold-start"
+else
+  fail "contract-gate should allow .harness/ in cold-start: $(echo "$OUTPUT" | head -1)"
+fi
+rm -f .harness/.routing-pending
+
+# Test: state exists + contract exists → allow
+echo '{"tasks":[{"id":"feat-1","name":"Auth","status":"building","type":"feature"}]}' > .harness/state.json
+echo '{"feature":"Auth","phase":"building","verified":false}' > .harness/contract.json
+OUTPUT=$(echo '{"input":{"path":"/src/app.py"}}' | .cursor/hooks/contract-gate.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "contract-gate allows with contract present"
+else
+  fail "contract-gate should allow with contract: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: state exists + no contract + gatable task → deny
+rm -f .harness/contract.json
+OUTPUT=$(echo '{"input":{"path":"/src/app.py"}}' | .cursor/hooks/contract-gate.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "permission.*deny"; then
+  pass "contract-gate denies impl write without contract (building feature)"
+else
+  fail "contract-gate should deny without contract: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: spike/chore bypass — only non-gatable task pending
+echo '{"tasks":[{"id":"chore-99","name":"Cleanup","status":"pending","type":"chore"}]}' > .harness/state.json
+rm -f .harness/contract.json
+OUTPUT=$(echo '{"input":{"path":"/src/app.py"}}' | .cursor/hooks/contract-gate.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "contract-gate bypasses for spike/chore task"
+else
+  fail "contract-gate should bypass for chore: $(echo "$OUTPUT" | head -1)"
+fi
+
+rm -f .harness/state.json .harness/contract.json 2>/dev/null
+
 # --- harness-context (sessionStart) tests ---
 
-# Test: no harness state → pass
+# Test: no harness state → inject cold-start routing note
 rm -f .harness/state.json .harness/contract.json 2>/dev/null
 OUTPUT=$(echo '{}' | .cursor/hooks/harness-context.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q '^\{\}$'; then
-  pass "harness-context passes when no harness state"
+if echo "$OUTPUT" | rg -q "additional_context.*non-trivial|No harness active"; then
+  pass "harness-context injects cold-start routing note when no state"
 else
-  fail "harness-context should pass without state: $(echo "$OUTPUT" | head -1)"
+  fail "harness-context should inject cold-start note: $(echo "$OUTPUT" | head -1)"
 fi
 
 # Test: state.json exists → inject context
@@ -361,6 +455,90 @@ if echo "$OUTPUT" | rg -q "additional_context"; then
   pass "harness-context injects context when harness is active"
 else
   fail "harness-context should inject context: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: BUG-1 — contract exists but no state.json → non-empty additional_context (not {})
+rm -f .harness/state.json 2>/dev/null
+echo '{"feature":"Auth","phase":"building","verified":false}' > .harness/contract.json
+OUTPUT=$(echo '{}' | .cursor/hooks/harness-context.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "additional_context"; then
+  pass "harness-context handles contract-without-state (BUG-1 fix)"
+else
+  fail "harness-context should inject context when contract exists without state (BUG-1)"
+fi
+
+# --- evaluator-guard (preToolUse) tests ---
+
+# Test: evaluator not active → allow
+rm -f .cursor/hooks/.evaluator-active 2>/dev/null
+OUTPUT=$(echo '{"input":{"path":"/src/app.py"}}' | .cursor/hooks/evaluator-guard.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "evaluator-guard allows when not active"
+else
+  fail "evaluator-guard should allow when not active: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: evaluator active + harness write → allow
+touch .cursor/hooks/.evaluator-active
+OUTPUT=$(echo '{"input":{"path":".harness/evals/eval-feat-1.json"}}' | .cursor/hooks/evaluator-guard.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "evaluator-guard allows .harness/ write"
+else
+  fail "evaluator-guard should allow .harness/ write: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: evaluator active + impl write → deny
+OUTPUT=$(echo '{"input":{"path":"/src/app.py"}}' | .cursor/hooks/evaluator-guard.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "permission.*deny"; then
+  pass "evaluator-guard denies impl write when active"
+else
+  fail "evaluator-guard should deny impl write: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: BUG-6 fix — toolInput.filePath extraction
+OUTPUT=$(echo '{"toolInput":{"filePath":"/src/app.py"}}' | .cursor/hooks/evaluator-guard.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "permission.*deny"; then
+  pass "evaluator-guard denies toolInput.filePath write (BUG-6 fix)"
+else
+  fail "evaluator-guard should deny toolInput.filePath (BUG-6): $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: stale flag removal (>30 min)
+touch -t 202501010000 .cursor/hooks/.evaluator-active 2>/dev/null
+OUTPUT=$(echo '{"input":{"path":"/src/app.py"}}' | .cursor/hooks/evaluator-guard.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "evaluator-guard removes stale flag"
+else
+  fail "evaluator-guard should remove stale flag: $(echo "$OUTPUT" | head -1)"
+fi
+rm -f .cursor/hooks/.evaluator-active 2>/dev/null
+
+# --- dedup-server (beforeShellExecution) tests ---
+
+# Test: non-server command → allow
+OUTPUT=$(echo '{"command":"git status"}' | .cursor/hooks/dedup-server.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "permission.*allow"; then
+  pass "dedup-server allows non-server command"
+else
+  fail "dedup-server should allow non-server command: $(echo "$OUTPUT" | head -1)"
+fi
+
+# --- BUG-7 fixture: malformed contract → {} ---
+
+echo '{not valid json' > .harness/contract.json
+mkdir -p .harness
+touch .harness/breadcrumbs.jsonl
+OUTPUT=$(echo '{}' | .cursor/hooks/verify-harness.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "verify-harness handles malformed contract (BUG-7 fix)"
+else
+  fail "verify-harness should return {} for malformed contract (BUG-7): $(echo "$OUTPUT" | head -1)"
+fi
+# Verify it does NOT contain HARNESS GATE
+if ! echo "$OUTPUT" | rg -q "HARNESS GATE"; then
+  pass "verify-harness does not fire HARNESS GATE on malformed contract"
+else
+  fail "verify-harness should NOT fire HARNESS GATE on malformed contract (BUG-7)"
 fi
 
 # --- Cleanup ---

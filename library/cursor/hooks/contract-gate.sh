@@ -9,10 +9,9 @@
 #   - Contract exists → allow (negotiation done, builder working)
 #   - State exists + no contract → allow ONLY .harness/ and .cursor/hooks/ writes
 
-input=$(cat)
-
-HOOK_LOG=".cursor/hooks.log"
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: triggered" >> "$HOOK_LOG" 2>/dev/null
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "contract-gate"
 
 STATE=".harness/state.json"
 CONTRACT=".harness/contract.json"
@@ -22,32 +21,15 @@ CONTRACT=".harness/contract.json"
 # run). Block implementation writes until the agent creates state.json.
 ROUTING_PENDING=".harness/.routing-pending"
 if [ ! -f "$STATE" ] && [ -f "$ROUTING_PENDING" ]; then
-  # Still need to extract the target path to decide allow/deny
-  target_path=$(echo "$input" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    path = ''
-    for key in ('input', 'toolInput', 'tool_input'):
-        nested = data.get(key)
-        if isinstance(nested, dict):
-            path = nested.get('path', nested.get('file_path', nested.get('filePath', '')))
-            if path:
-                break
-    if not path:
-        path = data.get('path', data.get('file_path', data.get('filePath', '')))
-    print(path)
-except Exception:
-    print('')
-" 2>/dev/null)
+  target_path=$(hooks_extract_path "$HOOK_INPUT")
 
   if [ -n "$target_path" ]; then
     if echo "$target_path" | grep -qE '\.harness/|\.cursor/hooks/'; then
-      echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: cold-start, allowed harness path: $target_path" >> "$HOOK_LOG" 2>/dev/null
+      hooks_log "contract-gate" "cold-start, allowed harness path: $target_path"
       echo '{}'
       exit 0
     fi
-    echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: DENIED cold-start write to $target_path (routing-pending, no state.json)" >> "$HOOK_LOG" 2>/dev/null
+    hooks_log "contract-gate" "DENIED cold-start write to $target_path (routing-pending, no state.json)"
     cat <<EOF
 {
   "permission": "deny",
@@ -74,82 +56,67 @@ if [ -f "$CONTRACT" ]; then
 fi
 
 # Fast exit: recent skip breadcrumb (builder explicitly skipped harness)
-BREADCRUMBS=".harness/breadcrumbs.jsonl"
-if [ -f "$BREADCRUMBS" ]; then
-  SKIP_FOUND=$(tail -5 "$BREADCRUMBS" | grep -c "Skipped harness" 2>/dev/null || echo "0")
-  if [ "$SKIP_FOUND" -gt 0 ]; then
-    echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: skip breadcrumb found, allowing" >> "$HOOK_LOG" 2>/dev/null
-    echo '{}'
-    exit 0
-  fi
+if hooks_skip_detected; then
+  hooks_log "contract-gate" "skip breadcrumb found, allowing"
+  echo '{}'
+  exit 0
 fi
 
-# Extract the target file path from the tool input.
-# The input schema varies by context: IDE sends {input: {path: ...}},
-# SDK bridge may send {tool_name: ..., input: {path: ...}} or flat {path: ...}.
-# We walk multiple known locations to handle all variants.
-target_path=$(echo "$input" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    path = ''
-    for key in ('input', 'toolInput', 'tool_input'):
-        nested = data.get(key)
-        if isinstance(nested, dict):
-            path = nested.get('path', nested.get('file_path', nested.get('filePath', '')))
-            if path:
-                break
-    if not path:
-        path = data.get('path', data.get('file_path', data.get('filePath', '')))
-    print(path)
-except Exception:
-    print('')
-" 2>/dev/null)
+# Extract the target file path from the tool input (single call — fixes BUG-2)
+target_path=$(hooks_extract_path "$HOOK_INPUT")
 
 if [ -z "$target_path" ]; then
-  # Log truncated raw input for debugging path extraction failures
-  RAW_SNIPPET=$(echo "$input" | head -c 300)
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: could not extract path, allowing. raw(truncated): $RAW_SNIPPET" >> "$HOOK_LOG" 2>/dev/null
+  RAW_SNIPPET=$(echo "$HOOK_INPUT" | head -c 300)
+  hooks_log "contract-gate" "could not extract path, allowing. raw(truncated): $RAW_SNIPPET"
   echo '{}'
   exit 0
 fi
 
 # No contract yet — only allow writes to harness state and hook transient files.
-# Everything else (including .md, .mdc, .yaml product files) is blocked until
-# a contract is negotiated. This prevents the builder from skipping negotiation
-# in repos where the product IS markdown/YAML/JSON.
 if echo "$target_path" | grep -qE '\.harness/|\.cursor/hooks/'; then
-  echo '['"$(date -u +%Y-%m-%dT%H:%M:%S)"'] contract-gate: allowed path (harness/hook state): '"$target_path" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "contract-gate" "allowed path (harness/hook state): $target_path"
   echo '{}'
   exit 0
 fi
 
 # Check if gate should be skipped for spike/chore tasks (type-aware bypass)
-GATE_RESULT=$(python3 -c "
-import json
+STATE_DATA=$(hooks_read_state "$STATE")
+GATE_RESULT=$(echo "$STATE_DATA" | python3 -c "
+import sys, json
 try:
-    with open('$STATE') as f:
-        data = json.load(f)
-    tasks = data.get('tasks', [])
-    sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
-    pending = [t for t in sorted_tasks if t.get('status') == 'pending']
-    building = [t for t in sorted_tasks if t.get('status') == 'building']
-    current = building[0] if building else (pending[0] if pending else None)
-    if not current:
-        print('SKIP|unknown')
+    data = json.load(sys.stdin)
+    bid = data.get('building_id', '')
+    btype = data.get('building_type', '')
+    bname = data.get('building_name', '')
+    pid = data.get('pending_id', '')
+    ptype = data.get('pending_type', '')
+    pname = data.get('pending_name', '')
+    has_gatable = data.get('has_gatable', False)
+    gatable = {'feature', 'bug', 'gap', 'fix'}
+
+    if bid:
+        current_type = btype
+        current_name = bname or bid
+    elif pid:
+        current_type = ptype
+        current_name = pname or pid
     else:
-        gatable = {'feature', 'bug', 'gap', 'fix'}
-        has_gatable = any(
-            t.get('type', 'feature') in gatable
-            for t in tasks if t.get('status') in ('pending', 'building')
-        )
+        print('SKIP|unknown')
+        raise SystemExit(0)
+
+    skip = (
+        current_type not in gatable
+        and (not bid or True)
+        and not has_gatable
+    )
+    # contract-gate specific: also skip if current is pending + non-gatable
+    if not bid and pid:
         skip = (
-            current.get('type', 'feature') not in gatable
-            and current.get('status') == 'pending'
+            current_type not in gatable
+            and ptype not in gatable
             and not has_gatable
         )
-        name = current.get('name', current.get('id', 'unknown'))
-        print(f'{'SKIP' if skip else 'GATE'}|{name}')
+    print(f\"{'SKIP' if skip else 'GATE'}|{current_name}\")
 except Exception:
     print('GATE|unknown')
 " 2>/dev/null)
@@ -158,14 +125,12 @@ GATE_ACTION=$(echo "$GATE_RESULT" | cut -d'|' -f1)
 CURRENT_FEATURE=$(echo "$GATE_RESULT" | cut -d'|' -f2)
 
 if [ "$GATE_ACTION" = "SKIP" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: type-aware bypass (spike/chore), allowing" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "contract-gate" "type-aware bypass (spike/chore), allowing"
   echo '{}'
   exit 0
 fi
 
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: DENIED write to $target_path (no contract, feature: $CURRENT_FEATURE)" >> "$HOOK_LOG" 2>/dev/null
-
-ESCAPED_PATH=$(echo "$target_path" | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().strip()))" 2>/dev/null)
+hooks_log "contract-gate" "DENIED write to $target_path (no contract, feature: $CURRENT_FEATURE)"
 
 cat <<EOF
 {

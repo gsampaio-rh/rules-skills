@@ -7,10 +7,10 @@
 #   3. User explicitly opts out ("skip harness") → allow silently
 #   4. Cold start: no state.json + non-trivial prompt → inject planner routing
 
-input=$(cat)
-
-HOOK_LOG=".cursor/hooks.log"
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-gate: triggered" >> "$HOOK_LOG" 2>/dev/null
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "harness-gate"
+input="$HOOK_INPUT"
 
 CONTRACT=".harness/contract.json"
 STATE=".harness/state.json"

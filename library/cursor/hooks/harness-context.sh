@@ -3,10 +3,9 @@
 # Reads state.json, contract.json, and recent breadcrumbs to give the agent
 # immediate awareness of where the harness is.
 
-input=$(cat)
-
-HOOK_LOG=".cursor/hooks.log"
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: triggered" >> "$HOOK_LOG" 2>/dev/null
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "harness-context"
 
 STATE=".harness/state.json"
 CONTRACT=".harness/contract.json"
@@ -31,6 +30,8 @@ parts = []
 state_path = '$STATE'
 contract_path = '$CONTRACT'
 breadcrumbs_path = '$BREADCRUMBS'
+
+building = []
 
 if os.path.isfile(state_path):
     try:

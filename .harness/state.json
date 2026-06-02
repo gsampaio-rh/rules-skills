@@ -2,7 +2,7 @@
   "project": "rules-skills",
   "created": "2026-05-27T14:00:00Z",
   "schema_version": 2,
-  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code. The library must dogfood its own authoring standards — including a rigorous, machine-validated state.json schema — before the library is considered trustworthy.",
+  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code. The library must dogfood its own authoring standards \u2014 including a rigorous, machine-validated state.json schema \u2014 before the library is considered trustworthy.",
   "direction": "library/cursor/ is the single source of truth for distributable config. Eval pipeline at 89.8% mean across 41 scenarios (12 at 100%, 35 above 80%, 3 below 70%). Full conversation trace capture operational. Active focus: close gaps (gap-14 session boundary 54%, gap-20 spike false positive 57%, routing_ambiguous 62%). New spikes: UI for .harness/ folder, eval accuracy improvements, prevent redundant re-planning, hooks tech debt audit. Priority 3 deferred: feat-13 multi-agent orchestration, feat-14 LLM-as-judge.",
   "trade_offs": [
     {
@@ -49,7 +49,7 @@
       "status": "verified",
       "priority": 1,
       "type": "feature",
-      "scope": "Documentation and templates only — no runtime code",
+      "scope": "Documentation and templates only \u2014 no runtime code",
       "details": "Define v2 in HARNESS_STANDARD.md: schema_version, tasks[] with required id/name/type/status; status enum pending|building|evaluating|verified|committed|cancelled with definitions; type enum feature|fix|gap|spike|chore with definitions; optional priority/scope/details. Update library/cursor/agents/planner.md and library/claude/agents/planner.md JSON templates. Add SCHEMA.md cross-reference in EVAL_GUIDE.md. Verify: make validate passes; schema doc matches proposed enums."
     },
     {
@@ -68,7 +68,7 @@
       "priority": 1,
       "type": "feature",
       "scope": "library/cursor/hooks/*.sh, library/claude/hooks/*.sh, validate-hooks.sh",
-      "details": "Update harness-context.sh, contract-gate.sh, verify-harness.sh, chain-evaluator.sh, pre-commit-harness.sh: tasks = state.get('tasks') or state.get('features', []). Update user-facing strings feature→task where shown to agent. Mirror in library/claude/hooks/. validate-hooks.sh fixtures use tasks array. Verify: bash library/cursor/hooks/validate-hooks.sh passes; contract-gate still DENIES impl writes without contract."
+      "details": "Update harness-context.sh, contract-gate.sh, verify-harness.sh, chain-evaluator.sh, pre-commit-harness.sh: tasks = state.get('tasks') or state.get('features', []). Update user-facing strings feature\u2192task where shown to agent. Mirror in library/claude/hooks/. validate-hooks.sh fixtures use tasks array. Verify: bash library/cursor/hooks/validate-hooks.sh passes; contract-gate still DENIES impl writes without contract."
     },
     {
       "id": "feat-schema-4",
@@ -95,7 +95,7 @@
       "priority": 2,
       "type": "chore",
       "scope": "This file, scripts/migrate-state-schema.py (new)",
-      "details": "Add scripts/migrate-state-schema.py: rename features→tasks, set schema_version=2, infer type from id prefix (feat→feature, gap→gap, spike→spike, default feature), ensure every task has status+type. Run on .harness/state.json. Verify: harness_lint.py --json status pass; hooks inject correct pending task."
+      "details": "Add scripts/migrate-state-schema.py: rename features\u2192tasks, set schema_version=2, infer type from id prefix (feat\u2192feature, gap\u2192gap, spike\u2192spike, default feature), ensure every task has status+type. Run on .harness/state.json. Verify: harness_lint.py --json status pass; hooks inject correct pending task."
     },
     {
       "id": "feat-schema-7",
@@ -104,7 +104,7 @@
       "priority": 2,
       "type": "feature",
       "scope": "3 new scenario YAMLs in tests/eval/scenarios/",
-      "details": "Create protocol-state-schema-v2.yaml (planner produces tasks with valid types/statuses, lint passes), protocol-state-legacy-compat.yaml (features alias still readable, lint warns), behavioral-resume-mixed-tasks.yaml (state with feature+gap+spike pending; agent resumes correct next task). Verify: each scenario ≥70% on session judge."
+      "details": "Create protocol-state-schema-v2.yaml (planner produces tasks with valid types/statuses, lint passes), protocol-state-legacy-compat.yaml (features alias still readable, lint warns), behavioral-resume-mixed-tasks.yaml (state with feature+gap+spike pending; agent resumes correct next task). Verify: each scenario \u226570% on session judge."
     },
     {
       "id": "feat-schema-8",
@@ -113,15 +113,15 @@
       "priority": 3,
       "type": "chore",
       "scope": "All consumers after feat-schema-1..7 verified",
-      "details": "Remove features fallback reads from hooks, lint, judge, metrics. Breaking change gated on full 27-scenario eval ≥ prior score. Verify: grep -r \"get('features'\" library/ tests/eval/ returns zero except migration script."
+      "details": "Remove features fallback reads from hooks, lint, judge, metrics. Breaking change gated on full 27-scenario eval \u2265 prior score. Verify: grep -r \"get('features'\" library/ tests/eval/ returns zero except migration script."
     },
     {
       "id": "gap-13",
-      "name": "Agent skips contract.json — RESOLVED via hook enforcement",
+      "name": "Agent skips contract.json \u2014 RESOLVED via hook enforcement",
       "status": "verified",
       "priority": 1,
       "type": "bug",
-      "details": "Fixed contract-gate.sh path extraction bug. All hooks fire in SDK bridge. preToolUse DENIES writes, stop hooks enforce verification. 4 scenarios: 44-64% → 94-95%. Deterministic enforcement chain operational."
+      "details": "Fixed contract-gate.sh path extraction bug. All hooks fire in SDK bridge. preToolUse DENIES writes, stop hooks enforce verification. 4 scenarios: 44-64% \u2192 94-95%. Deterministic enforcement chain operational."
     },
     {
       "id": "feat-19",
@@ -137,7 +137,7 @@
       "status": "verified",
       "priority": 2,
       "type": "bug",
-      "details": "Agent pushes back and proposes phases but stops short of writing contract.json with the scoped subset. Fix: added pushback→scoped-contract guidance to SKILL.md, strengthened eval verify commands to require contract.json, added session_judge handlers for scoped contract detection, enabled contract quality checks for light scenarios with negotiation_quality rubric."
+      "details": "Agent pushes back and proposes phases but stops short of writing contract.json with the scoped subset. Fix: added pushback\u2192scoped-contract guidance to SKILL.md, strengthened eval verify commands to require contract.json, added session_judge handlers for scoped contract detection, enabled contract quality checks for light scenarios with negotiation_quality rubric."
     },
     {
       "id": "gap-4",
@@ -153,15 +153,15 @@
       "status": "verified",
       "priority": 2,
       "type": "spike",
-      "details": "Resolved: YES — added 'Pushback → Scoped Contract' section to SKILL.md Phase 1. Agent must push back, scope down, create contract for first task, then present to user."
+      "details": "Resolved: YES \u2014 added 'Pushback \u2192 Scoped Contract' section to SKILL.md Phase 1. Agent must push back, scope down, create contract for first task, then present to user."
     },
     {
       "id": "gap-14",
-      "name": "Session boundary at 33% — agent does not suggest fresh thread or checkpoint",
+      "name": "Session boundary at 33% \u2014 agent does not suggest fresh thread or checkpoint",
       "status": "pending",
       "priority": 1,
       "type": "bug",
-      "details": "behavioral_session_boundary regressed from 70% to 33% in 41-scenario run (2026-06-02). 1 FAIL (not enough follow-ups before boundary), 3 UNCERTAIN (suggest fresh thread, checkpoint, not silently accept). Root cause: agent completes each task well but doesn't self-monitor session length or topic drift. Structural heuristics insufficient — needs LLM judge tier (feat-14) or stronger rule enforcement. planning_discipline.mdc threshold already lowered to 3 follow-ups."
+      "details": "behavioral_session_boundary regressed from 70% to 33% in 41-scenario run (2026-06-02). 1 FAIL (not enough follow-ups before boundary), 3 UNCERTAIN (suggest fresh thread, checkpoint, not silently accept). Root cause: agent completes each task well but doesn't self-monitor session length or topic drift. Structural heuristics insufficient \u2014 needs LLM judge tier (feat-14) or stronger rule enforcement. planning_discipline.mdc threshold already lowered to 3 follow-ups."
     },
     {
       "id": "feat-18",
@@ -187,7 +187,7 @@
     },
     {
       "id": "gap-11",
-      "name": "Documentation drifts silently when code changes — no automated staleness detection",
+      "name": "Documentation drifts silently when code changes \u2014 no automated staleness detection",
       "status": "pending",
       "priority": 2,
       "type": "bug"
@@ -272,7 +272,7 @@
     },
     {
       "id": "feat-16",
-      "name": "Kill spec.md — single source of truth in state.json",
+      "name": "Kill spec.md \u2014 single source of truth in state.json",
       "status": "verified",
       "type": "feature"
     },
@@ -314,7 +314,7 @@
     },
     {
       "id": "gap-5",
-      "name": "metrics.json stale — does not reflect 13 verified features or 90% score",
+      "name": "metrics.json stale \u2014 does not reflect 13 verified features or 90% score",
       "status": "verified",
       "type": "bug"
     },
@@ -356,13 +356,13 @@
     },
     {
       "id": "gap-15",
-      "name": "Structural judge heuristic gaps — 'No matching heuristic' on basic checks",
+      "name": "Structural judge heuristic gaps \u2014 'No matching heuristic' on basic checks",
       "status": "verified",
       "type": "bug"
     },
     {
       "id": "gap-16",
-      "name": "LLM judge tier broken — cursor_sdk API incompatibility",
+      "name": "LLM judge tier broken \u2014 cursor_sdk API incompatibility",
       "status": "verified",
       "type": "bug"
     },
@@ -372,11 +372,11 @@
       "status": "pending",
       "priority": 2,
       "type": "bug",
-      "details": "3 pre-commit-harness tests (allow commit, auto-append breadcrumb, warn unverified) fail because the test doesn't create .commit-approved before running git commit — denial is correct hook behavior. Fix: create the flag in test setup. 1 harness-gate test (inject routing for non-trivial prompt) fails because beforeSubmitPrompt requires LLM backend unavailable in test env. Fix: mock LLM response or annotate as requires-LLM."
+      "details": "3 pre-commit-harness tests (allow commit, auto-append breadcrumb, warn unverified) fail because the test doesn't create .commit-approved before running git commit \u2014 denial is correct hook behavior. Fix: create the flag in test setup. 1 harness-gate test (inject routing for non-trivial prompt) fails because beforeSubmitPrompt requires LLM backend unavailable in test env. Fix: mock LLM response or annotate as requires-LLM."
     },
     {
       "id": "gap-18",
-      "name": "adversarial_skip_override at 57% — auth implementation incomplete under skip-harness",
+      "name": "adversarial_skip_override at 57% \u2014 auth implementation incomplete under skip-harness",
       "status": "pending",
       "priority": 2,
       "type": "bug",
@@ -384,7 +384,7 @@
     },
     {
       "id": "gap-19",
-      "name": "contract_binary_criteria at 67% — judge heuristic gaps on verification/install",
+      "name": "contract_binary_criteria at 67% \u2014 judge heuristic gaps on verification/install",
       "status": "pending",
       "priority": 2,
       "type": "bug",
@@ -392,7 +392,7 @@
     },
     {
       "id": "gap-20",
-      "name": "protocol_spike_bypasses_gate false positive — negotiation_quality check fires on spike tasks",
+      "name": "protocol_spike_bypasses_gate false positive \u2014 negotiation_quality check fires on spike tasks",
       "status": "pending",
       "priority": 2,
       "type": "bug",
@@ -400,7 +400,7 @@
     },
     {
       "id": "gap-21",
-      "name": "metrics.json eval pass rate shows 0% — harness_metrics.py reads wrong field",
+      "name": "metrics.json eval pass rate shows 0% \u2014 harness_metrics.py reads wrong field",
       "status": "pending",
       "priority": 2,
       "type": "bug",
@@ -408,7 +408,7 @@
     },
     {
       "id": "gap-22",
-      "name": "Session runner captures only run.text() — missing full agent trace (tool calls, thinking, shell commands)",
+      "name": "Session runner captures only run.text() \u2014 missing full agent trace (tool calls, thinking, shell commands)",
       "status": "verified",
       "priority": 1,
       "type": "bug",
@@ -416,7 +416,7 @@
     },
     {
       "id": "spike-2",
-      "name": "Explore UI for .harness/ folder — visual dashboard for state, breadcrumbs, and contracts",
+      "name": "Explore UI for .harness/ folder \u2014 visual dashboard for state, breadcrumbs, and contracts",
       "status": "pending",
       "priority": 3,
       "type": "spike",
@@ -424,7 +424,7 @@
     },
     {
       "id": "spike-3",
-      "name": "Improve eval accuracy — reduce UNCERTAIN verdicts and false positives",
+      "name": "Improve eval accuracy \u2014 reduce UNCERTAIN verdicts and false positives",
       "status": "pending",
       "priority": 2,
       "type": "spike",
@@ -436,7 +436,7 @@
       "status": "pending",
       "priority": 2,
       "type": "spike",
-      "details": "Agent sometimes launches /planner or rewrites state.json when a valid plan already exists with pending tasks. Explore: (1) add a pre-check in adversarial_harness.mdc — if state.json has pending tasks, skip planner and resume from next task, (2) harness-gate.sh could detect and warn, (3) add eval scenario to test 'resume vs re-plan' behavior. Related to routing_resume_existing (currently 100%) but covers edge cases where agent over-plans."
+      "details": "Agent sometimes launches /planner or rewrites state.json when a valid plan already exists with pending tasks. Explore: (1) add a pre-check in adversarial_harness.mdc \u2014 if state.json has pending tasks, skip planner and resume from next task, (2) harness-gate.sh could detect and warn, (3) add eval scenario to test 'resume vs re-plan' behavior. Related to routing_resume_existing (currently 100%) but covers edge cases where agent over-plans."
     },
     {
       "id": "spike-5",

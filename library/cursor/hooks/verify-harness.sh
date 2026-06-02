@@ -7,15 +7,13 @@
 #
 # No state.json and no contract = simple task = pass through silently.
 
-input=$(cat)
-
-HOOK_LOG=".cursor/hooks.log"
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: triggered" >> "$HOOK_LOG" 2>/dev/null
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "verify-harness"
 
 CONTRACT=".harness/contract.json"
 STATE=".harness/state.json"
 BREADCRUMBS=".harness/breadcrumbs.jsonl"
-EVALS_DIR=".harness/evals"
 
 # ─── Path 1: Contract exists but unverified ───────────────────────────────────
 
@@ -29,18 +27,27 @@ EOF
     exit 0
   fi
 
+  # BUG-7 fix: validate JSON before reading verified field
   VERIFIED=$(python3 -c "
 import json
 try:
     with open('$CONTRACT') as f:
         data = json.load(f)
     print(str(data.get('verified', False)))
+except (json.JSONDecodeError, ValueError):
+    print('PARSE_ERROR')
 except Exception:
     print('False')
 " 2>/dev/null)
 
+  if [ "$VERIFIED" = "PARSE_ERROR" ]; then
+    hooks_log "verify-harness" "contract JSON malformed, skipping"
+    echo '{}'
+    exit 0
+  fi
+
   if [ "$VERIFIED" = "True" ]; then
-    echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: contract verified, passing" >> "$HOOK_LOG" 2>/dev/null
+    hooks_log "verify-harness" "contract verified, passing"
     echo '{}'
     exit 0
   fi
@@ -55,7 +62,7 @@ except Exception:
     print('unknown feature')
 " 2>/dev/null)
 
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: BLOCKED — contract unverified for '$FEATURE'" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "verify-harness" "BLOCKED — contract unverified for '$FEATURE'"
 
   cat <<EOF
 {
@@ -68,35 +75,28 @@ fi
 # ─── Path 2: State.json exists but no contract — check if work was done ───────
 
 if [ ! -f "$STATE" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: no harness state, skipping" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "verify-harness" "no harness state, skipping"
   echo '{}'
   exit 0
 fi
 
 # Check if state.json has a task in "building" status (with type-aware bypass)
-BUILDING_RESULT=$(python3 -c "
-import json
+STATE_DATA=$(hooks_read_state "$STATE")
+BUILDING_RESULT=$(echo "$STATE_DATA" | python3 -c "
+import sys, json
 try:
-    with open('$STATE') as f:
-        data = json.load(f)
-    tasks = data.get('tasks', [])
-    sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
-    building = [t for t in sorted_tasks if t.get('status') == 'building']
-    if not building:
+    data = json.load(sys.stdin)
+    bid = data.get('building_id', '')
+    btype = data.get('building_type', '')
+    bname = data.get('building_name', '')
+    has_gatable = data.get('has_gatable', False)
+
+    if not bid:
         print('NONE|')
     else:
-        current = building[0]
         gatable = {'feature', 'bug', 'gap', 'fix'}
-        has_gatable = any(
-            t.get('type', 'feature') in gatable
-            for t in tasks if t.get('status') in ('pending', 'building')
-        )
-        skip = (
-            current.get('type', 'feature') not in gatable
-            and not has_gatable
-        )
-        name = current.get('name', current.get('id', 'unknown'))
-        print(f'{'SKIP' if skip else 'GATE'}|{name}')
+        skip = (btype not in gatable and not has_gatable)
+        print(f\"{'SKIP' if skip else 'GATE'}|{bname or bid}\")
 except Exception:
     print('NONE|')
 " 2>/dev/null)
@@ -105,42 +105,35 @@ BUILDING_ACTION=$(echo "$BUILDING_RESULT" | cut -d'|' -f1)
 BUILDING_FEATURE=$(echo "$BUILDING_RESULT" | cut -d'|' -f2)
 
 if [ "$BUILDING_ACTION" = "NONE" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: no building task, passing" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "verify-harness" "no building task, passing"
   echo '{}'
   exit 0
 fi
 
 if [ "$BUILDING_ACTION" = "SKIP" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: type-aware bypass (spike/chore), passing" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "verify-harness" "type-aware bypass (spike/chore), passing"
   echo '{}'
   exit 0
 fi
 
-# Check if a recent "Skipped harness" breadcrumb exists (within last 5 min)
-BREADCRUMBS=".harness/breadcrumbs.jsonl"
-if [ -f "$BREADCRUMBS" ]; then
-  SKIP_FOUND=$(tail -5 "$BREADCRUMBS" | grep -c "Skipped harness" || echo "0")
-  if [ "$SKIP_FOUND" -gt 0 ]; then
-    echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: skip breadcrumb found, passing" >> "$HOOK_LOG" 2>/dev/null
-    echo '{}'
-    exit 0
-  fi
+# Check if a recent "Skipped harness" breadcrumb exists
+if hooks_skip_detected "$BREADCRUMBS"; then
+  hooks_log "verify-harness" "skip breadcrumb found, passing"
+  echo '{}'
+  exit 0
 fi
 
 # A feature is marked as building — check if implementation files were modified
-IMPL_CHANGES=$(git diff --name-only 2>/dev/null | grep -vE '\.cursor/|breadcrumbs|\.md$|\.json$|\.yaml$' | wc -l | tr -d ' ')
-IMPL_STAGED=$(git diff --cached --name-only 2>/dev/null | grep -vE '\.cursor/|breadcrumbs|\.md$|\.json$|\.yaml$' | wc -l | tr -d ' ')
-IMPL_UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null | grep -vE '\.cursor/|breadcrumbs|\.md$|\.json$|\.yaml$' | wc -l | tr -d ' ')
-TOTAL_IMPL=$((${IMPL_CHANGES:-0} + ${IMPL_STAGED:-0} + ${IMPL_UNTRACKED:-0}))
+TOTAL_IMPL=$(hooks_git_impl_count)
 
 if [ "$TOTAL_IMPL" -lt 1 ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: building feature but no impl changes, passing" >> "$HOOK_LOG" 2>/dev/null
+  hooks_log "verify-harness" "building feature but no impl changes, passing"
   echo '{}'
   exit 0
 fi
 
 # Implementation files changed while a feature is building — enforce workflow
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] verify-harness: BLOCKED — $TOTAL_IMPL impl files changed, feature '$BUILDING_FEATURE' building, no contract" >> "$HOOK_LOG" 2>/dev/null
+hooks_log "verify-harness" "BLOCKED — $TOTAL_IMPL impl files changed, feature '$BUILDING_FEATURE' building, no contract"
 
 cat <<EOF
 {

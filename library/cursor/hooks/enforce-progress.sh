@@ -4,10 +4,9 @@
 # Tier 2: 4+ files changed without a contract → ask why harness isn't being used
 # Skips when adversarial harness is active (it has its own enforcement).
 
-input=$(cat)
-
-HOOK_LOG=".cursor/hooks.log"
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: triggered" >> "$HOOK_LOG" 2>/dev/null
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$SCRIPT_DIR/hooks-lib.sh"
+hooks_init "enforce-progress"
 
 CONTRACT=".harness/contract.json"
 if [ -f "$CONTRACT" ]; then
@@ -16,10 +15,7 @@ if [ -f "$CONTRACT" ]; then
   exit 0
 fi
 
-CHANGED=$(git diff --name-only 2>/dev/null | wc -l | tr -d ' ')
-STAGED=$(git diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
-UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l | tr -d ' ')
-TOTAL=$((CHANGED + STAGED + UNTRACKED))
+TOTAL=$(hooks_git_total_count)
 
 if [ "$TOTAL" -lt 2 ]; then
   echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: $TOTAL files changed, below threshold" >> "$HOOK_LOG" 2>/dev/null
@@ -31,9 +27,7 @@ BREADCRUMBS=".harness/breadcrumbs.jsonl"
 BREADCRUMBS_FRESH=false
 
 if [ -f "$BREADCRUMBS" ]; then
-  NOW=$(date +%s)
-  MTIME=$(stat -f %m "$BREADCRUMBS" 2>/dev/null || stat -c %Y "$BREADCRUMBS" 2>/dev/null || echo 0)
-  AGE=$((NOW - MTIME))
+  AGE=$(hooks_file_age "$BREADCRUMBS")
 
   if [ "$AGE" -lt 180 ]; then
     BREADCRUMBS_FRESH=true
