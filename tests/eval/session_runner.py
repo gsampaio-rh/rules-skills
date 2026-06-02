@@ -292,6 +292,7 @@ def main() -> int:
     parser.add_argument("--long", action="store_true", help="Run long scenarios from scenarios/long/")
     parser.add_argument("--dry-run", action="store_true", help="Show plan only")
     parser.add_argument("--list", action="store_true", help="List available scenarios")
+    parser.add_argument("--run-dir", help="Reuse an existing run directory instead of creating a new one")
     args = parser.parse_args()
 
     if args.timeout is None:
@@ -329,7 +330,8 @@ def main() -> int:
         print("Error: CURSOR_API_KEY not set")
         return 1
 
-    run_dir = _make_run_dir()
+    run_dir = Path(args.run_dir) if args.run_dir else _make_run_dir()
+    run_dir.mkdir(parents=True, exist_ok=True)
     print(f"Session runner: {len(scenarios)} scenario(s)")
     print(f"  Run dir: {run_dir}")
     results = []

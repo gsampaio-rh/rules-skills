@@ -3,7 +3,7 @@
   "created": "2026-05-27T14:00:00Z",
   "schema_version": 2,
   "vision": "A distributable library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code. The library must dogfood its own authoring standards — including a rigorous, machine-validated state.json schema — before the library is considered trustworthy.",
-  "direction": "library/cursor/ is the single source of truth for distributable config. Eval pipeline at 90% (252/279) across 41 scenarios, 21 at 100%, 1 below 70% (session_boundary 33%). v2 schema migration complete. Cold-start hard gate and hook enforcement operational. Active focus: close remaining gaps (gap-14 session boundary, gap-18 skip-override, gap-19 judge heuristics, gap-20 spike false positive, gap-21 metrics reader). Priority 3 deferred: feat-13 multi-agent orchestration, feat-14 LLM-as-judge.",
+  "direction": "library/cursor/ is the single source of truth for distributable config. Eval pipeline at 89.8% mean across 41 scenarios (12 at 100%, 35 above 80%, 3 below 70%). Full conversation trace capture operational. Active focus: close gaps (gap-14 session boundary 54%, gap-20 spike false positive 57%, routing_ambiguous 62%). New spikes: UI for .harness/ folder, eval accuracy improvements, prevent redundant re-planning, hooks tech debt audit. Priority 3 deferred: feat-13 multi-agent orchestration, feat-14 LLM-as-judge.",
   "trade_offs": [
     {
       "decision": "Flat tasks array, not grouped buckets",
@@ -413,6 +413,38 @@
       "priority": 1,
       "type": "bug",
       "details": "FIXED: session_runner.py now calls run.conversation_json() after each turn, capturing full ConversationTurn data (tool calls with args/result, thinking blocks, shell commands). session_judge.py updated with _extract_tool_calls(), _extract_shell_commands(), _has_tool_call(), _has_trace() helpers. Behavioral checks (TodoWrite, verification, autonomy, read-state-first, did-not-modify) now use trace data when available, falling back to old heuristics for pre-trace sessions."
+    },
+    {
+      "id": "spike-2",
+      "name": "Explore UI for .harness/ folder — visual dashboard for state, breadcrumbs, and contracts",
+      "status": "pending",
+      "priority": 3,
+      "type": "spike",
+      "details": "Investigate building a lightweight UI (web or TUI) to visualize .harness/ contents: task board from state.json, breadcrumb timeline, contract status, eval scores over time. Could be a Cursor canvas, a local web app, or a CLI dashboard. Explore frameworks (React canvas, blessed/ink TUI, simple HTML report)."
+    },
+    {
+      "id": "spike-3",
+      "name": "Improve eval accuracy — reduce UNCERTAIN verdicts and false positives",
+      "status": "pending",
+      "priority": 2,
+      "type": "spike",
+      "details": "Current eval has 89.8% mean but still produces UNCERTAIN verdicts and false positives (e.g. spike-gate, ambiguous-escalate). Explore: (1) leverage conversation traces more aggressively in structural checks, (2) calibrate LLM judge prompts for subjective criteria, (3) add scenario-specific check overrides (e.g. skip negotiation_quality for spikes), (4) build a confusion matrix to identify systematic judge biases."
+    },
+    {
+      "id": "spike-4",
+      "name": "Prevent agent from re-creating plans that already exist",
+      "status": "pending",
+      "priority": 2,
+      "type": "spike",
+      "details": "Agent sometimes launches /planner or rewrites state.json when a valid plan already exists with pending tasks. Explore: (1) add a pre-check in adversarial_harness.mdc — if state.json has pending tasks, skip planner and resume from next task, (2) harness-gate.sh could detect and warn, (3) add eval scenario to test 'resume vs re-plan' behavior. Related to routing_resume_existing (currently 100%) but covers edge cases where agent over-plans."
+    },
+    {
+      "id": "spike-5",
+      "name": "Audit hooks for technical debt and duplication",
+      "status": "pending",
+      "priority": 2,
+      "type": "spike",
+      "details": "Hook scripts (contract-gate.sh, harness-context.sh, harness-gate.sh, evaluator-guard.sh) share repeated patterns: jq parsing of state.json, task iteration, status checks, path extraction. Explore: (1) extract shared functions into a hooks-lib.sh, (2) identify dead code paths, (3) check for inconsistent behavior between hooks (e.g. different fallback logic for features vs tasks), (4) verify all hooks handle edge cases (missing files, malformed JSON, empty arrays)."
     }
   ]
 }
