@@ -134,25 +134,26 @@
     {
       "id": "gap-2",
       "name": "Agent does not create contract.json in pushback/scoping scenarios",
-      "status": "pending",
+      "status": "verified",
       "priority": 2,
       "type": "bug",
-      "details": "Agent pushes back and proposes phases but stops short of writing contract.json with the scoped subset."
+      "details": "Agent pushes back and proposes phases but stops short of writing contract.json with the scoped subset. Fix: added pushback→scoped-contract guidance to SKILL.md, strengthened eval verify commands to require contract.json, added session_judge handlers for scoped contract detection, enabled contract quality checks for light scenarios with negotiation_quality rubric."
     },
     {
       "id": "gap-4",
       "name": "protocol_evaluator_launch: contract.json created but empty (0 criteria, 0 edge cases)",
-      "status": "pending",
+      "status": "verified",
       "priority": 2,
       "type": "bug",
-      "details": "Agent creates the file but doesn't populate acceptance_criteria or edge_cases."
+      "details": "Agent creates the file but doesn't populate acceptance_criteria or edge_cases. Fix: added verify command checking >=3 criteria and >=2 edge cases. check_contract_quality already enforces this in judge. SKILL.md pushback guidance may help by modeling thorough contract creation."
     },
     {
       "id": "spike-1",
       "name": "Spike: determine if harness skill needs scoped-contract-on-pushback guidance",
-      "status": "pending",
+      "status": "verified",
       "priority": 2,
-      "type": "spike"
+      "type": "spike",
+      "details": "Resolved: YES — added 'Pushback → Scoped Contract' section to SKILL.md Phase 1. Agent must push back, scope down, create contract for first task, then present to user."
     },
     {
       "id": "gap-14",

@@ -1,0 +1,70 @@
+id: protocol_state_task_progression
+name: "Agent advances task status in state.json as it works"
+difficulty: medium
+estimated_duration: 5m
+
+seed_files:
+  README.md: |
+    # Greeter Service
+    A simple greeting service.
+  src/greeter.py: |
+    def greet(name: str) -> str:
+        return f"Hello, {name}!"
+  .harness/state.json: |
+    {
+      "schema_version": 2,
+      "project": "greeter-service",
+      "vision": "A greeting service with i18n and templates",
+      "direction": "Add localization and custom templates to the greeter",
+      "tasks": [
+        {
+          "id": "feat-1",
+          "name": "Add i18n localization support",
+          "type": "feature",
+          "status": "pending",
+          "priority": 1,
+          "details": "Support greeting in multiple languages (en, es, pt, fr). User passes a locale parameter."
+        },
+        {
+          "id": "feat-2",
+          "name": "Add greeting templates",
+          "type": "feature",
+          "status": "pending",
+          "priority": 2,
+          "details": "Allow custom greeting templates like 'Good morning, {name}!' or 'Welcome back, {name}!'"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"planner","type":"plan","feat":"feat-1","msg":"Planned greeter service with i18n and templates","result":"pass"}
+
+initial_prompt: >
+  Let's work on the greeter service. Start with feat-1 (i18n localization).
+
+follow_up_prompts:
+  - "Looks good. Now update state.json to reflect that feat-1 is done."
+
+verify:
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); t = {x['id']: x for x in s['tasks']}; assert t['feat-1']['status'] != 'pending', f'feat-1 still pending: {t[chr(34)+chr(102)+chr(101)+chr(97)+chr(116)+chr(45)+chr(49)+chr(34)]}'; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); assert len(s['tasks']) >= 2, f'Tasks lost: {len(s[chr(34)+chr(116)+chr(97)+chr(115)+chr(107)+chr(115)+chr(34)])}'; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); valid = ('pending','building','evaluating','verified','committed','cancelled'); [(t['id'], t['status']) for t in s['tasks'] if t['status'] not in valid and exit(1)]; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); ids = [t['id'] for t in s['tasks']]; assert 'feat-2' in ids, 'feat-2 gone'; print('PASS')\""
+    timeout_s: 5
+  - command: "find . -name '*.py' -not -path './.harness/*' -not -path './.cursor/*' | head -1 | xargs python -m py_compile && echo PASS || echo FAIL"
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent updated `feat-1` status in `.harness/state.json` beyond `pending`"
+    - "Agent preserved all existing tasks in `.harness/state.json`"
+  artifact_quality:
+    - "i18n localization implemented (multiple locales supported)"
+    - "`.harness/state.json` remains valid JSON with all required fields"
+    - "`feat-2` still exists and is still `pending`"
+    - "Code compiles cleanly"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent worked against the existing `.harness/state.json` tasks"

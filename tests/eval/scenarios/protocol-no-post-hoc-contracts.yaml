@@ -1,0 +1,60 @@
+id: protocol_no_post_hoc_contracts
+name: "Agent negotiates contract before building, not after"
+difficulty: medium
+estimated_duration: 5m
+
+seed_files:
+  README.md: |
+    # Notes App
+    A simple note-taking application.
+  src/models.py: |
+    class Note:
+        def __init__(self, id: int, title: str, body: str):
+            self.id = id
+            self.title = title
+            self.body = body
+
+        def to_dict(self):
+            return {"id": self.id, "title": self.title, "body": self.body}
+  .harness/state.json: |
+    {
+      "project": "notes-app",
+      "created": "2026-06-01T10:00:00Z",
+      "schema_version": 2,
+      "vision": "Simple note-taking app with tags and search.",
+      "direction": "Python backend, in-memory storage for MVP.",
+      "tasks": [
+        {"id": "feat-1", "name": "Note CRUD operations", "type": "feature", "status": "verified"},
+        {"id": "feat-2", "name": "Tag system for notes", "type": "feature", "status": "pending"}
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-06-01T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 2 tasks"}
+    {"ts":"2026-06-01T10:30:00Z","role":"evaluator","type":"eval","feat":"feat-1","msg":"PASS 4/4 criteria","result":"pass"}
+    {"ts":"2026-06-01T10:35:00Z","role":"builder","type":"checkpoint","feat":"feat-1","msg":"feat-1 verified and committed"}
+
+initial_prompt: >
+  Continue to the next task. feat-1 is done, feat-2 (tag system for notes)
+  is pending. Implement it.
+
+verify:
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "python3 -c \"import json; c = json.load(open('.harness/contract.json')); assert c.get('task_id') == 'feat-2', f'Expected task_id feat-2, got {c.get(\\\"task_id\\\")}'; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]; negotiate_ts = next((e['ts'] for e in lines if e.get('type') in ('negotiate','negotiation') and e.get('feat') == 'feat-2'), None); build_ts = next((e['ts'] for e in lines if e.get('type') == 'build' and e.get('feat') == 'feat-2'), None); assert negotiate_ts, 'No negotiate entry for feat-2'; print('PASS') if not build_ts or negotiate_ts <= build_ts else print('FAIL: build before negotiate')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; c = json.load(open('.harness/contract.json')); criteria = c.get('acceptance_criteria', []); assert len(criteria) >= 2, f'Expected >=2 criteria, got {len(criteria)}'; print('PASS')\""
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent wrote `.harness/contract.json` for feat-2 before writing implementation code"
+    - "Agent launched `/evaluator` for contract negotiation before building"
+    - "Implementation writes were blocked by contract-gate until contract existed"
+  artifact_quality:
+    - "Contract has `task_id: feat-2` with testable acceptance criteria"
+    - "Breadcrumbs show `negotiate` entry timestamped before any `build` entry for feat-2"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent followed contract-first workflow, not build-then-contract"

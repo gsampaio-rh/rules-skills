@@ -1,0 +1,136 @@
+id: behavioral_plan_adherence_multi_task
+name: "Agent follows plan across 3 tasks in priority order"
+difficulty: hard
+estimated_duration: 8m
+timeout_s: 600
+
+seed_files:
+  README.md: |
+    # String Utils
+    A Python utility library for string manipulation.
+  src/strings.py: |
+    def reverse(s: str) -> str:
+        return s[::-1]
+
+    def capitalize_words(s: str) -> str:
+        return s.title()
+  tests/test_strings.py: |
+    from src.strings import reverse, capitalize_words
+
+    def test_reverse():
+        assert reverse("hello") == "olleh"
+
+    def test_capitalize_words():
+        assert capitalize_words("hello world") == "Hello World"
+  .harness/state.json: |
+    {
+      "schema_version": 2,
+      "project": "string-utils",
+      "vision": "A comprehensive string utility library with tests",
+      "direction": "Add functions incrementally, each with full test coverage",
+      "tasks": [
+        {
+          "id": "feat-1",
+          "name": "Add truncate function (truncate to N chars with ellipsis)",
+          "type": "feature",
+          "status": "pending",
+          "priority": 1,
+          "details": "truncate('hello world', 8) -> 'hello...' — adds ... when truncated, returns original if shorter"
+        },
+        {
+          "id": "feat-2",
+          "name": "Add slug generation (URL-friendly strings)",
+          "type": "feature",
+          "status": "pending",
+          "priority": 2,
+          "details": "slugify('Hello World!') -> 'hello-world' — lowercase, replace spaces with hyphens, strip non-alphanumeric"
+        },
+        {
+          "id": "feat-3",
+          "name": "Add word count and character frequency",
+          "type": "feature",
+          "status": "pending",
+          "priority": 3,
+          "details": "word_count('hello world') -> 2, char_freq('hello') -> {'h':1, 'e':1, 'l':2, 'o':1}"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 3 tasks: truncate, slugify, word count"}
+
+initial_prompt: >
+  Work through the plan. Start with feat-1, then feat-2, then feat-3.
+  Each task needs implementation + tests. Update state.json as you go.
+
+follow_up_prompts:
+  - "Keep going — finish the remaining tasks."
+
+verify:
+  - command: >
+      python3 -c "
+      from src.strings import truncate
+      assert truncate('hello world', 8) == 'hello...', f'Got: {truncate(\"hello world\", 8)}'
+      assert truncate('hi', 8) == 'hi'
+      print('PASS')
+      "
+    timeout_s: 10
+  - command: >
+      python3 -c "
+      from src.strings import slugify
+      assert slugify('Hello World!') == 'hello-world', f'Got: {slugify(\"Hello World!\")}'
+      print('PASS')
+      "
+    timeout_s: 10
+  - command: >
+      python3 -c "
+      from src.strings import word_count, char_freq
+      assert word_count('hello world') == 2
+      assert char_freq('hello') == {'h':1, 'e':1, 'l':2, 'o':1}
+      print('PASS')
+      "
+    timeout_s: 10
+  - command: >
+      python3 -c "
+      import json
+      s = json.load(open('.harness/state.json'))
+      tasks = {t['id']: t['status'] for t in s.get('tasks', [])}
+      done_statuses = {'verified', 'committed', 'evaluating', 'building'}
+      for fid in ['feat-1', 'feat-2', 'feat-3']:
+          assert fid in tasks, f'{fid} missing from state.json'
+          assert tasks[fid] != 'pending', f'{fid} still pending: {tasks[fid]}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      feats_in_order = [l['feat'] for l in lines if l.get('feat') and l.get('type') == 'build']
+      # feat-1 should appear before feat-2, feat-2 before feat-3
+      if 'feat-1' in feats_in_order and 'feat-2' in feats_in_order:
+          assert feats_in_order.index('feat-1') < feats_in_order.index('feat-2'), 'feat-2 built before feat-1'
+      if 'feat-2' in feats_in_order and 'feat-3' in feats_in_order:
+          assert feats_in_order.index('feat-2') < feats_in_order.index('feat-3'), 'feat-3 built before feat-2'
+      assert len(feats_in_order) >= 2, f'Not enough build breadcrumbs: {feats_in_order}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "cd tests && python3 -m pytest test_strings.py -q 2>&1 | tail -1"
+    timeout_s: 15
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent updated state.json status for each task as it progressed"
+    - "Breadcrumbs trace shows feat-1 → feat-2 → feat-3 ordering"
+    - "Each task had a build breadcrumb entry"
+  artifact_quality:
+    - "truncate function works correctly (ellipsis, no-op for short strings)"
+    - "slugify function works correctly (lowercase, hyphens, strip special chars)"
+    - "word_count and char_freq functions work correctly"
+    - "Tests exist for all three features"
+    - "All tests pass"
+  behavioral:
+    - "Agent followed priority order (feat-1 first, feat-3 last)"
+    - "Agent did not skip tasks or reorder them"
+    - "Agent completed each task before starting the next"
+    - "No apologies or unnecessary summaries"

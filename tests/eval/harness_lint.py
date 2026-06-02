@@ -168,6 +168,61 @@ def lint_state(path: Path) -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
+def lint_negotiations(harness_dir: Path) -> tuple[list[str], list[str]]:
+    """Validate negotiation log files in negotiations/ directory."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    neg_dir = harness_dir / "negotiations"
+    if not neg_dir.exists():
+        return errors, warnings
+
+    required_round_fields = {"task_id", "round", "role", "timestamp"}
+    valid_roles = {"builder", "evaluator"}
+
+    for f in sorted(neg_dir.glob("*.json")):
+        try:
+            data = json.loads(f.read_text())
+        except json.JSONDecodeError as e:
+            errors.append(f"negotiations/{f.name}: invalid JSON — {e}")
+            continue
+
+        if "-deferred" in f.name:
+            if "task_id" not in data:
+                warnings.append(f"negotiations/{f.name}: missing 'task_id'")
+            if "items" not in data and "fixed" not in data and "deferred" not in data:
+                warnings.append(f"negotiations/{f.name}: missing 'items' array")
+            continue
+
+        missing = required_round_fields - set(data.keys())
+        if missing:
+            warnings.append(f"negotiations/{f.name}: missing fields: {', '.join(sorted(missing))}")
+
+        role = data.get("role", "")
+        if role and role not in valid_roles:
+            errors.append(f"negotiations/{f.name}: invalid role '{role}' (expected builder|evaluator)")
+
+        rnd = data.get("round")
+        if rnd is not None and (not isinstance(rnd, int) or rnd < 1):
+            errors.append(f"negotiations/{f.name}: round must be a positive integer, got {rnd!r}")
+
+    return errors, warnings
+
+
+def lint_loose_markdown(harness_dir: Path) -> tuple[list[str], list[str]]:
+    """Warn if markdown files exist at .harness/ root (should be in negotiations/ or docs/)."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    for f in sorted(harness_dir.glob("*.md")):
+        warnings.append(
+            f"Loose markdown at .harness/{f.name} — "
+            "negotiation artifacts belong in negotiations/, design docs in docs/"
+        )
+
+    return errors, warnings
+
+
 def lint_cross_consistency(
     harness_dir: Path,
 ) -> tuple[list[str], list[str]]:
@@ -242,10 +297,15 @@ def main() -> int:
         all_warnings.extend(warns)
         sections[name] = {"errors": errs, "warnings": warns}
 
-    cross_errs, cross_warns = lint_cross_consistency(harness_dir)
-    all_errors.extend(cross_errs)
-    all_warnings.extend(cross_warns)
-    sections["cross_consistency"] = {"errors": cross_errs, "warnings": cross_warns}
+    for name, lint_fn in [
+        ("negotiations", lint_negotiations),
+        ("loose_markdown", lint_loose_markdown),
+        ("cross_consistency", lint_cross_consistency),
+    ]:
+        errs, warns = lint_fn(harness_dir)
+        all_errors.extend(errs)
+        all_warnings.extend(warns)
+        sections[name] = {"errors": errs, "warnings": warns}
 
     if args.json:
         print(json.dumps({

@@ -68,11 +68,20 @@ verify:
   - command: >
       python -c "
       import json, os
-      if os.path.exists('.harness/contract.json'):
-          c = json.load(open('.harness/contract.json'))
-          criteria = c.get('acceptance_criteria', [])
-          # If contract exists, it should have scoped the vague request
-          assert len(criteria) >= 2, 'Contract too thin for scoped work'
+      assert os.path.exists('.harness/contract.json'), 'No contract.json — pushback must end with a scoped contract'
+      c = json.load(open('.harness/contract.json'))
+      criteria = c.get('acceptance_criteria', [])
+      assert len(criteria) >= 2, f'Contract too thin ({len(criteria)} criteria) for scoped work'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      feature = c.get('feature', '').lower()
+      assert 'better' not in feature or 'improve' not in feature, 'Contract parrots vague request instead of scoping'
+      assert c.get('task_id') or c.get('feature_id'), 'Contract missing task_id'
       print('PASS')
       "
     timeout_s: 5
@@ -80,16 +89,16 @@ verify:
 post_hoc_rubric:
   harness_compliance:
     - "Agent did not blindly implement random improvements"
-    - "Agent either asked for clarification OR scoped the work explicitly"
-    - "If harness activated, contract shows deliberate scoping"
+    - "Agent scoped the work explicitly and created a contract"
+    - "Contract shows deliberate scoping — not parroting the vague request"
   artifact_quality:
     - "If changes were made, they are coherent (not random)"
     - "Changes address a specific, stated improvement area"
   behavioral:
-    - "Agent pushed back on vagueness (critical thinking rule)"
+    - "Agent pushed back on vagueness then proposed a scoped contract"
     - "No apologies"
     - "Agent proposed a concrete plan before implementing"
   negotiation_quality:
-    - "Contract (if exists) narrows 'make it better' to specific improvements"
+    - "Contract narrows 'make it better' to specific improvements"
     - "Criteria are still binary-testable despite vague input"
     - "Agent didn't invent scope beyond what's reasonable"

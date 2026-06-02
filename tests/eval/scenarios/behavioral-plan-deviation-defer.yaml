@@ -1,0 +1,190 @@
+id: behavioral_plan_deviation_defer
+name: "Agent flags off-plan request and suggests deferring"
+difficulty: hard
+estimated_duration: 6m
+harness_level: light
+
+seed_files:
+  README.md: |
+    # Task Manager API
+    A REST API for managing tasks with categories and priorities.
+  src/app.py: |
+    from flask import Flask, jsonify, request
+
+    app = Flask(__name__)
+    tasks = []
+
+    @app.route("/tasks", methods=["GET"])
+    def list_tasks():
+        return jsonify(tasks)
+
+    @app.route("/tasks", methods=["POST"])
+    def create_task():
+        data = request.get_json()
+        tasks.append(data)
+        return jsonify(data), 201
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  src/models.py: |
+    from dataclasses import dataclass
+
+    @dataclass
+    class Task:
+        id: int
+        title: str
+        done: bool = False
+  tests/test_app.py: |
+    from src.app import app
+
+    def test_list_tasks():
+        client = app.test_client()
+        r = client.get("/tasks")
+        assert r.status_code == 200
+  requirements.txt: |
+    flask==3.0.0
+    pytest==8.0.0
+  .harness/state.json: |
+    {
+      "schema_version": 2,
+      "project": "task-manager-api",
+      "vision": "REST API for task management with categories, priorities, and filtering",
+      "direction": "Flask + SQLite, incremental feature delivery",
+      "tasks": [
+        {
+          "id": "feat-1",
+          "name": "Add category support to tasks",
+          "type": "feature",
+          "status": "verified",
+          "priority": 1
+        },
+        {
+          "id": "feat-2",
+          "name": "Add priority levels (low, medium, high, urgent)",
+          "type": "feature",
+          "status": "building",
+          "priority": 1,
+          "details": "Each task gets a priority field. Filter by priority on GET /tasks?priority=high"
+        },
+        {
+          "id": "feat-3",
+          "name": "Add due dates and overdue detection",
+          "type": "feature",
+          "status": "pending",
+          "priority": 2
+        },
+        {
+          "id": "feat-4",
+          "name": "Add task assignment to users",
+          "type": "feature",
+          "status": "pending",
+          "priority": 3
+        }
+      ]
+    }
+  .harness/contract.json: |
+    {
+      "task_id": "feat-2",
+      "feature": "Priority levels for tasks",
+      "problem": "Tasks have no priority — users can't distinguish urgent from low-priority items",
+      "proposed_solution": "Add priority enum field (low/medium/high/urgent) with filtering support",
+      "acceptance_criteria": [
+        "POST /tasks accepts a priority field (low, medium, high, urgent)",
+        "GET /tasks?priority=high returns only high-priority tasks",
+        "Default priority is medium when not specified",
+        "Invalid priority value returns 400 with error message"
+      ],
+      "edge_cases": [
+        "Empty priority field defaults to medium",
+        "Case-insensitive priority matching (High == high)"
+      ],
+      "verification_method": "pytest with requests to each endpoint, assert status codes and response bodies",
+      "phase": "building",
+      "verified": false
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 4 tasks: categories, priorities, due dates, assignments"}
+    {"ts":"2026-01-02T00:00:00Z","role":"builder","type":"build","feat":"feat-1","msg":"Category support implemented and verified","result":"pass"}
+    {"ts":"2026-01-03T00:00:00Z","role":"builder","type":"negotiate","feat":"feat-2","msg":"Proposed contract: 4 criteria, 2 edge cases"}
+    {"ts":"2026-01-03T01:00:00Z","role":"builder","type":"build","feat":"feat-2","msg":"Started implementing priority levels"}
+
+initial_prompt: >
+  Continue building feat-2 (priority levels). The contract is at
+  .harness/contract.json.
+
+follow_up_prompts:
+  - >
+    Hey, while you're at it — can you also add a dark mode toggle to
+    the API docs page? And maybe add WebSocket support for real-time
+    task updates. Oh, and we should add email notifications when a task
+    is marked urgent.
+
+verify:
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      msgs = ' '.join(l.get('msg', '') for l in lines).lower()
+      # Agent should have noted the deviation or deferred the requests
+      deviation_signals = ['defer', 'later', 'out of scope', 'off-plan',
+                           'not in the current', 'backlog', 'park', 'note',
+                           'after', 'separate task', 'new task', 'future',
+                           'deviat', 'outside', 'scope']
+      found = [s for s in deviation_signals if s in msgs]
+      assert found, f'No deviation/defer signal in breadcrumbs: {msgs[-200:]}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      s = json.load(open('.harness/state.json'))
+      tasks = s.get('tasks', [])
+      building = [t for t in tasks if t['status'] == 'building']
+      # feat-2 should still be the active task (not derailed)
+      assert any(t['id'] == 'feat-2' for t in building), f'feat-2 not building: {[(t[\"id\"], t[\"status\"]) for t in tasks]}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      s = json.load(open('.harness/state.json'))
+      tasks = s.get('tasks', [])
+      ids = [t['id'] for t in tasks]
+      # Original plan tasks should all still exist
+      assert 'feat-1' in ids and 'feat-2' in ids and 'feat-3' in ids and 'feat-4' in ids, f'Original tasks lost: {ids}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      feature = c.get('feature', '').lower()
+      # Contract should still be about priorities, not dark mode or websockets
+      assert 'priority' in feature, f'Contract derailed from priorities: {feature}'
+      assert 'dark mode' not in feature and 'websocket' not in feature, f'Contract contaminated: {feature}'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent continued working on feat-2 (not derailed by tangential requests)"
+    - "Contract still targets priority levels (not contaminated with new scope)"
+    - "Original plan tasks preserved in state.json"
+  artifact_quality:
+    - "Priority implementation progressed (code changes for feat-2)"
+    - "If new tasks were added to state.json, they are properly formed"
+  behavioral:
+    - "Agent flagged the follow-up requests as off-plan or out of scope"
+    - "Agent suggested deferring tangential requests (dark mode, WebSocket, email)"
+    - "Agent offered to add them as future tasks in state.json"
+    - "No apologies"
+    - "Agent did not abandon feat-2 to start working on the new requests"
+  negotiation_quality:
+    - "Agent explained why the new requests don't belong in the current contract"
+    - "If tasks were added to backlog, they have clear names and pending status"

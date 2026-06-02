@@ -51,13 +51,24 @@ Launch `/planner` with the user's request:
 
 The planner produces `.harness/state.json` (vision, direction, trade-offs, and task list). Present to user for confirmation.
 
+### Pushback → Scoped Contract
+
+When the request is vague ("make it better") or over-scoped (10 features at once), **don't stop at pushback**. Complete the cycle:
+
+1. **Push back** — explain why the scope is too broad or vague
+2. **Scope down** — propose 1-2 concrete tasks as a first phase. Update `state.json` with broken-down tasks.
+3. **Create contract** — write `.harness/contract.json` for the first scoped task with specific, binary-testable acceptance criteria
+4. **Present to user** — show the scoped plan + contract, ask for confirmation
+
+The goal: the user sees a concrete proposal they can approve, not just a question they need to answer. Pushback without a scoped contract is incomplete.
+
 ## Phase 1.5: Contract Negotiation
 
 Before writing code, builder and evaluator negotiate what "done" means.
 
-1. **Builder proposes:** Write contract to `.harness/contract.json` with `"phase": "negotiating"`
-2. **Evaluator reviews:** Launch `/evaluator` in negotiation mode — pushes back on weak criteria
-3. **Iterate:** Max 3 rounds. Both sides log as breadcrumbs.
+1. **Builder proposes:** Write contract to `.harness/contract.json` with `"phase": "negotiating"`. Log proposal details to `.harness/negotiations/{task_id}-round-1-builder.json`.
+2. **Evaluator reviews:** Launch `/evaluator` in negotiation mode — pushes back on weak criteria. Evaluator writes challenge to `.harness/negotiations/{task_id}-round-1-evaluator.json`.
+3. **Iterate:** Max 3 rounds. Both sides log as breadcrumbs and to `negotiations/`.
 4. **Agreement:** Evaluator marks `"phase": "negotiated"`
 
 ### Contract format
@@ -136,6 +147,9 @@ Scrap-and-restart is expected, not failure — models should discard work that i
 | `.harness/state.json` | Single source of truth — vision, direction, trade-offs, tasks | Planner (init), Builder (updates) |
 | `.harness/contract.json` | Active contract | Builder (proposes), Evaluator (approves) |
 | `.harness/evals/eval-{id}.json` | Eval reports | Evaluator |
+| `.harness/negotiations/{id}-round-{n}-{role}.json` | Negotiation round logs | Builder (proposals), Evaluator (challenges) |
+| `.harness/negotiations/{id}-deferred.json` | Fixed/deferred items after eval | Builder |
+| `.harness/docs/` | Strategic design docs (prose) | Builder |
 | `.harness/breadcrumbs.jsonl` | Append-only trace | All agents |
 
 All state lives on the file system. Whether `.harness/` is git-tracked or gitignored depends on the project — this repo tracks it for dogfooding; consumer projects may choose to gitignore it.
@@ -164,6 +178,8 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 - `.harness/state.json` — vision, direction, trade-offs, task tracking (all agents)
 - `.harness/contract.json` — active contract (builder + evaluator)
 - `.harness/evals/eval-{id}.json` — evaluation reports (evaluator)
+- `.harness/negotiations/` — timestamped negotiation round logs (builder + evaluator)
+- `.harness/docs/` — strategic design documents (builder)
 - `.harness/breadcrumbs.jsonl` — append-only trace (all agents)
 
 ## Stop Conditions

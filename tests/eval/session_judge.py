@@ -408,6 +408,14 @@ def _evaluate_structural_check(
     check_lower = check.lower()
     all_content = "\n".join(contents.values())
 
+    # Harness-artifact-aware path: when criterion references .harness/state.json,
+    # inspect the parsed harness object directly instead of keyword-matching
+    # file contents (avoids false positives from domain term overlap).
+    if ".harness/state.json" in check_lower or "harness task" in check_lower:
+        harness = session.get("artifacts", {}).get("harness", {})
+        passed, evidence = _check_harness_state(check_lower, harness)
+        return passed, evidence
+
     files_changed = session.get("artifacts", {}).get("files_changed", [])
     non_harness_changes = [f for f in files_changed if not f.startswith(".harness") and not f.startswith(".cursor")]
     if check_lower.startswith("if changes were made") or check_lower.startswith("changes address"):
@@ -432,9 +440,9 @@ def _evaluate_structural_check(
 
     if any(kw in check_lower for kw in ("compiles cleanly", "still parses", "valid python", "syntax")):
         if validations:
-            all_pass = all(v.get("exit_code") == 0 for v in validations)
+            all_pass = all(v.get("status", "PASS") == "PASS" and v.get("exit_code", 0) == 0 for v in validations)
             if all_pass:
-                return True, f"All {len(validations)} verify commands passed (exit_code 0)"
+                return True, f"All {len(validations)} verify commands passed"
         if contents:
             py_files = [f for f in files if f.endswith(".py")]
             if py_files:
@@ -481,18 +489,23 @@ def _check_validations(check: str, validations: list[dict]) -> tuple[bool, str]:
     if not validations:
         return False, "No validation commands were run"
 
-    all_pass = all(v.get("exit_code") == 0 for v in validations)
+    def _v_passed(v: dict) -> bool:
+        status = v.get("status", "").upper()
+        if status in ("PASS", "FAIL"):
+            return status == "PASS"
+        return v.get("exit_code") == 0
+
+    all_pass = all(_v_passed(v) for v in validations)
     if "pass" in check or "exit code 0" in check:
         summary = "; ".join(
-            f"{v['command']}→{v['exit_code']}" for v in validations
+            f"{v['command'][:60]}→{v.get('status', v.get('exit_code'))}" for v in validations
         )
         return all_pass, f"Validations: {summary}"
 
     for v in validations:
         cmd = v.get("command", "")
         if any(kw in cmd for kw in ("pytest", "test", "npm test")):
-            passed = v.get("exit_code") == 0
-            return passed, f"{cmd} exit_code={v.get('exit_code')}"
+            return _v_passed(v), f"{cmd} → {v.get('status', v.get('exit_code'))}"
 
     return False, "No matching validation found"
 
@@ -524,6 +537,72 @@ def _check_content(check: str, all_content: str, contents: dict[str, str]) -> tu
     if found_in:
         return True, "; ".join(found_in)
     return False, f"Keywords {keywords} not found in file contents"
+
+
+def _check_harness_state(check: str, harness: dict) -> tuple[bool, str]:
+    """Check criteria that reference .harness/state.json using the parsed harness object."""
+    state = harness.get("state.json", {})
+    if isinstance(state, dict) and "_error" in state:
+        return False, f"state.json parse error: {state['_error']}"
+
+    if not state:
+        return False, ".harness/state.json not found or empty"
+
+    tasks = state.get("tasks", [])
+
+    if "tasks" in check and ("array" in check or "contains" in check or "task objects" in check):
+        if not tasks:
+            return False, "state.json has no tasks"
+        has_fields = all("id" in t and "name" in t for t in tasks)
+        return has_fields, f"state.json has {len(tasks)} task(s), fields present: {has_fields}"
+
+    if "vision" in check or "project" in check:
+        has_vision = "vision" in state or "project" in state
+        return has_vision, f"vision={'vision' in state}, project={'project' in state}"
+
+    if "schema_version" in check:
+        sv = state.get("schema_version")
+        return sv == 2, f"schema_version={sv}"
+
+    if "valid json" in check or "remains valid" in check:
+        return True, "state.json parsed successfully as valid JSON"
+
+    if "preserved" in check or "lost" in check:
+        backtick_fields = re.findall(r"`([^`]+)`", check)
+        if backtick_fields:
+            missing = [f for f in backtick_fields if f not in state]
+            return len(missing) == 0, f"present: {[f for f in backtick_fields if f in state]}, missing: {missing}"
+        return bool(state), f"state.json has {len(state)} top-level keys"
+
+    if "duplicate" in check:
+        ids = [t.get("id") for t in tasks]
+        dupes = len(ids) != len(set(ids))
+        return not dupes, f"task ids: {ids}, unique: {not dupes}"
+
+    if "status" in check and ("enum" in check or "valid" in check):
+        valid_status = {"pending", "building", "evaluating", "verified", "committed", "cancelled"}
+        valid_type = {"feature", "fix", "bug", "gap", "spike", "chore"}
+        bad = [t for t in tasks if t.get("status") not in valid_status or t.get("type") not in valid_type]
+        return len(bad) == 0, f"{len(tasks)} tasks, {len(bad)} with invalid enum values"
+
+    backtick_ids = re.findall(r"`(feat-\d+|gap-\d+|spike-\d+|chore-\d+)`", check)
+    if backtick_ids:
+        task_ids = {t.get("id") for t in tasks}
+        found = [tid for tid in backtick_ids if tid in task_ids]
+        missing = [tid for tid in backtick_ids if tid not in task_ids]
+        if "progressed" in check or "advanced" in check or "beyond" in check:
+            for tid in backtick_ids:
+                t = next((t for t in tasks if t.get("id") == tid), None)
+                if t and t.get("status") == "pending":
+                    return False, f"{tid} still pending"
+            return True, f"{backtick_ids} all advanced past pending"
+        return len(missing) == 0, f"found: {found}, missing: {missing}"
+
+    if "breadcrumbs" in check:
+        bc = harness.get("breadcrumbs.jsonl", [])
+        return bool(bc), f"breadcrumbs.jsonl has {len(bc)} entries"
+
+    return bool(state and tasks), f"state.json exists with {len(tasks)} task(s)"
 
 
 # ─── Behavioral Checks ────────────────────────────────────────────────────────
@@ -594,7 +673,71 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
             r"here.s (what|my plan)|focus on|propose|could you (elaborate|tell me more)|"
             r"what (kind of|type of) improvement)\b", re.I,
         )
-        return bool(clarify_patterns.search(transcript_text))
+        pushed_back = bool(clarify_patterns.search(transcript_text))
+        if "scoped contract" in check_lower or "then proposed" in check_lower:
+            contract = session.get("artifacts", {}).get("harness", {}).get("contract.json")
+            return pushed_back and contract is not None
+        return pushed_back
+
+    if "scoped contract" in check_lower or "deliberate scoping" in check_lower:
+        contract = session.get("artifacts", {}).get("harness", {}).get("contract.json")
+        if not contract:
+            return False
+        criteria = contract.get("acceptance_criteria", [])
+        return len(criteria) >= 2 and len(criteria) <= 8
+
+    if "off-plan" in check_lower or "out of scope" in check_lower or "defer" in check_lower:
+        defer_patterns = re.compile(
+            r"\b(defer|later|out of scope|off.?plan|not in the current|backlog|"
+            r"park (that|this|it)|note (that|this|it) for|after (we|I) (finish|complete)|"
+            r"separate task|new task|future|deviat|outside.*scope|"
+            r"scope creep|tangential|unrelated to|not part of|"
+            r"add (it|them|this|that) (to|as).*task|"
+            r"(focus|stay|continue|stick) (on|with) (the |feat|current)|"
+            r"let.s (finish|complete|focus))\b", re.I,
+        )
+        return bool(defer_patterns.search(transcript_text))
+
+    if "abandon" in check_lower or "derail" in check_lower or "not derail" in check_lower:
+        harness = session.get("artifacts", {}).get("harness", {})
+        contract = harness.get("contract.json", {})
+        state = harness.get("state.json", {})
+        tasks = state.get("tasks", [])
+        building = [t for t in tasks if t.get("status") == "building"]
+        if contract and building:
+            return contract.get("task_id") == building[0].get("id")
+        return bool(building)
+
+    if "follow" in check_lower and ("priority" in check_lower or "order" in check_lower):
+        harness = session.get("artifacts", {}).get("harness", {})
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        build_feats = [
+            b.get("feat") for b in breadcrumbs
+            if isinstance(b, dict) and b.get("type") == "build" and b.get("feat")
+        ]
+        if len(build_feats) < 2:
+            return "TodoWrite" in transcript_text or len(build_feats) == 1
+        for i in range(len(build_feats) - 1):
+            a, b = build_feats[i], build_feats[i + 1]
+            if a and b and a > b:
+                return False
+        return True
+
+    if "proactively updated" in check_lower and "plan" in check_lower:
+        harness = session.get("artifacts", {}).get("harness", {})
+        state = harness.get("state.json", {})
+        trade_offs = state.get("trade_offs", [])
+        direction = state.get("direction", "")
+        has_update = len(trade_offs) > 1 or "dedup" in direction.lower() or "index" in direction.lower()
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        discovery_crumb = any(
+            isinstance(b, dict) and any(
+                w in b.get("msg", "").lower()
+                for w in ("discover", "trade", "update", "revis", "storage", "constraint")
+            )
+            for b in breadcrumbs
+        )
+        return has_update or discovery_crumb
 
     if "did not modify" in check_lower or "not refactor" in check_lower:
         artifacts = session.get("artifacts", {})
@@ -1147,9 +1290,11 @@ def judge_session(
 
     is_negative = _is_negative_harness_scenario(rubric)
 
+    has_negotiation_rubric = bool(rubric.get("post_hoc_rubric", {}).get("negotiation_quality"))
+
     if "computational" in tiers:
         all_results.extend(check_harness_compliance(session, rubric))
-        if level == "full" and not is_negative:
+        if (level == "full" or has_negotiation_rubric) and not is_negative:
             all_results.extend(check_contract_quality(session))
 
     if "structural" in tiers:

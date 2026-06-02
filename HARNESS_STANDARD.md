@@ -135,6 +135,89 @@ Append-only JSONL. One line per significant action, written by all agents.
 }
 ```
 
+### `negotiations/{task_id}-round-{n}-{role}.json`
+
+Structured log of builder-evaluator negotiation rounds. Replaces the previous pattern of loose markdown files in `.harness/` root.
+
+Builder proposal (`{task_id}-round-{n}-builder.json`):
+
+```json
+{
+  "task_id": "feat-1",
+  "round": 1,
+  "role": "builder",
+  "timestamp": "ISO-8601",
+  "decisions": [
+    {
+      "id": "decision-slug",
+      "title": "Human-readable title",
+      "proposal": "What the builder proposes",
+      "reasoning": "Why this approach",
+      "alternatives_considered": ["alt 1", "alt 2"]
+    }
+  ],
+  "open_questions": ["Questions for evaluator"]
+}
+```
+
+Evaluator challenge (`{task_id}-round-{n}-evaluator.json`):
+
+```json
+{
+  "task_id": "feat-1",
+  "round": 1,
+  "role": "evaluator",
+  "timestamp": "ISO-8601",
+  "decisions": [
+    {
+      "id": "decision-slug",
+      "verdict": "APPROVE|CHALLENGE",
+      "reasoning": "Why",
+      "counter_proposal": "Alternative (only when CHALLENGE)",
+      "conditions": ["Conditions for acceptance"]
+    }
+  ],
+  "overall_verdict": "APPROVE|NEGOTIATE|REJECT"
+}
+```
+
+**Required fields:** `task_id`, `round`, `role`, `timestamp`.
+**Naming convention:** `{task_id}-round-{n}-{role}.json` where `n` is 1-indexed and `role` is `builder` or `evaluator`.
+
+### `negotiations/{task_id}-deferred.json`
+
+Items identified during evaluation that were fixed or deferred for later.
+
+```json
+{
+  "task_id": "feat-1",
+  "assessed_on": "ISO-8601",
+  "items": [
+    {
+      "id": "issue-1",
+      "severity": "critical|major|minor",
+      "description": "What was found",
+      "status": "fixed|deferred|wont-fix",
+      "detail": "Fix applied or reason for deferral"
+    }
+  ]
+}
+```
+
+### `docs/`
+
+Strategic documents (design considerations, maturity analyses, research notes) that support planning but aren't negotiation artifacts. Written by the builder, not the planner or evaluator. Prose markdown is acceptable here — these are human-readable design docs, not machine-graded artifacts.
+
+### Migration from loose markdown
+
+Projects with existing `.harness/*.md` files (e.g., `builder-proposals.md`, `builder-round2.md`, `adversary-deferred.md`):
+
+1. Create `negotiations/` directory
+2. Rename `builder-proposals.md` → `negotiations/{task_id}-round-1-builder.json` and restructure content into the schema above
+3. Rename `builder-round2.md` → `negotiations/{task_id}-round-2-builder.json`
+4. Rename `adversary-deferred.md` → `negotiations/{task_id}-deferred.json` with `items[]` array
+5. Move design docs (e.g., `design-considerations.md`) to `docs/`
+
 ## Hook Enforcement
 
 Hooks ensure the workflow is followed, not just documented.
@@ -247,6 +330,8 @@ Run: `make harness-metrics` or `make harness-metrics-json`
 - **Overlong negotiation** — more than 3 rounds means the feature scope is unclear. Escalate to the user.
 - **Ignoring scrap recommendations** — when the evaluator says `scrap_and_restart`, the builder should comply, not patch.
 - **Markdown state files** — use JSON. Models overwrite markdown structure more readily.
+- **Loose markdown in `.harness/` root** — negotiation artifacts (proposals, counter-proposals, deferred items) must go in `negotiations/` as timestamped JSON. Strategic docs go in `docs/`. Nothing but `state.json`, `contract.json`, `breadcrumbs.jsonl`, and `metrics.json` should live at the `.harness/` root.
+- **Post-hoc contracts** — writing a contract after building inverts the harness. Contracts must be negotiated before implementation starts.
 
 ## Quality Checklist
 

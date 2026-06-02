@@ -261,11 +261,13 @@ class CaptureWorkspace:
                     cwd=self.path, capture_output=True, text=True,
                     timeout=timeout_s,
                 )
+                stdout = proc.stdout[:4000]
                 results.append({
                     "command": command,
                     "exit_code": proc.returncode,
-                    "stdout": proc.stdout[:4000],
+                    "stdout": stdout,
                     "stderr": proc.stderr[:2000],
+                    "status": _derive_verify_status(proc.returncode, stdout),
                 })
             except subprocess.TimeoutExpired:
                 results.append({
@@ -273,6 +275,7 @@ class CaptureWorkspace:
                     "exit_code": -1,
                     "stdout": "",
                     "stderr": f"Timeout after {timeout_s}s",
+                    "status": "FAIL",
                 })
             except Exception as e:
                 results.append({
@@ -280,5 +283,24 @@ class CaptureWorkspace:
                     "exit_code": -1,
                     "stdout": "",
                     "stderr": str(e),
+                    "status": "ERROR",
                 })
         return results
+
+
+def _derive_verify_status(exit_code: int, stdout: str) -> str:
+    """Derive PASS/FAIL from exit code and stdout content.
+
+    Handles the common pattern where `test -f X && echo PASS || echo FAIL`
+    always returns exit_code=0 but stdout contains the real result.
+    """
+    stdout_stripped = stdout.strip().split("\n")[-1].strip().upper()
+    if "FAIL" in stdout_stripped:
+        return "FAIL"
+    if exit_code != 0:
+        return "FAIL"
+    if "PASS" in stdout_stripped:
+        return "PASS"
+    if exit_code == 0:
+        return "PASS"
+    return "UNKNOWN"

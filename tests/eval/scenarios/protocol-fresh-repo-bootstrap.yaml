@@ -1,0 +1,49 @@
+id: protocol_fresh_repo_bootstrap
+name: "Fresh repo — agent bootstraps .harness/ from scratch"
+difficulty: medium
+estimated_duration: 5m
+
+seed_files:
+  README.md: |
+    # My Project
+    A new project with nothing implemented yet.
+  src/main.py: |
+    def main():
+        print("Hello, world!")
+
+    if __name__ == "__main__":
+        main()
+
+initial_prompt: >
+  Build a REST API for a task management system. It needs CRUD endpoints for
+  tasks (title, description, status, priority), user assignment, and due date
+  filtering. Use Flask and SQLite.
+
+verify:
+  - command: "test -d .harness && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/.routing-pending -o -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); assert 'tasks' in s, 'Missing tasks'; assert isinstance(s['tasks'], list); assert len(s['tasks']) >= 1, f'Need >=1 task'; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); [t.get('id') or exit(1) for t in s['tasks']]; [t.get('name') or exit(1) for t in s['tasks']]; [t.get('status') or exit(1) for t in s['tasks']]; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); assert 'vision' in s or 'project' in s, 'Missing vision/project'; print('PASS')\""
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent created `.harness/state.json` from scratch (no pre-existing harness)"
+    - "Agent launched `/planner` subagent before writing implementation code"
+    - "Implementation writes were blocked until state.json was created (cold-start gate enforced)"
+  artifact_quality:
+    - "`.harness/state.json` contains `tasks` array with harness task objects"
+    - "`.harness/state.json` has `vision` or `project` field"
+    - "`.harness/breadcrumbs.jsonl` was created"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent routed to `/planner` before any implementation writes"

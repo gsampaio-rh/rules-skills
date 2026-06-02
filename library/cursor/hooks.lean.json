@@ -7,6 +7,12 @@
         "timeout": 5
       }
     ],
+    "beforeSubmitPrompt": [
+      {
+        "command": ".cursor/hooks/harness-gate.sh",
+        "timeout": 5
+      }
+    ],
     "preToolUse": [
       {
         "command": ".cursor/hooks/contract-gate.sh",

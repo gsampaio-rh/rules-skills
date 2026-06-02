@@ -1,0 +1,61 @@
+id: protocol_planner_delegation
+name: "Agent delegates plan updates to /planner, not inline"
+difficulty: hard
+estimated_duration: 5m
+
+seed_files:
+  README.md: |
+    # E-Commerce Platform
+    Multi-vendor marketplace with product catalog and orders.
+  src/models.py: |
+    class Product:
+        def __init__(self, id: int, name: str, price: float, vendor_id: int):
+            self.id = id
+            self.name = name
+            self.price = price
+            self.vendor_id = vendor_id
+  .harness/state.json: |
+    {
+      "project": "ecommerce-platform",
+      "created": "2026-06-01T10:00:00Z",
+      "schema_version": 2,
+      "vision": "Multi-vendor marketplace with product catalog.",
+      "direction": "Python backend, SQLite storage.",
+      "tasks": [
+        {"id": "feat-1", "name": "Product CRUD", "type": "feature", "status": "verified"},
+        {"id": "feat-2", "name": "Vendor management", "type": "feature", "status": "verified"}
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-06-01T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 2 tasks: Product CRUD, Vendor management"}
+    {"ts":"2026-06-01T12:00:00Z","role":"builder","type":"checkpoint","feat":"feat-1","msg":"feat-1 verified"}
+    {"ts":"2026-06-01T14:00:00Z","role":"builder","type":"checkpoint","feat":"feat-2","msg":"feat-2 verified"}
+
+initial_prompt: >
+  All current tasks are done. We need to plan the next phase: add a shopping
+  cart system with cart persistence, checkout flow, payment integration stubs,
+  and order history. This is a significant expansion that needs proper planning
+  before we start building. Update the project plan.
+
+verify:
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); tasks = s.get('tasks', []); new_tasks = [t for t in tasks if t['id'] not in ('feat-1', 'feat-2')]; assert len(new_tasks) >= 2, f'Expected new tasks added, got {len(new_tasks)} new'; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); assert 'cart' in json.dumps(s).lower() or 'checkout' in json.dumps(s).lower() or 'order' in json.dumps(s).lower(), 'No cart/checkout/order tasks found'; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); old = [t for t in s['tasks'] if t['id'] in ('feat-1','feat-2')]; assert all(t['status'] == 'verified' for t in old), 'Old tasks modified'; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]; plan_entries = [e for e in lines if e.get('type') == 'plan' and e.get('ts','') > '2026-06-01T14:00:00Z']; assert len(plan_entries) >= 1, 'No new plan breadcrumb found'; print('PASS')\""
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent launched `/planner` subagent to update the project plan"
+    - "Agent did not write new tasks to `state.json` directly (planner's job)"
+    - "Existing verified tasks (feat-1, feat-2) were preserved unchanged"
+  artifact_quality:
+    - "state.json has new tasks related to cart/checkout/orders"
+    - "New tasks have valid `id`, `name`, `type`, and `status: pending`"
+    - "Breadcrumbs have a `plan` entry for the new planning phase"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent recognized this as a planning task and delegated to /planner"

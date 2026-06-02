@@ -45,24 +45,35 @@ verify:
   - command: >
       python -c "
       import json, os
-      if os.path.exists('.harness/contract.json'):
-          c = json.load(open('.harness/contract.json'))
-          criteria = c.get('acceptance_criteria', [])
-          # Should be scoped down, not trying to do everything
-          assert len(criteria) <= 8, f'Too many criteria ({len(criteria)}) — scope not narrowed'
+      assert os.path.exists('.harness/contract.json'), 'No contract.json — over-scoped request must produce a scoped contract'
+      c = json.load(open('.harness/contract.json'))
+      criteria = c.get('acceptance_criteria', [])
+      assert len(criteria) >= 2, f'Contract too thin ({len(criteria)} criteria)'
+      assert len(criteria) <= 8, f'Too many criteria ({len(criteria)}) — scope not narrowed'
       print('PASS')
       "
     timeout_s: 5
   - command: >
       python -c "
-      import json, os
-      if os.path.exists('.harness/state.json'):
-          s = json.load(open('.harness/state.json'))
-          tasks = s.get('tasks', [])
-          # Should have broken down into phases, not one giant task
-          if len(tasks) == 1:
-              name = tasks[0].get('name', '').lower()
-              assert 'e-commerce' not in name and 'complete' not in name, 'Single monolithic task — not scoped'
+      import json
+      c = json.load(open('.harness/contract.json'))
+      assert c.get('task_id') or c.get('feature_id'), 'Contract missing task_id'
+      feature = c.get('feature', '').lower()
+      broad_terms = ['complete e-commerce', 'all features', 'everything']
+      for term in broad_terms:
+          assert term not in feature, f'Contract parrots broad scope: {term}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python -c "
+      import json
+      s = json.load(open('.harness/state.json'))
+      tasks = s.get('tasks', [])
+      assert len(tasks) >= 2, f'Only {len(tasks)} task(s) — should break down into phases'
+      names = [t.get('name', '').lower() for t in tasks]
+      for name in names:
+          assert 'complete e-commerce' not in name, f'Monolithic task name: {name}'
       print('PASS')
       "
     timeout_s: 5
@@ -70,16 +81,16 @@ verify:
 post_hoc_rubric:
   harness_compliance:
     - "Agent did not accept the full scope as-is"
-    - "Scope was narrowed (either via pushback or phased plan)"
-    - "If state.json exists, features are broken into phases/milestones"
+    - "Scope was narrowed via pushback AND a scoped contract was created"
+    - "State.json has tasks broken into phases/milestones"
   artifact_quality:
     - "If code was written, it covers a reasonable first increment"
     - "Not attempting all 10 features simultaneously"
   behavioral:
-    - "Agent pushed back on scope (critical thinking rule)"
+    - "Agent pushed back on scope then proposed a scoped contract"
     - "No apologies"
-    - "Proposed a phased approach or asked which subset to start with"
+    - "Proposed a phased approach with a contract for the first phase"
   negotiation_quality:
-    - "Contract (if exists) covers only 1-2 features max"
+    - "Contract covers only 1-2 features max"
     - "Not a laundry list of all 10 original requirements"
     - "Edge cases are relevant to the scoped subset"

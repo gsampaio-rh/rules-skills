@@ -15,6 +15,8 @@ alwaysApply: true
 | Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
 | Non-trivial (3+ files, user-facing, architectural) | **Launch `/planner` FIRST.** |
 
+**Cold start:** No `.harness/state.json`? Launch `/planner` first — do not code.
+
 **Non-trivial indicators (any ONE):**
 - 3+ files, user-facing, architectural, vague/ambiguous, or visual/UI work
 

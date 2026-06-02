@@ -1,12 +1,13 @@
 #!/bin/bash
-# preToolUse hook (matcher: Write): Denies writes to product files
-# when state.json exists (harness active) but no contract.json has been negotiated.
+# preToolUse hook (matcher: Write): Denies writes to product files in two cases:
+#   1. Cold start: routing-pending marker exists but no state.json (planner not run)
+#   2. Active harness: state.json exists but no contract.json (negotiation not done)
 #
 # Design:
-#   - No state.json → allow (simple task, no harness)
+#   - routing-pending + no state.json → block impl writes (cold-start enforcement)
+#   - No state.json + no marker → allow (simple task, no harness)
 #   - Contract exists → allow (negotiation done, builder working)
 #   - State exists + no contract → allow ONLY .harness/ and .cursor/hooks/ writes
-#     (builder must write a contract before touching anything else)
 
 input=$(cat)
 
@@ -16,11 +17,55 @@ echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: triggered" >> "$HOOK_LOG" 2
 STATE=".harness/state.json"
 CONTRACT=".harness/contract.json"
 
-# Fast exit: no harness active
+# Cold-start enforcement: routing-pending marker means harness-gate detected
+# a non-trivial prompt but state.json hasn't been created yet (planner hasn't
+# run). Block implementation writes until the agent creates state.json.
+ROUTING_PENDING=".harness/.routing-pending"
+if [ ! -f "$STATE" ] && [ -f "$ROUTING_PENDING" ]; then
+  # Still need to extract the target path to decide allow/deny
+  target_path=$(echo "$input" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    path = ''
+    for key in ('input', 'toolInput', 'tool_input'):
+        nested = data.get(key)
+        if isinstance(nested, dict):
+            path = nested.get('path', nested.get('file_path', nested.get('filePath', '')))
+            if path:
+                break
+    if not path:
+        path = data.get('path', data.get('file_path', data.get('filePath', '')))
+    print(path)
+except Exception:
+    print('')
+" 2>/dev/null)
+
+  if [ -n "$target_path" ]; then
+    if echo "$target_path" | grep -qE '\.harness/|\.cursor/hooks/'; then
+      echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: cold-start, allowed harness path: $target_path" >> "$HOOK_LOG" 2>/dev/null
+      echo '{}'
+      exit 0
+    fi
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] contract-gate: DENIED cold-start write to $target_path (routing-pending, no state.json)" >> "$HOOK_LOG" 2>/dev/null
+    cat <<EOF
+{
+  "permission": "deny",
+  "agent_message": "WRITE BLOCKED (cold start): A non-trivial task was detected but no .harness/state.json exists yet. You must launch the /planner subagent to create state.json before writing implementation code.\n\nTo proceed:\n1. Launch /planner to decompose the task into state.json\n2. After state.json is created, implementation writes will be allowed\n\nIf this is actually simple work, ask the user to say 'skip harness'.\n\nBlocked file: $target_path"
+}
+EOF
+    exit 0
+  fi
+fi
+
+# Fast exit: no harness active and no routing pending
 if [ ! -f "$STATE" ]; then
   echo '{}'
   exit 0
 fi
+
+# Cleanup stale routing-pending marker now that state.json exists
+[ -f "$ROUTING_PENDING" ] && rm -f "$ROUTING_PENDING" 2>/dev/null
 
 # Fast exit: contract exists (negotiation done)
 if [ -f "$CONTRACT" ]; then

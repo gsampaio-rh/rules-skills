@@ -18,8 +18,8 @@ TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "{\"ts\":\"$TS\",\"role\":\"system\",\"type\":\"session_start\",\"feat\":null,\"msg\":\"New chat session started\",\"result\":\"pass\"}" >> "$BREADCRUMBS" 2>/dev/null
 
 if [ ! -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: no harness state, skipping" >> "$HOOK_LOG" 2>/dev/null
-  echo '{}'
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: no harness state, injecting cold-start note" >> "$HOOK_LOG" 2>/dev/null
+  echo '{"additional_context": "No harness active (.harness/state.json not found). If this task is non-trivial (3+ files, user-facing, architectural), launch /planner to create state.json before implementing."}'
   exit 0
 fi
 

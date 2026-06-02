@@ -34,7 +34,16 @@ follow_up_prompts:
   - "Commit the changes"
 
 verify:
-  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+  - command: >
+      python -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      criteria = c.get('acceptance_criteria', [])
+      edges = c.get('edge_cases', [])
+      assert len(criteria) >= 3, f'Contract has only {len(criteria)} criteria (need >=3)'
+      assert len(edges) >= 2, f'Contract has only {len(edges)} edge cases (need >=2)'
+      print('PASS')
+      "
     timeout_s: 5
   - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
     timeout_s: 5

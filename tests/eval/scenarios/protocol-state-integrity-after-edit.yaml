@@ -1,0 +1,98 @@
+id: protocol_state_integrity_after_edit
+name: "state.json remains valid v2 schema after agent edits"
+difficulty: medium
+estimated_duration: 5m
+
+seed_files:
+  README.md: |
+    # Calculator
+    A CLI calculator with basic operations.
+  src/calc.py: |
+    def add(a: float, b: float) -> float:
+        return a + b
+
+    def subtract(a: float, b: float) -> float:
+        return a - b
+  tests/test_calc.py: |
+    from src.calc import add, subtract
+
+    def test_add():
+        assert add(2, 3) == 5
+
+    def test_subtract():
+        assert subtract(5, 3) == 2
+  .harness/state.json: |
+    {
+      "schema_version": 2,
+      "project": "calculator",
+      "vision": "A full-featured CLI calculator",
+      "direction": "Extend basic arithmetic with advanced operations and history",
+      "trade_offs": [
+        {
+          "decision": "In-memory history",
+          "alternative": "File-based persistence",
+          "reasoning": "Simpler for v1; persistence can be added later"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "feat-1",
+          "name": "Add multiply and divide operations",
+          "type": "feature",
+          "status": "verified",
+          "priority": 1
+        },
+        {
+          "id": "feat-2",
+          "name": "Add operation history tracking",
+          "type": "feature",
+          "status": "pending",
+          "priority": 2,
+          "details": "Track last 10 operations with timestamps"
+        },
+        {
+          "id": "gap-1",
+          "name": "No input validation on divide",
+          "type": "bug",
+          "status": "pending",
+          "priority": 1,
+          "details": "divide(x, 0) crashes with ZeroDivisionError instead of returning a clear error"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"planner","type":"plan","feat":"feat-1","msg":"Planned calculator with history and validation","result":"pass"}
+    {"ts":"2026-01-02T00:00:00Z","role":"builder","type":"build","feat":"feat-1","msg":"Implemented multiply and divide","result":"pass"}
+
+initial_prompt: >
+  Fix gap-1 (divide by zero validation) and then start feat-2 (history tracking).
+  Update state.json as you go.
+
+verify:
+  - command: "python3 -c \"import json; json.load(open('.harness/state.json')); print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); assert s.get('schema_version') == 2; assert 'tasks' in s; assert isinstance(s['tasks'], list); print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); vs = ('pending','building','evaluating','verified','committed','cancelled'); vt = ('feature','fix','bug','gap','spike','chore'); [exit(1) for t in s['tasks'] if t.get('status') not in vs or t.get('type') not in vt]; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); assert 'vision' in s; assert 'direction' in s; assert 'trade_offs' in s; print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); ids = [t['id'] for t in s['tasks']]; assert 'feat-1' in ids and 'feat-2' in ids and 'gap-1' in ids; assert len(ids) == len(set(ids)); print('PASS')\""
+    timeout_s: 5
+  - command: "python3 -c \"import json; s = json.load(open('.harness/state.json')); g = next(t for t in s['tasks'] if t['id']=='gap-1'); assert g['status'] != 'pending', 'gap-1 still pending'; print('PASS')\""
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "`.harness/state.json` remains valid JSON after agent edits"
+    - "`schema_version` stayed at 2"
+    - "All original fields preserved (`vision`, `direction`, `trade_offs`)"
+  artifact_quality:
+    - "All harness tasks have valid `status` and `type` enum values"
+    - "No duplicate task ids in `.harness/state.json`"
+    - "No tasks were lost during edits (`feat-1`, `feat-2`, `gap-1` all present)"
+    - "`gap-1` status progressed beyond `pending`"
+    - "Divide by zero validation implemented"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent updated `.harness/state.json` incrementally without corrupting it"

@@ -60,7 +60,7 @@ echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] evaluator-guard: DENIED impl write: $targe
 cat <<EOF
 {
   "permission": "deny",
-  "agent_message": "EVALUATOR WRITE BLOCKED: You are in evaluator mode. You may ONLY write to:\n- .harness/contract.json\n- .harness/evals/*\n- .harness/breadcrumbs.jsonl\n\nYou must NOT modify implementation code. If you found issues:\n1. Document them in your eval report with specific fix_suggestion per criterion\n2. Set recommendation to 'fix_and_retest'\n3. The builder will implement the fixes\n\nBlocked file: $target_path"
+  "agent_message": "EVALUATOR WRITE BLOCKED: You are in evaluator mode. You may ONLY write to:\n- .harness/contract.json\n- .harness/evals/*\n- .harness/negotiations/*\n- .harness/breadcrumbs.jsonl\n\nYou must NOT modify implementation code. If you found issues:\n1. Document them in your eval report with specific fix_suggestion per criterion\n2. Set recommendation to 'fix_and_retest'\n3. The builder will implement the fixes\n\nBlocked file: $target_path"
 }
 EOF
 exit 0
