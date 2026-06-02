@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-06-01T21:20:19+00:00",
+  "timestamp": "2026-06-02T16:45:34.527198+00:00",
   "project": "rules-skills",
   "tasks": {
     "total": 48,
     "by_status": {
-      "verified": 40,
-      "pending": 8
+      "verified": 43,
+      "pending": 5
     },
     "by_type": {
       "feature": 27,
@@ -13,34 +13,45 @@
       "bug": 17,
       "spike": 1
     },
-    "tasks_completed": 40,
-    "tasks_pending": 8,
-    "completion_rate": 0.83
+    "tasks_completed": 43,
+    "tasks_pending": 5,
+    "completion_rate": 0.8958333333333334
   },
-  "eval": {
-    "run_id": "2026-06-01T201124Z",
-    "model": "composer-2.5",
-    "scenarios": 30,
-    "total_checks": 214,
-    "pass": 194,
-    "pass_rate": 0.91,
-    "at_100_pct": 16,
-    "below_70_pct": 1,
-    "weakest": "behavioral_session_boundary (33%)",
-    "runtime_s": 4116,
-    "status_breakdown": {
-      "complete": 28,
-      "timeout": 1,
-      "error": 1
+  "breadcrumbs": {
+    "total_entries": 154,
+    "by_role": {
+      "builder": 122,
+      "system": 26,
+      "evaluator": 3,
+      "planner": 3
     },
-    "trajectory": [
-      {"date": "2026-05-28", "scenarios": 23, "checks": 400, "score": 0.52},
-      {"date": "2026-05-29", "scenarios": 23, "checks": 361, "score": 0.83},
-      {"date": "2026-06-01a", "scenarios": 27, "checks": 394, "score": 0.93},
-      {"date": "2026-06-01b", "scenarios": 30, "checks": 214, "score": 0.91}
-    ]
+    "by_type": {
+      "negotiate": 4,
+      "build": 82,
+      "verify": 14,
+      "checkpoint": 14,
+      "session_start": 18,
+      "decision": 12,
+      "negotiation": 1,
+      "cleanup": 1,
+      "plan": 3,
+      "handoff": 2,
+      "evaluation": 1,
+      "eval": 2
+    },
+    "negotiation_rounds": 5,
+    "build_evaluate_cycles": 16,
+    "scrap_count": 0,
+    "scrap_rate": 0.0,
+    "features_touched": 37
   },
   "contract": {
     "active": false
+  },
+  "evaluations": {
+    "total_reports": 1,
+    "pass_count": 0,
+    "fail_count": 1,
+    "pass_rate": 0.0
   }
 }

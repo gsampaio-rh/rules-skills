@@ -306,9 +306,10 @@ Run: `make eval-fast`
 | Harness workflow compliance | `session_judge.py` computational checks | Whether the full plan-negotiate-build-evaluate cycle occurs |
 | Contract quality | `session_judge.py` computational checks | Whether real-task contracts have binary criteria and edge cases |
 | Artifact quality | `session_judge.py` structural checks | Whether produced code meets scenario requirements |
+| Behavioral verification | `session_judge.py` trace-aware checks | Whether agent used TodoWrite, ran tests, read state — verified from tool call trace |
 | Negotiation judgment | `session_judge.py` LLM tier | Whether acceptance criteria are genuinely testable |
 
-Run: `make eval-session` (standard, ~20 min) → `make eval-session-long` (long, ~35 min) → `make eval-session-judge` (judge)
+Run: `make eval-session` (standard, ~90 min for 41 scenarios) → `make eval-session-long` (long, ~35 min) → `make eval-session-judge` (judge)
 
 ### Harness Metrics Dashboard
 

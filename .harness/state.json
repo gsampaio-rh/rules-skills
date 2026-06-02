@@ -3,7 +3,7 @@
   "created": "2026-05-27T14:00:00Z",
   "schema_version": 2,
   "vision": "A distributable library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code. The library must dogfood its own authoring standards — including a rigorous, machine-validated state.json schema — before the library is considered trustworthy.",
-  "direction": "library/cursor/ is the single source of truth for distributable config. Eval pipeline at 93% (368/394), zero scenarios below 70%. Active initiative: state.json v2 schema — rename features→tasks, fixed status and type enums, schema_version field, backward-compat transition then alias removal. Keep flat tasks array (group by status at read time in hooks/metrics/judge). contract.json uses task_id (feature_id accepted as alias). Status lifecycle unchanged: pending→building→evaluating→verified→committed. Do not introduce ambiguous values like done/doing.",
+  "direction": "library/cursor/ is the single source of truth for distributable config. Eval pipeline at 90% (252/279) across 41 scenarios, 21 at 100%, 1 below 70% (session_boundary 33%). v2 schema migration complete. Cold-start hard gate and hook enforcement operational. Active focus: close remaining gaps (gap-14 session boundary, gap-18 skip-override, gap-19 judge heuristics, gap-20 spike false positive, gap-21 metrics reader). Priority 3 deferred: feat-13 multi-agent orchestration, feat-14 LLM-as-judge.",
   "trade_offs": [
     {
       "decision": "Flat tasks array, not grouped buckets",
@@ -157,11 +157,11 @@
     },
     {
       "id": "gap-14",
-      "name": "Session boundary: improved to 70% but 3 UNCERTAIN checks remain",
+      "name": "Session boundary at 33% — agent does not suggest fresh thread or checkpoint",
       "status": "pending",
-      "priority": 2,
+      "priority": 1,
       "type": "bug",
-      "details": "behavioral_session_boundary at 70% (up from 45%). 3 structural checks need LLM tier to resolve. Hook enforcement active but boundary detection is still behavioral."
+      "details": "behavioral_session_boundary regressed from 70% to 33% in 41-scenario run (2026-06-02). 1 FAIL (not enough follow-ups before boundary), 3 UNCERTAIN (suggest fresh thread, checkpoint, not silently accept). Root cause: agent completes each task well but doesn't self-monitor session length or topic drift. Structural heuristics insufficient — needs LLM judge tier (feat-14) or stronger rule enforcement. planning_discipline.mdc threshold already lowered to 3 follow-ups."
     },
     {
       "id": "feat-18",
@@ -373,6 +373,46 @@
       "priority": 2,
       "type": "bug",
       "details": "3 pre-commit-harness tests (allow commit, auto-append breadcrumb, warn unverified) fail because the test doesn't create .commit-approved before running git commit — denial is correct hook behavior. Fix: create the flag in test setup. 1 harness-gate test (inject routing for non-trivial prompt) fails because beforeSubmitPrompt requires LLM backend unavailable in test env. Fix: mock LLM response or annotate as requires-LLM."
+    },
+    {
+      "id": "gap-18",
+      "name": "adversarial_skip_override at 57% — auth implementation incomplete under skip-harness",
+      "status": "pending",
+      "priority": 2,
+      "type": "bug",
+      "details": "41-scenario eval (2026-06-02): agent correctly skips harness ceremony but fails to fully implement auth (register endpoint missing). 1 FAIL (no register), 2 UNCERTAIN (skip-harness detection, post-skip verification). Possible timeout issue (300s may be tight for full JWT auth). Investigate: check session transcript for timeout vs behavioral gap."
+    },
+    {
+      "id": "gap-19",
+      "name": "contract_binary_criteria at 67% — judge heuristic gaps on verification/install",
+      "status": "pending",
+      "priority": 2,
+      "type": "bug",
+      "details": "41-scenario eval (2026-06-02): agent likely verified and installed deps but structural checker can't confirm (2 UNCERTAIN). Fix: expand verification detection heuristics in session_judge.py to catch more patterns (pip install, npm install, pytest, python -c, etc.)."
+    },
+    {
+      "id": "gap-20",
+      "name": "protocol_spike_bypasses_gate false positive — negotiation_quality check fires on spike tasks",
+      "status": "pending",
+      "priority": 2,
+      "type": "bug",
+      "details": "41-scenario eval (2026-06-02): spike tasks should bypass contract negotiation but negotiation_quality check still fires (0/1 FAIL). Fix: skip negotiation_quality dimension for spike-type tasks in session_judge.py."
+    },
+    {
+      "id": "gap-21",
+      "name": "metrics.json eval pass rate shows 0% — harness_metrics.py reads wrong field",
+      "status": "pending",
+      "priority": 2,
+      "type": "bug",
+      "details": "harness_metrics.py Eval Reports section shows 'Pass rate: 0%' despite 90% eval. The metrics reader likely reads a stale or wrong field from summary.json. Fix: update harness_metrics.py to read overall_pass_rate from latest summary.json correctly."
+    },
+    {
+      "id": "gap-22",
+      "name": "Session runner captures only run.text() — missing full agent trace (tool calls, thinking, shell commands)",
+      "status": "verified",
+      "priority": 1,
+      "type": "bug",
+      "details": "FIXED: session_runner.py now calls run.conversation_json() after each turn, capturing full ConversationTurn data (tool calls with args/result, thinking blocks, shell commands). session_judge.py updated with _extract_tool_calls(), _extract_shell_commands(), _has_tool_call(), _has_trace() helpers. Behavioral checks (TodoWrite, verification, autonomy, read-state-first, did-not-modify) now use trace data when available, falling back to old heuristics for pre-trace sessions."
     }
   ]
 }

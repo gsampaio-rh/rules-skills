@@ -83,6 +83,56 @@ VALID_BREADCRUMB_TYPES = {
 ISO_TS_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
 
 
+def _extract_tool_calls(session: dict) -> list[dict]:
+    """Extract all tool calls from the conversation trace across all turns.
+
+    Returns a list of dicts with at least {name, args, result, status}.
+    Falls back to empty list if no conversation trace was captured.
+    """
+    calls: list[dict] = []
+    for turn in session.get("transcript", []):
+        for step in turn.get("conversation", []):
+            if step.get("type") == "toolCall":
+                calls.append(step)
+    return calls
+
+
+def _extract_shell_commands(session: dict) -> list[dict]:
+    """Extract all shell commands from the conversation trace.
+
+    Includes both toolCall(Shell) and shellConversationTurn entries.
+    Returns dicts with {command, stdout, stderr, exit_code}.
+    """
+    commands: list[dict] = []
+    for turn in session.get("transcript", []):
+        for step in turn.get("conversation", []):
+            if step.get("type") == "shellConversationTurn":
+                commands.append(step)
+            elif step.get("type") == "toolCall" and step.get("name") == "Shell":
+                args = step.get("args", {}) or {}
+                result = step.get("result") or ""
+                commands.append({
+                    "command": args.get("command", ""),
+                    "stdout": result if isinstance(result, str) else str(result),
+                    "stderr": "",
+                    "exit_code": 0,
+                })
+    return commands
+
+
+def _has_tool_call(session: dict, name: str) -> bool:
+    """Check if any tool call with the given name exists in the trace."""
+    return any(tc.get("name") == name for tc in _extract_tool_calls(session))
+
+
+def _has_trace(session: dict) -> bool:
+    """Check if conversation trace data was captured for this session."""
+    return any(
+        turn.get("conversation")
+        for turn in session.get("transcript", [])
+    )
+
+
 def _is_negative_harness_scenario(rubric: dict) -> bool:
     """Detect scenarios where harness should NOT activate."""
     compliance = rubric.get("post_hoc_rubric", {}).get("harness_compliance", [])
@@ -478,6 +528,18 @@ def _evaluate_structural_check(
         if passed:
             return True, evidence
 
+    if _has_trace(session):
+        tool_calls = _extract_tool_calls(session)
+        tool_text = " ".join(
+            f"{tc.get('name', '')} {json.dumps(tc.get('args', {}), default=str)[:200]} {str(tc.get('result', ''))[:200]}"
+            for tc in tool_calls
+        )
+        passed, evidence = _check_content(
+            check_lower, tool_text, {"tool_calls": tool_text},
+        )
+        if passed:
+            return True, f"Trace: {evidence}"
+
     return False, "No matching heuristic"
 
 
@@ -616,13 +678,17 @@ def check_behavioral(session: dict, rubric: dict) -> list[dict]:
         t.get("response", "") for t in transcript if t.get("response")
     )
 
+    has_trace = _has_trace(session)
     behavioral_checks = rubric.get("post_hoc_rubric", {}).get("behavioral", [])
     for check_text in behavioral_checks:
         passed = _evaluate_behavioral(check_text, full_text, session)
+        evidence = "Trace-verified" if has_trace and passed else (
+            "Pattern-based heuristic (no trace)" if not has_trace else "Pattern-based heuristic"
+        )
         results.append({
             "criterion": check_text,
             "result": "PASS" if passed else "UNCERTAIN",
-            "evidence": "Pattern-based heuristic",
+            "evidence": evidence,
             "tier": "structural",
         })
 
@@ -637,6 +703,13 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         return not apology_patterns.search(transcript_text)
 
     if "autonomously" in check_lower or "autonomous" in check_lower:
+        if _has_trace(session):
+            shell_cmds = _extract_shell_commands(session)
+            action_tools = {"Shell", "ReadLints"}
+            has_action_tool = any(
+                tc.get("name") in action_tools for tc in _extract_tool_calls(session)
+            )
+            return has_action_tool or len(shell_cmds) >= 1
         action_indicators = ["Running", "Executing", "Installing", "npm", "pip", "make", "pytest", "python"]
         return any(ind in transcript_text for ind in action_indicators)
 
@@ -657,6 +730,10 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         return "TodoWrite" not in transcript_text
 
     if "todowrite" in check_lower or "progress track" in check_lower:
+        if _has_trace(session):
+            has_todowrite = _has_tool_call(session, "TodoWrite")
+            if has_todowrite:
+                return True
         harness = session.get("artifacts", {}).get("harness", {})
         breadcrumbs = harness.get("breadcrumbs.jsonl", [])
         has_build_entries = sum(
@@ -740,11 +817,26 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         return has_update or discovery_crumb
 
     if "did not modify" in check_lower or "not refactor" in check_lower:
+        if _has_trace(session):
+            write_calls = [
+                tc for tc in _extract_tool_calls(session)
+                if tc.get("name") in ("Write", "StrReplace")
+            ]
+            return len(write_calls) == 0
         artifacts = session.get("artifacts", {})
         files = artifacts.get("files", [])
         return len(files) <= 1
 
     if "verif" in check_lower and ("syntax" in check_lower or "import" in check_lower or "test" in check_lower):
+        if _has_trace(session):
+            shell_cmds = _extract_shell_commands(session)
+            verify_cmd_patterns = ("pytest", "python -c", "python -m", "npm test", "tsc", "py_compile", "ruff", "eslint", "make test")
+            for cmd in shell_cmds:
+                cmd_text = cmd.get("command", "")
+                if any(p in cmd_text for p in verify_cmd_patterns):
+                    return True
+            if _has_tool_call(session, "ReadLints"):
+                return True
         verify_patterns = ["py_compile", "import ", "pytest", "python -c", "npm test", "tsc"]
         return any(p in transcript_text for p in verify_patterns)
 
@@ -783,6 +875,19 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
             return len(first_response.split()) < 800
 
     if ("read breadcrumbs" in check_lower or "read state" in check_lower) and "first" in check_lower:
+        if _has_trace(session):
+            first_turn = session.get("transcript", [{}])[0]
+            early_calls = first_turn.get("conversation", [])[:10]
+            read_calls = [
+                c for c in early_calls
+                if c.get("type") == "toolCall" and c.get("name") == "Read"
+            ]
+            target_files = ("breadcrumbs", "state.json")
+            for rc in read_calls:
+                args = rc.get("args", {}) or {}
+                path = args.get("path", "") if isinstance(args, dict) else str(args)
+                if any(t in path for t in target_files):
+                    return True
         transcript = session.get("transcript", [])
         early_text = " ".join(
             t.get("response", "") for t in transcript[:3] if t.get("response")

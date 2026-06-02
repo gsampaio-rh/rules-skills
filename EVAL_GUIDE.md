@@ -118,6 +118,7 @@ When the agent finishes, the runner captures:
 | `harness` | Contents of `.harness/state.json`, `contract.json`, `breadcrumbs.jsonl` |
 | `validations` | Results of verify commands (exit code, stdout, stderr) |
 | `transcript` | Full prompt/response exchange with the agent |
+| `transcript[].conversation` | Full agent trace per turn: tool calls (name, args, result), thinking blocks, shell commands |
 
 Files in `.git/`, `.cursor/`, `node_modules/`, `__pycache__/`, and similar are excluded from content capture.
 
@@ -163,7 +164,7 @@ post_hoc_rubric:
     - "Acceptance criteria are binary-testable"
 ```
 
-Scenarios live in `tests/eval/scenarios/` (27 scenarios). Each YAML file defines one scenario.
+Scenarios live in `tests/eval/scenarios/` (41 scenarios). Each YAML file defines one scenario.
 
 ### Judging tiers
 
@@ -175,7 +176,7 @@ The judge (`session_judge.py`) evaluates each session at three levels:
 | **Structural** | Artifact quality, behavioral patterns | Heuristic pattern matching on `file_contents`, `validations`, transcript |
 | **LLM** | Negotiation quality, subjective criteria | LLM-as-judge with evidence-based scoring |
 
-The structural tier now uses `file_contents` to verify that specific code patterns exist (e.g., "uses `argparse`", "handles `--dry-run`") and `validations` to check that tests pass or code compiles.
+The structural tier uses `file_contents` to verify that specific code patterns exist (e.g., "uses `argparse`", "handles `--dry-run`"), `validations` to check that tests pass or code compiles, and **conversation traces** to verify tool usage (e.g., did the agent call TodoWrite, run Shell commands for verification, use ReadLints). Trace-aware checks fall back to heuristic pattern matching for sessions captured before trace instrumentation.
 
 ### Reporting
 
@@ -280,12 +281,12 @@ tests/eval/
 ├── session_judge.py          # Tier 3: post-hoc judging (computational + structural + LLM)
 ├── session_report.py         # Tier 3: aggregated reporting
 ├── harness_metrics.py        # Harness effectiveness dashboard
-├── scenarios/                # 27 standard scenario YAML definitions
+├── scenarios/                # 41 standard scenario YAML definitions
 │   ├── routing-*.yaml        # 6 routing scenarios
 │   ├── contract-*.yaml       # 5 contract quality scenarios
-│   ├── protocol-*.yaml       # 3 protocol lifecycle scenarios
+│   ├── protocol-*.yaml       # 12 protocol lifecycle scenarios
 │   ├── adversarial-*.yaml    # 4 adversarial scenarios
-│   ├── behavioral-*.yaml     # 5 behavioral scenarios
+│   ├── behavioral-*.yaml     # 10 behavioral scenarios
 │   ├── skill-*.yaml          # 4 skill activation scenarios
 │   └── long/                 # 3 long-running scenarios (10-15 min each)
 │       ├── long-full-harness-cycle.yaml
@@ -418,4 +419,4 @@ Recommended pipeline:
 - run: make eval-session-report
 ```
 
-Tier 1 runs in seconds with no API keys — it should block every PR. Tier 3 needs `CURSOR_API_KEY` and takes ~25 min for the full 27-scenario suite.
+Tier 1 runs in seconds with no API keys — it should block every PR. Tier 3 needs `CURSOR_API_KEY` and takes ~90 min for the full 41-scenario suite.

@@ -147,6 +147,66 @@ def run_scenario(scenario: dict, model: str, api_key: str, timeout: int) -> dict
     }
 
 
+def _collect_conversation(run) -> list[dict]:
+    """Extract the full conversation trace from a completed run.
+
+    Returns a list of step dicts with type, and type-specific fields:
+    - assistantMessage: {text}
+    - toolCall: {name, args, result, status, ...}
+    - thinkingMessage: {text, thinking_duration_ms}
+    - shellConversationTurn: {command, working_directory, stdout, stderr, exit_code}
+    """
+    try:
+        raw = run.conversation_json()
+        if not raw:
+            return []
+        turns = json.loads(raw)
+        if not isinstance(turns, list):
+            return []
+    except Exception:
+        return []
+
+    steps: list[dict] = []
+    for turn in turns:
+        if not isinstance(turn, dict):
+            continue
+        turn_type = turn.get("type", "")
+        turn_data = turn.get("turn") or {}
+
+        if turn_type == "agentConversationTurn":
+            for step_wrapper in turn_data.get("steps", []):
+                step = step_wrapper.get("step", step_wrapper)
+                step_type = step.get("type", "")
+                msg = step.get("message", {}) or {}
+
+                if step_type == "assistantMessage":
+                    steps.append({"type": "assistantMessage", "text": msg.get("text", "")})
+                elif step_type == "toolCall":
+                    steps.append({"type": "toolCall", **msg})
+                elif step_type == "thinkingMessage":
+                    steps.append({
+                        "type": "thinkingMessage",
+                        "text": msg.get("text", ""),
+                        "thinking_duration_ms": msg.get("thinkingDurationMs"),
+                    })
+                else:
+                    steps.append({"type": step_type, **msg})
+
+        elif turn_type == "shellConversationTurn":
+            cmd = turn_data.get("shellCommand", {}) or {}
+            out = turn_data.get("shellOutput", {}) or {}
+            steps.append({
+                "type": "shellConversationTurn",
+                "command": cmd.get("command", ""),
+                "working_directory": cmd.get("workingDirectory", ""),
+                "stdout": out.get("stdout", ""),
+                "stderr": out.get("stderr", ""),
+                "exit_code": out.get("exitCode", -1),
+            })
+
+    return steps
+
+
 def _drive_conversation(agent, scenario: dict, timeout: int, start_time: float):
     """Send initial + follow-up prompts, return (completed_prompts, status, transcript)."""
     transcript: list[dict] = []
@@ -158,10 +218,15 @@ def _drive_conversation(agent, scenario: dict, timeout: int, start_time: float):
     run = agent.send(initial)
     _wait_with_timeout(run, timeout)
 
+    conversation = _collect_conversation(run)
+    tool_calls = [s for s in conversation if s.get("type") == "toolCall"]
+    print(f"  Trace: {len(conversation)} steps, {len(tool_calls)} tool calls")
+
     transcript.append({
         "role": "user",
         "content": initial,
         "response": run.text(),
+        "conversation": conversation,
         "elapsed_s": time.time() - start_time,
     })
     completed_prompts += 1
@@ -183,10 +248,15 @@ def _drive_conversation(agent, scenario: dict, timeout: int, start_time: float):
         run = agent.send(follow_up)
         _wait_with_timeout(run, int(remaining))
 
+        conversation = _collect_conversation(run)
+        tool_calls = [s for s in conversation if s.get("type") == "toolCall"]
+        print(f"  Trace: {len(conversation)} steps, {len(tool_calls)} tool calls")
+
         transcript.append({
             "role": "user",
             "content": follow_up,
             "response": run.text(),
+            "conversation": conversation,
             "elapsed_s": time.time() - start_time,
         })
         completed_prompts += 1
