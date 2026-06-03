@@ -19,3 +19,9 @@
 {"ts":"2026-06-02T21:07:19Z","role":"system","type":"session_start","feat":null,"msg":"New chat session started","result":"pass"}
 {"ts":"2026-06-02T21:10:00Z","role":"evaluator","type":"eval","feat":"chore-1","msg":"chore-1 evaluation PASS: 15/15 criteria, 5/5 edge cases, 52/52 validate-hooks, LOC 1372","result":"pass"}
 {"ts":"2026-06-02T21:09:09","role":"builder","type":"eval","feat":"chore-1","msg":"Evaluator PASS: all 15 acceptance criteria met. 52/52 tests, 1372 LOC (-350), 7 bugs fixed. Contract verified.","result":"pass"}
+{"ts":"2026-06-02T21:25:36Z","role":"system","type":"session_start","feat":null,"msg":"New chat session started","result":"pass"}
+{"ts":"2026-06-03T10:08:44Z","role":"builder","type":"build","feat":null,"msg":"Fixed state.json desync: gap-17 and spike-5 to verified, added chore-1, updated direction field","result":"pass"}
+{"ts":"2026-06-03T10:09:23Z","role":"builder","type":"build","feat":null,"msg":"Moved 4 standard docs to docs/, updated README.md links and tree diagram","result":"pass"}
+{"ts":"2026-06-03T12:00:00Z","role":"planner","type":"plan","feat":"spike-audit-1","msg":"Harness audit state.json: defined 5-problem core, triaged 13 pending (3 cancelled, 2 P1 bugs, spike-audit-1 simplification)","result":"pass"}
+{"ts":"2026-06-03T10:20:59Z","role":"builder","type":"build","feat":null,"msg":"Registered gap-23 (advisory vs structural enforcement) and gap-24 (.commit-approved hygiene) from user audit observations","result":"pass"}
+{"ts":"2026-06-03T10:23:42Z","role":"builder","type":"decision","feat":"gap-23","msg":"Elevated gap-23 from hook-level bug to architectural design principle: harness must assume LLM non-compliance, enforce structurally not advisorily","result":"pass"}

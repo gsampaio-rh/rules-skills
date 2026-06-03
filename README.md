@@ -17,6 +17,11 @@ rules-skills/
 ├── .harness/                    # This project's harness state (git-tracked)
 ├── .cursor/                     # IDE config (local copies, gitignored)
 │   └── (populated by make setup from library/cursor/)
+├── docs/                        # Authoring standards and guides
+│   ├── EVAL_GUIDE.md
+│   ├── HARNESS_STANDARD.md
+│   ├── RULES_STANDARD.md
+│   └── SKILLS_STANDARD.md
 ├── library/
 │   ├── cursor/                  # Cursor config library
 │   │   ├── rules/              # 16 .mdc rule files
@@ -147,7 +152,7 @@ State lives in `.harness/` (git-tracked):
 
 ## Eval Pipeline (`tests/eval/`)
 
-Two-tier behavioral testing that verifies rules actually change agent behavior. See [`EVAL_GUIDE.md`](EVAL_GUIDE.md) for full documentation.
+Two-tier behavioral testing that verifies rules actually change agent behavior. See [`EVAL_GUIDE.md`](docs/EVAL_GUIDE.md) for full documentation.
 
 ```bash
 make eval-fast              # Tier 1: static checks (seconds, no API keys)
@@ -184,6 +189,6 @@ Distributes `library/cursor/` content to all projects under `~/redhat`:
 
 Each standard is a self-contained reference: authoring guidelines, design rationale, hypotheses, and measurement criteria.
 
-- [`RULES_STANDARD.md`](RULES_STANDARD.md) — how to write `.mdc` rules
-- [`SKILLS_STANDARD.md`](SKILLS_STANDARD.md) — how to write `SKILL.md` skills
-- [`HARNESS_STANDARD.md`](HARNESS_STANDARD.md) — harness workflow, state schemas, enforcement hooks
+- [`RULES_STANDARD.md`](docs/RULES_STANDARD.md) — how to write `.mdc` rules
+- [`SKILLS_STANDARD.md`](docs/SKILLS_STANDARD.md) — how to write `SKILL.md` skills
+- [`HARNESS_STANDARD.md`](docs/HARNESS_STANDARD.md) — harness workflow, state schemas, enforcement hooks

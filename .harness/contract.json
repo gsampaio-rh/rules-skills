@@ -1,7 +1,7 @@
 {
   "task_id": "chore-1",
   "feature": "Extract hooks-lib.sh + fix correctness bugs from spike-5 audit",
-  "phase": "evaluating",
+  "phase": "verified",
   "verified": true,
   "acceptance_criteria": [
     "hooks-lib.sh exists with 8 functions: hooks_init, hooks_log, hooks_extract_path, hooks_read_state, hooks_file_age, hooks_skip_detected, hooks_git_total_count, hooks_git_impl_count",

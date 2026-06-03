@@ -2,8 +2,8 @@
   "project": "rules-skills",
   "created": "2026-05-27T14:00:00Z",
   "schema_version": 2,
-  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code. The library must dogfood its own authoring standards \u2014 including a rigorous, machine-validated state.json schema \u2014 before the library is considered trustworthy.",
-  "direction": "library/cursor/ is the single source of truth for distributable config. Eval pipeline at 89.8% mean across 41 scenarios (12 at 100%, 35 above 80%, 3 below 70%). Full conversation trace capture operational. Active focus: close gaps (gap-14 session boundary 54%, gap-20 spike false positive 57%, routing_ambiguous 62%). New spikes: UI for .harness/ folder, eval accuracy improvements, prevent redundant re-planning, hooks tech debt audit. Priority 3 deferred: feat-13 multi-agent orchestration, feat-14 LLM-as-judge.",
+  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. THE HARNESS IS: a durable, file-system task system that keeps AI agents honest across sessions. It solves five problems the owner identified: (1) repository scope \u2014 vision, direction, trade-offs in state.json; (2) task definition \u2014 discrete tasks with type and scope; (3) task grouping \u2014 flat tasks[] array filtered by status at read time; (4) task status tracking \u2014 lifecycle enum + append-only breadcrumbs.jsonl for session recovery; (5) acceptance criteria \u2014 contract.json with binary-testable criteria negotiated before implementation. For whom: teams using Cursor/Claude Code on non-trivial multi-file work who need agents to stop self-grading and stop losing context between sessions. Why each component exists: state.json = scope + backlog; contract.json = definition of done; breadcrumbs = audit trail; planner subagent = decompose vague requests; evaluator subagent = adversarial QA separate from builder context; hooks (lean) = enforce contract-before-code structurally; eval pipeline = regression test that agents follow the workflow. HONEST ASSESSMENT: the core five-problem harness is sound and ~40 lines of JSON + rules. Everything layered on top \u2014 negotiations/ JSON schemas, 11 hooks (full profile), metrics dashboard, 41 scenario evals with 5 judge tiers, multi-agent orchestration, UI dashboard \u2014 has grown organically and now obscures the value proposition. 47 verified tasks prove the core works; 13 pending tasks are mostly eval-tooling bugs and nice-to-haves, not harness failures.",
+  "direction": "AUDIT CONCLUSION (2026-06-03): Simplify around the five-problem core. KEEP: state.json, contract.json, breadcrumbs.jsonl, adversarial-harness skill, planner/evaluator subagents, lean hooks (contract-gate, verify-harness, harness-context, enforce-progress), Tier 1 lint (harness_lint, contract_lint), Tier 3 eval at reduced scope (~15 protocol scenarios, not 41). FIX FIRST (real bugs, <1 day each): gap-21 metrics reads wrong fields + wrong glob; gap-20 harness_level nested inside post_hoc_rubric on spike scenario (judge defaults to full); gap-19 verification heuristics. DEFER (real but not harness-core): gap-14 session boundary (33%) \u2014 behavioral, needs rule strength not new infrastructure; gap-18 skip-harness auth (57%) \u2014 agent coding failure, not harness. CANCEL (over-engineering): feat-13 multi-agent orchestration, spike-2 UI dashboard, negotiations/ mandatory schema (make optional breadcrumb-only). MERGE: spike-3 eval accuracy into spike-audit-1 simplification. NARROW: gap-11 doc staleness to harness-standard + skill sync only (not all docs). Eval at 89.8% mean is good enough; chasing 100% via feat-14 LLM judge is diminishing returns until schemas are consolidated. Next: spike-audit-1 executes simplification plan.",
   "trade_offs": [
     {
       "decision": "Flat tasks array, not grouped buckets",
@@ -39,9 +39,45 @@
       "decision": "Kill spec.md, consolidate into state.json",
       "alternative": "Keep spec.md with coherence lint",
       "reasoning": "spec.md was read once (plan gate) then became stale. Single file eliminates drift by design."
+    },
+    {
+      "decision": "Cancel feat-13 multi-agent orchestration",
+      "alternative": "Build evaluator chaining and parallel evaluators",
+      "reasoning": "Manual /evaluator launch works. Orchestration adds complexity for a problem (evaluator doesn't run) already solved by chain-evaluator.sh hook and rules. No user demand."
+    },
+    {
+      "decision": "Cancel spike-2 UI dashboard",
+      "alternative": "Build canvas/TUI for .harness/ visualization",
+      "reasoning": "state.json and breadcrumbs are human-readable JSON. Dashboard solves a problem that doesn't exist yet. metrics.json is broken anyway (gap-21)."
+    },
+    {
+      "decision": "Defer feat-14 LLM-as-judge until after schema consolidation",
+      "alternative": "Build LLM judge now to fix UNCERTAIN verdicts",
+      "reasoning": "89.8% mean is acceptable. Many UNCERTAIN/FAIL are judge bugs (gap-20 harness_level placement, gap-19 heuristics), not agent failures. Fix tooling before adding LLM cost."
+    },
+    {
+      "decision": "Merge spike-3 into spike-audit-1 simplification",
+      "alternative": "Separate eval accuracy improvement track",
+      "reasoning": "Eval accuracy issues are symptoms of schema drift and inconsistent harness_level placement across 41 scenarios. Consolidation fixes root cause."
+    },
+    {
+      "decision": "Keep lean hook profile as default; demote full profile",
+      "alternative": "Maintain 11 hooks at equal priority",
+      "reasoning": "Lean (4 hooks) enforces the five-problem core. Full profile adds dedup-server, context-health, evaluator-guard, harness-gate LLM routing \u2014 valuable for this repo's dogfooding, optional for consumers."
+    },
+    {
+      "decision": "Make negotiations/ optional, not required",
+      "alternative": "Enforce structured negotiation JSON per HARNESS_STANDARD.md",
+      "reasoning": "negotiations/ directory is rarely populated in practice. Breadcrumbs with type=negotiate capture the same signal with less schema burden. HARNESS_STANDARD over-specifies this artifact."
     }
   ],
-  "open_questions": [],
+  "open_questions": [
+    "Should negotiations/ folder be deprecated in favor of negotiate-type breadcrumbs only?",
+    "Is full hook profile worth maintaining for consumer projects, or ship lean-only?",
+    "What is the minimum eval scenario set that protects the five-problem core? Target: 12-15 protocol scenarios.",
+    "Should contract.json phase enum add 'verified' explicitly (used in practice, missing from HARNESS_STANDARD.md)?",
+    "Does gap-14 need feat-14 LLM judge, or stronger planning_discipline.mdc enforcement?"
+  ],
   "tasks": [
     {
       "id": "feat-schema-1",
@@ -159,9 +195,9 @@
       "id": "gap-14",
       "name": "Session boundary at 33% \u2014 agent does not suggest fresh thread or checkpoint",
       "status": "pending",
-      "priority": 1,
+      "priority": 2,
       "type": "bug",
-      "details": "behavioral_session_boundary regressed from 70% to 33% in 41-scenario run (2026-06-02). 1 FAIL (not enough follow-ups before boundary), 3 UNCERTAIN (suggest fresh thread, checkpoint, not silently accept). Root cause: agent completes each task well but doesn't self-monitor session length or topic drift. Structural heuristics insufficient \u2014 needs LLM judge tier (feat-14) or stronger rule enforcement. planning_discipline.mdc threshold already lowered to 3 follow-ups."
+      "details": "AUDIT: REAL but NOT harness-core. behavioral_session_boundary 33% (was 70%). Agent behavior gap, not missing infrastructure. Fix path: strengthen planning_discipline.mdc + agent_behavior opener (not feat-14 LLM judge, not new hooks). Deprioritized P1\u2192P2: session hygiene is nice-to-have; contract-gate and acceptance criteria are essential."
     },
     {
       "id": "feat-18",
@@ -174,23 +210,27 @@
     {
       "id": "feat-13",
       "name": "Multi-agent evaluator orchestration",
-      "status": "pending",
+      "status": "cancelled",
       "priority": 3,
-      "type": "feature"
+      "type": "feature",
+      "details": "AUDIT CANCELLED: Over-engineering. chain-evaluator.sh + manual /evaluator launch sufficient. No user demand for parallel evaluator orchestration."
     },
     {
       "id": "feat-14",
       "name": "LLM-as-judge for post_hoc_rubric",
       "status": "pending",
-      "priority": 3,
-      "type": "feature"
+      "priority": 4,
+      "type": "feature",
+      "details": "AUDIT DEFERRED: Fix judge tooling bugs (gap-19, gap-20) before adding LLM cost. 89.8% eval mean is acceptable. Revisit only if protocol scenarios drop below 80% after simplification."
     },
     {
       "id": "gap-11",
       "name": "Documentation drifts silently when code changes \u2014 no automated staleness detection",
       "status": "pending",
-      "priority": 2,
-      "type": "bug"
+      "priority": 3,
+      "type": "bug",
+      "scope": "HARNESS_STANDARD.md, adversarial-harness SKILL.md, hook inventory only \u2014 NOT all repo docs",
+      "details": "AUDIT NARROWED: Real problem but was scoped too broadly. Focus on harness doc sync (audits/ undocumented, phase enum drift, eval schema naming). Add harness_lint cross-checks for doc references, not a general doc-staleness system."
     },
     {
       "id": "feat-1",
@@ -369,18 +409,18 @@
     {
       "id": "gap-17",
       "name": "validate-hooks.sh: 4 tests fail (3 pre-commit missing .commit-approved, 1 harness-gate requires LLM)",
-      "status": "pending",
+      "status": "verified",
       "priority": 2,
       "type": "bug",
-      "details": "3 pre-commit-harness tests (allow commit, auto-append breadcrumb, warn unverified) fail because the test doesn't create .commit-approved before running git commit \u2014 denial is correct hook behavior. Fix: create the flag in test setup. 1 harness-gate test (inject routing for non-trivial prompt) fails because beforeSubmitPrompt requires LLM backend unavailable in test env. Fix: mock LLM response or annotate as requires-LLM."
+      "details": "FIXED (2026-06-02): pre-commit tests create .commit-approved in setup; harness-gate test uses contract-length prompt. validate-hooks.sh 37/37 pass. Eval: eval-gap-17.json PASS (AC1-AC4, EC1-EC2)."
     },
     {
       "id": "gap-18",
       "name": "adversarial_skip_override at 57% \u2014 auth implementation incomplete under skip-harness",
       "status": "pending",
-      "priority": 2,
+      "priority": 3,
       "type": "bug",
-      "details": "41-scenario eval (2026-06-02): agent correctly skips harness ceremony but fails to fully implement auth (register endpoint missing). 1 FAIL (no register), 2 UNCERTAIN (skip-harness detection, post-skip verification). Possible timeout issue (300s may be tight for full JWT auth). Investigate: check session transcript for timeout vs behavioral gap."
+      "details": "AUDIT: REAL agent failure, NOT harness over-engineering. Agent skips harness correctly but doesn't finish JWT auth. Deprioritized P2\u2192P3: tests agent coding under skip-harness, not the five-problem core. May be timeout (300s). Fix: extend scenario timeout or narrow auth scope in seed."
     },
     {
       "id": "gap-19",
@@ -388,23 +428,23 @@
       "status": "pending",
       "priority": 2,
       "type": "bug",
-      "details": "41-scenario eval (2026-06-02): agent likely verified and installed deps but structural checker can't confirm (2 UNCERTAIN). Fix: expand verification detection heuristics in session_judge.py to catch more patterns (pip install, npm install, pytest, python -c, etc.)."
+      "details": "AUDIT: REAL eval-tooling bug (symptom of eval over-investment). Agent likely passed; judge can't detect pip/pytest from trace. Fix: expand session_judge.py verification patterns. Bundled into spike-audit-1 schema consolidation."
     },
     {
       "id": "gap-20",
-      "name": "protocol_spike_bypasses_gate false positive \u2014 negotiation_quality check fires on spike tasks",
+      "name": "protocol_spike_bypasses_gate false positive \u2014 negotiation check fires on spike tasks",
       "status": "pending",
-      "priority": 2,
+      "priority": 1,
       "type": "bug",
-      "details": "41-scenario eval (2026-06-02): spike tasks should bypass contract negotiation but negotiation_quality check still fires (0/1 FAIL). Fix: skip negotiation_quality dimension for spike-type tasks in session_judge.py."
+      "details": "AUDIT: REAL bug, root cause found. protocol-spike-bypasses-gate.yaml nests harness_level:light inside post_hoc_rubric; _get_harness_level() reads top-level only, defaults to full, fires 'Contract negotiation occurred' FAIL. Fix: move harness_level to top level in YAML + make judge read nested fallback. Classic schema drift artifact."
     },
     {
       "id": "gap-21",
       "name": "metrics.json eval pass rate shows 0% \u2014 harness_metrics.py reads wrong field",
       "status": "pending",
-      "priority": 2,
+      "priority": 1,
       "type": "bug",
-      "details": "harness_metrics.py Eval Reports section shows 'Pass rate: 0%' despite 90% eval. The metrics reader likely reads a stale or wrong field from summary.json. Fix: update harness_metrics.py to read overall_pass_rate from latest summary.json correctly."
+      "details": "AUDIT: REAL bug, trivial fix. compute_eval_metrics checks r.get('verified') or r.get('result')=='pass' but eval reports use verdict:'PASS' and overall:'PASS'. Glob eval-*.json misses chore-1-eval.json naming. Fix both field names and glob pattern."
     },
     {
       "id": "gap-22",
@@ -417,34 +457,89 @@
     {
       "id": "spike-2",
       "name": "Explore UI for .harness/ folder \u2014 visual dashboard for state, breadcrumbs, and contracts",
-      "status": "pending",
+      "status": "cancelled",
       "priority": 3,
       "type": "spike",
-      "details": "Investigate building a lightweight UI (web or TUI) to visualize .harness/ contents: task board from state.json, breadcrumb timeline, contract status, eval scores over time. Could be a Cursor canvas, a local web app, or a CLI dashboard. Explore frameworks (React canvas, blessed/ink TUI, simple HTML report)."
+      "details": "AUDIT CANCELLED: Premature. JSON files are readable. No user demand. metrics.json broken anyway."
     },
     {
       "id": "spike-3",
       "name": "Improve eval accuracy \u2014 reduce UNCERTAIN verdicts and false positives",
-      "status": "pending",
+      "status": "cancelled",
       "priority": 2,
       "type": "spike",
-      "details": "Current eval has 89.8% mean but still produces UNCERTAIN verdicts and false positives (e.g. spike-gate, ambiguous-escalate). Explore: (1) leverage conversation traces more aggressively in structural checks, (2) calibrate LLM judge prompts for subjective criteria, (3) add scenario-specific check overrides (e.g. skip negotiation_quality for spikes), (4) build a confusion matrix to identify systematic judge biases."
+      "details": "AUDIT MERGED into spike-audit-1. Root cause is schema drift and inconsistent scenario YAML structure, not missing LLM judge."
     },
     {
       "id": "spike-4",
       "name": "Prevent agent from re-creating plans that already exist",
       "status": "pending",
       "priority": 2,
+      "type": "chore",
+      "scope": "adversarial_harness.mdc rule addition only \u2014 not a spike",
+      "details": "AUDIT DOWNGRADED spike\u2192chore. Simple rule: if state.json has pending tasks, do not launch /planner. routing_resume_existing already 100%. Add one paragraph to adversarial_harness.mdc cold-start section."
+    },
+    {
+      "id": "spike-audit-1",
+      "name": "Harness simplification spike \u2014 consolidate schemas, docs, eval scope",
+      "status": "pending",
+      "priority": 1,
       "type": "spike",
-      "details": "Agent sometimes launches /planner or rewrites state.json when a valid plan already exists with pending tasks. Explore: (1) add a pre-check in adversarial_harness.mdc \u2014 if state.json has pending tasks, skip planner and resume from next task, (2) harness-gate.sh could detect and warn, (3) add eval scenario to test 'resume vs re-plan' behavior. Related to routing_resume_existing (currently 100%) but covers edge cases where agent over-plans."
+      "scope": "Produce HARNESS_ESSENCE.md (what it IS, what to kill), fix gap-20+gap-21, reconcile HARNESS_STANDARD.md, standardize eval YAML harness_level placement, document audits/ folder, add make setup .harness dirs",
+      "details": "Central simplification deliverable. Kill list: negotiations/ mandatory schema, feat-13, spike-2, Tier 2 eval references. Keep list: state.json, contract.json, breadcrumbs, lean hooks, 12-15 core protocol scenarios. Output: updated docs + fixed judge/metrics bugs + scenario YAML normalization script."
+    },
+    {
+      "id": "chore-audit-1",
+      "name": "Reconcile HARNESS_STANDARD.md with live implementation",
+      "status": "pending",
+      "priority": 2,
+      "type": "chore",
+      "scope": "docs/HARNESS_STANDARD.md: add audits/, fix contract phase enum (add verified), eval schema canonical naming (verdict vs overall, criteria_results vs criteria), demote negotiations/ to optional",
+      "details": "Known drift: audits/ undocumented, phase values missing verified, eval-{id} vs {id}-eval naming, hooks-audit.json custom schema. Part of spike-audit-1 but can land independently."
+    },
+    {
+      "id": "chore-audit-2",
+      "name": "make setup creates .harness/{evals,audits} subdirectories",
+      "status": "pending",
+      "priority": 3,
+      "type": "chore",
+      "scope": "Makefile setup target + README alignment",
+      "details": "Only sync-cursor.sh and manual install create evals/audits today. Fresh clone via make setup misses them. One-line mkdir fix."
     },
     {
       "id": "spike-5",
       "name": "Audit hooks for technical debt and duplication",
-      "status": "pending",
+      "status": "verified",
       "priority": 2,
       "type": "spike",
-      "details": "Hook scripts (contract-gate.sh, harness-context.sh, harness-gate.sh, evaluator-guard.sh) share repeated patterns: jq parsing of state.json, task iteration, status checks, path extraction. Explore: (1) extract shared functions into a hooks-lib.sh, (2) identify dead code paths, (3) check for inconsistent behavior between hooks (e.g. different fallback logic for features vs tasks), (4) verify all hooks handle edge cases (missing files, malformed JSON, empty arrays)."
+      "details": "COMPLETE (2026-06-02): hooks tech-debt audit in .harness/audits/hooks-audit.json. GO recommendation for hooks-lib.sh extraction. Identified 7 bugs, ~400 duplicated LOC, inconsistent fallback logic. Spawned chore-1 for implementation."
+    },
+    {
+      "id": "chore-1",
+      "name": "Extract hooks-lib.sh + fix correctness bugs from spike-5 audit",
+      "status": "verified",
+      "priority": 2,
+      "type": "chore",
+      "scope": "library/cursor/hooks/*.sh, validate-hooks.sh",
+      "details": "COMPLETE (2026-06-02): Created hooks-lib.sh with 8 shared functions. Migrated all 10 runtime hooks to source hooks-lib.sh. Fixed BUG-1 through BUG-7. validate-hooks.sh 52/52 pass (was 37). LOC 1372 (was 1722, -350). make validate PASS. Eval: chore-1-eval.json PASS (15/15 criteria, 5/5 edge cases)."
+    },
+    {
+      "id": "gap-23",
+      "name": "Harness architecture assumes LLM compliance — must be redesigned for structural enforcement",
+      "status": "pending",
+      "priority": 1,
+      "type": "bug",
+      "scope": "Entire harness design: hooks, rules, workflow, eval pipeline",
+      "details": "ARCHITECTURAL: The harness exists because LLMs are unreliable actors — they hallucinate, drift, and skip steps. But the harness itself was built assuming LLM compliance: rules say 'you should do X', advisory hooks inject messages hoping the LLM reads and obeys, eval scenarios test whether the LLM voluntarily followed instructions. This is a contradiction. The design principle should be: every critical workflow step must be either (1) structurally impossible to skip (deny hooks that block the action), (2) automatically performed by the system without LLM involvement (scripts that create artifacts, inject context), or (3) validated after the fact with consequences (stop hooks that refuse to end the session until artifacts exist). What works today: contract-gate (deny writes without contract), pre-commit (deny commits without flag), verify-harness (block stop without verified contract). What doesn't work: 'launch planner' (advisory rule, LLM ignores), 'suggest fresh thread' (advisory rule, gap-14 at 33%), 'read state.json first' (advisory injection, LLM may skip). Audit needed: map entire workflow, classify each step as enforced vs advisory, redesign advisory steps as structural gates or accept them as best-effort. This is not a bug fix — it's the core design tension of the harness."
+    },
+    {
+      "id": "gap-24",
+      "name": ".commit-approved flag not gitignored and not cleaned on commit failure",
+      "status": "pending",
+      "priority": 2,
+      "type": "bug",
+      "scope": ".gitignore, library/cursor/hooks/pre-commit-harness.sh",
+      "details": "The .commit-approved flag at .cursor/hooks/.commit-approved is deleted after successful commit (line 45 of pre-commit-harness.sh). But: (1) it's not explicitly gitignored — only covered as side effect of .cursor/ being gitignored; if .cursor/ pattern changes, the flag leaks into git. (2) If the commit fails or agent crashes mid-flow, the stale flag persists and silently auto-approves the next commit without user consent. Fix: add explicit .commit-approved to .gitignore, add cleanup in a post-commit or error path, or use a TTL-based approach (check file age, reject if older than N seconds)."
     }
   ]
 }
