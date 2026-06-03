@@ -29,6 +29,15 @@ setup: sync-local ## Initial setup for fresh clone (populates .cursor/ from libr
 sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents, references)
 	@echo "Syncing library/cursor/ → .cursor/ ..."
 	@mkdir -p .cursor
+	@# Cleanup stale runtime artifacts
+	@rm -f .cursor/.DS_Store .cursor/hooks/.commit-approved
+	@rm -rf .cursor/hooks.bak
+	@if [ -f .cursor/hooks.log ] && [ $$(wc -c < .cursor/hooks.log) -gt 102400 ]; then \
+		tail -200 .cursor/hooks.log > .cursor/hooks.log.tmp && \
+		mv .cursor/hooks.log.tmp .cursor/hooks.log; \
+		echo "  Trimmed hooks.log (kept last 200 lines)"; \
+	fi
+	@# Sync directories (rm + cp = full cleanup of deleted files)
 	@for dir in rules skills hooks agents references; do \
 		if [ -L ".cursor/$$dir" ]; then rm ".cursor/$$dir"; fi; \
 		if [ -d "library/cursor/$$dir" ]; then \

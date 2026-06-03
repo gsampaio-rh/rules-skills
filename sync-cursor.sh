@@ -141,6 +141,18 @@ sync_project() {
 
     mkdir -p "$target_harness/evals" "$target_harness/audits"
 
+    # Cleanup runtime artifacts
+    rm -f "$target_cursor/.DS_Store" "$target_cursor/hooks/.commit-approved"
+    rm -rf "$target_cursor/hooks.bak"
+    if [[ -f "$target_cursor/hooks.log" ]]; then
+        local log_size
+        log_size=$(wc -c < "$target_cursor/hooks.log" | tr -d ' ')
+        if [[ $log_size -gt 102400 ]]; then
+            tail -200 "$target_cursor/hooks.log" > "$target_cursor/hooks.log.tmp"
+            mv "$target_cursor/hooks.log.tmp" "$target_cursor/hooks.log"
+        fi
+    fi
+
     while IFS= read -r src_file; do
         local target_file
         target_file="$(resolve_target_path "$src_file" "$target_cursor")"
