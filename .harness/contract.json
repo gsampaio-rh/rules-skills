@@ -1,31 +1,29 @@
 {
-  "task_id": "spike-eval-research",
-  "feature": "Research evaluation frameworks for rules, skills, and agent trajectory",
-  "problem": "Eval pipeline lacks calibration, trajectory scoring, rule effectiveness testing, and has 7 UNCERTAIN verdicts from fragile behavioral heuristics. No external framework comparison to validate current approach.",
-  "proposed_solution": "Research spike producing .harness/docs/spike-eval-research.md with baseline analysis, external framework survey, and concrete improvement proposals.",
+  "task_id": "chore-uncertain-elimination",
+  "feature": "Kill default return True in _evaluate_behavioral(); require explicit handling for all criteria",
+  "problem": "Line 953 of session_judge.py returns True for any unrecognized criterion text, silently passing unmatched behavioral checks. 34 of 87 behavioral criteria strings across 28 scenarios currently fall through to this default. This hides rubric drift and makes eval scores unreliable.",
+  "proposed_solution": "Phase approach: (1) Audit all behavioral criteria strings across scenarios to identify the 34 fallthroughs, (2) Add branches or generalize existing branches to cover all 34, (3) Replace return True with UNMATCHED sentinel, (4) Update check_behavioral and judge_session to handle UNMATCHED, (5) Update session_report to count UNMATCHED separately. Gap-26 branch merges deferred to separate task.",
   "acceptance_criteria": [
-    "AC1: Document exists at .harness/docs/spike-eval-research.md with sections §0-§5",
-    "AC2: §0 Baseline maps all behavioral heuristic branches in _evaluate_behavioral() with fragility ratings",
-    "AC3: §0 identifies root causes for each UNCERTAIN verdict in the latest eval run",
-    "AC4: §1 Landscape covers at least 5 academic benchmarks and 4 industry frameworks with comparison table",
-    "AC5: §2 Rules/Skills proposes a concrete ablation methodology with statistical test and tooling design",
-    "AC6: §3 Trajectory proposes at least 5 deterministic trajectory checks implementable without LLM calls",
-    "AC7: §4 LLM Judge identifies specific problems in current judge_with_llm() and proposes phased fix plan",
-    "AC8: §5 Synthesis extracts at least 10 steal/adapt patterns from external frameworks",
-    "AC9: §5 proposes at least 4 follow-up tasks with enough detail to become state.json entries",
-    "AC10: Each proposal in §2-§4 maps back to a specific gap identified in §0 Baseline",
-    "AC11: state.json updated: spike-eval-research verified, follow-up tasks registered, direction updated",
-    "AC12: Breadcrumb logged for spike completion"
+    "AC1: _evaluate_behavioral() last line returns a sentinel value (not True) that maps to UNMATCHED verdict",
+    "AC2: Unmatched behavioral criteria produce result 'UNMATCHED' in the judgment output — never PASS, UNCERTAIN, or UNKNOWN",
+    "AC3: A structured warning is included in the result dict (key: 'warning') identifying the unmatched criterion text",
+    "AC4: check_behavioral() maps the UNMATCHED sentinel to result: 'UNMATCHED' with tier: 'structural'",
+    "AC5: judge_session() summary exposes 'unmatched' count separately from 'skip_or_uncertain'",
+    "AC6: session_report.py counts UNMATCHED separately from UNCERTAIN and SKIP in compute_summary/console output",
+    "AC7: 0 behavioral criteria in tests/eval/scenarios/**/*.yaml hit the default UNMATCHED path — all existing criteria are covered by explicit branches",
+    "AC8: make validate passes with 0 errors",
+    "AC9: A regression test exists: synthetic criterion '__synthetic_unmatched__' produces UNMATCHED; known criterion 'No apologies in transcript' produces PASS unchanged"
   ],
   "edge_cases": [
-    "EC1: Proposals must be grounded in what the pipeline actually does (session_judge.py, scenario YAML format, sandbox.py), not generic advice",
-    "EC2: External framework references must be real (verifiable URLs, not hallucinated tools)",
-    "EC3: Follow-up tasks must not duplicate existing tasks in state.json"
+    "EC1: A scenario criterion that matches NO branch produces UNMATCHED, not PASS",
+    "EC2: Existing criteria that matched a branch before the change still produce the same verdict (PASS or UNCERTAIN) — no regression",
+    "EC3: The scoring formula treats UNMATCHED like UNCERTAIN — does not count as PASS in numerator",
+    "EC4: Trace vs no-trace paths: UNCERTAIN from heuristic non-match on traced sessions is distinct from UNMATCHED (never-matched criterion text)"
   ],
-  "verification_method": "Evaluator reads spike doc, cross-references against session_judge.py source, validates proposals are concrete and implementable, checks state.json and breadcrumbs for proper updates",
-  "rubrics": ["code-quality", "organization"],
+  "verification_method": "1. Run audit script to verify 0 fallthrough criteria. 2. make validate. 3. Synthetic test: unmatched criterion → UNMATCHED, known criterion → unchanged. 4. session_judge.py --tier structural on a fixture with deliberate unmatched criterion.",
+  "rubrics": ["code-quality"],
   "rubric_mode": "warn",
-  "negotiation_rounds": 0,
-  "phase": "evaluating",
+  "negotiation_rounds": 2,
+  "phase": "verified",
   "verified": true
 }

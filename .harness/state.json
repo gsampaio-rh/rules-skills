@@ -152,11 +152,11 @@
     {
       "id": "chore-uncertain-elimination",
       "name": "Kill default return True in _evaluate_behavioral(); require explicit handling",
-      "status": "pending",
+      "status": "verified",
       "priority": 2,
       "type": "chore",
       "group": "eval-tooling",
-      "details": "From spike-eval-research. The default return True at line 953 of session_judge.py silently passes any unrecognized criterion text, hiding rubric drift and scenario-judge misalignment. Replace with: (1) log warning for unmatched criteria, (2) return UNKNOWN verdict requiring LLM fallback or explicit SKIP, (3) update session_report to distinguish UNKNOWN from UNCERTAIN. Highest signal/effort ratio of all spike proposals."
+      "details": "COMPLETE. Replaced default return True with return None → UNMATCHED sentinel. Added 10 new behavioral branches + broadened 6 existing to cover all 87 corpus criteria (0 fallthroughs). check_behavioral maps None→UNMATCHED result with warning. judge_session tracks unmatched count separately. session_report counts UNMATCHED in dimensions and aggregate. Regression tests in tests/eval/test_session_judge_behavioral.py. Evaluator: PASS 9/9 AC + 4/4 EC (round 2)."
     },
     {
       "id": "gap-26",

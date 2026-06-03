@@ -686,21 +686,30 @@ def check_behavioral(session: dict, rubric: dict) -> list[dict]:
     has_trace = _has_trace(session)
     behavioral_checks = rubric.get("post_hoc_rubric", {}).get("behavioral", [])
     for check_text in behavioral_checks:
-        passed = _evaluate_behavioral(check_text, full_text, session)
-        evidence = "Trace-verified" if has_trace and passed else (
-            "Pattern-based heuristic (no trace)" if not has_trace else "Pattern-based heuristic"
-        )
-        results.append({
-            "criterion": check_text,
-            "result": "PASS" if passed else "UNCERTAIN",
-            "evidence": evidence,
-            "tier": "structural",
-        })
+        result_val = _evaluate_behavioral(check_text, full_text, session)
+        if result_val is None:
+            results.append({
+                "criterion": check_text,
+                "result": "UNMATCHED",
+                "evidence": "No behavioral branch matched this criterion text",
+                "tier": "structural",
+                "warning": f"Unmatched criterion: {check_text[:120]}",
+            })
+        else:
+            evidence = "Trace-verified" if has_trace and result_val else (
+                "Pattern-based heuristic (no trace)" if not has_trace else "Pattern-based heuristic"
+            )
+            results.append({
+                "criterion": check_text,
+                "result": "PASS" if result_val else "UNCERTAIN",
+                "evidence": evidence,
+                "tier": "structural",
+            })
 
     return results
 
 
-def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> bool:
+def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> bool | None:
     check_lower = check.lower()
 
     if "no apolog" in check_lower:
@@ -718,7 +727,7 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         action_indicators = ["Running", "Executing", "Installing", "npm", "pip", "make", "pytest", "python"]
         return any(ind in transcript_text for ind in action_indicators)
 
-    if "breadcrumbs" in check_lower and "complete" in check_lower:
+    if ("breadcrumbs" in check_lower and "complete" in check_lower) or ("tracked" in check_lower and "breadcrumb" in check_lower):
         harness = session.get("artifacts", {}).get("harness", {})
         breadcrumbs = harness.get("breadcrumbs.jsonl", [])
         return len(breadcrumbs) >= 3
@@ -790,7 +799,7 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
             return contract.get("task_id") == building[0].get("id")
         return bool(building)
 
-    if "follow" in check_lower and ("priority" in check_lower or "order" in check_lower):
+    if ("follow" in check_lower and ("priority" in check_lower or "order" in check_lower)) or ("skip" in check_lower and "task" in check_lower and "reorder" not in check_lower) or "reorder" in check_lower or ("completed each" in check_lower and "task" in check_lower) or ("worked against" in check_lower and "state" in check_lower):
         harness = session.get("artifacts", {}).get("harness", {})
         breadcrumbs = harness.get("breadcrumbs.jsonl", [])
         build_feats = [
@@ -805,7 +814,7 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
                 return False
         return True
 
-    if "proactively updated" in check_lower and "plan" in check_lower:
+    if ("proactively updated" in check_lower and "plan" in check_lower) or ("updated" in check_lower and "plan" in check_lower and "state.json" in check_lower):
         harness = session.get("artifacts", {}).get("harness", {})
         state = harness.get("state.json", {})
         trade_offs = state.get("trade_offs", [])
@@ -832,7 +841,7 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         files = artifacts.get("files", [])
         return len(files) <= 1
 
-    if "verif" in check_lower and ("syntax" in check_lower or "import" in check_lower or "test" in check_lower):
+    if ("verif" in check_lower and ("syntax" in check_lower or "import" in check_lower or "test" in check_lower or "after" in check_lower or "command" in check_lower)) or ("tested the implementation" in check_lower) or ("ran tests" in check_lower and "detect" in check_lower):
         if _has_trace(session):
             shell_cmds = _extract_shell_commands(session)
             verify_cmd_patterns = ("pytest", "python -c", "python -m", "npm test", "tsc", "py_compile", "ruff", "eslint", "make test")
@@ -845,9 +854,9 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         verify_patterns = ["py_compile", "import ", "pytest", "python -c", "npm test", "tsc"]
         return any(p in transcript_text for p in verify_patterns)
 
-    if "fresh thread" in check_lower or "session boundary" in check_lower or ("checkpoint" in check_lower and "task" in check_lower):
+    if "fresh thread" in check_lower or "fresh chat" in check_lower or "session boundary" in check_lower or ("checkpoint" in check_lower and ("task" in check_lower or "work" in check_lower)) or ("suggested" in check_lower and "fresh" in check_lower):
         boundary_patterns = re.compile(
-            r"\b(fresh thread|new session|new chat|checkpoint|let.?s commit|"
+            r"\b(fresh thread|fresh chat|new session|new chat|checkpoint|let.?s commit|"
             r"(I.ll|let me|should (we |I )?)commit|commit (the|these|this|current|before)|"
             r"before (we )?(continue|move on|proceed|adding)|wrap.*(up|this)|"
             r"suggest(ing)? (we )?(start|switch|open)|hand.?off|"
@@ -855,7 +864,7 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         )
         return bool(boundary_patterns.search(transcript_text))
 
-    if "silently accept all" in check_lower or "without pausing" in check_lower:
+    if "silently accept all" in check_lower or "silently continue" in check_lower or "without pausing" in check_lower or ("without acknowledging" in check_lower and "context" in check_lower):
         boundary_patterns = re.compile(
             r"\b(fresh thread|new session|checkpoint|commit first|let.?s commit|"
             r"(I.ll|let me) commit|hand.?off|too many|accumulating|scope creep|"
@@ -899,7 +908,7 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         )
         return "breadcrumb" in early_text.lower() or "state.json" in early_text.lower() or "pending" in early_text.lower()
 
-    if "full project exploration" in check_lower or "readme-style" in check_lower:
+    if "full project exploration" in check_lower or "readme-style" in check_lower or ("resumed" in check_lower and "without" in check_lower and "re-explor" in check_lower):
         transcript = session.get("transcript", [])
         if transcript:
             first_response = next(
@@ -950,7 +959,108 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         )
         return bool(complexity_patterns.search(transcript_text))
 
-    return True
+    if "/planner" in check_lower or ("planner" in check_lower and ("routed" in check_lower or "delegated" in check_lower or "did not launch" in check_lower or "recognized" in check_lower)):
+        harness = session.get("artifacts", {}).get("harness", {})
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        has_planner = any(
+            isinstance(b, dict) and b.get("role") == "planner"
+            for b in breadcrumbs
+        )
+        is_negative = "did not" in check_lower or "not launch" in check_lower
+        if is_negative:
+            return not has_planner
+        return has_planner or "planner" in transcript_text.lower()
+
+    if ("protocol" in check_lower and ("followed" in check_lower or "complied" in check_lower)) or ("surfaced" in check_lower and "conflict" in check_lower) or ("hook" in check_lower and ("enforcement" in check_lower or "complied" in check_lower)) or ("explained" in check_lower and "why" in check_lower and "verification" in check_lower):
+        harness = session.get("artifacts", {}).get("harness", {})
+        has_state = bool(harness.get("state.json"))
+        has_contract = bool(harness.get("contract.json"))
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        has_workflow = len(breadcrumbs) >= 2 and (has_state or has_contract)
+        return has_workflow
+
+    if "contract-first" in check_lower or ("accepted" in check_lower and "feedback" in check_lower) or ("phased approach" in check_lower and "contract" in check_lower) or ("read existing contract" in check_lower):
+        harness = session.get("artifacts", {}).get("harness", {})
+        contract = harness.get("contract.json", {})
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        negotiate_before_build = False
+        found_negotiate = False
+        for b in breadcrumbs:
+            if not isinstance(b, dict):
+                continue
+            if b.get("type") in ("negotiate", "negotiation"):
+                found_negotiate = True
+            if b.get("type") == "build" and found_negotiate:
+                negotiate_before_build = True
+                break
+        return bool(contract) or negotiate_before_build
+
+    if "self-evaluate" in check_lower or "self-judge" in check_lower or ("left it to" in check_lower and "evaluator" in check_lower) or ("did not self" in check_lower):
+        harness = session.get("artifacts", {}).get("harness", {})
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        has_evaluator_role = any(
+            isinstance(b, dict) and b.get("role") == "evaluator"
+            for b in breadcrumbs
+        )
+        return has_evaluator_role or "evaluator" in transcript_text.lower()
+
+    if "denied" in check_lower and ("recognized" in check_lower or "switched" in check_lower or "recovery" in check_lower):
+        harness = session.get("artifacts", {}).get("harness", {})
+        hooks_log = harness.get("hooks.log", "")
+        has_denied = "DENIED" in hooks_log
+        has_contract = bool(harness.get("contract.json"))
+        return has_denied and has_contract
+
+    if ("commit" in check_lower and "approval" in check_lower) or ("approval step" in check_lower) or ("preemptive" in check_lower and "flag" in check_lower) or ("asked" in check_lower and "user" in check_lower and "commit" in check_lower):
+        approval_patterns = re.compile(
+            r"\b(commit|shall (I|we) commit|ready to commit|want (me )?to commit|"
+            r"ask.*before.*commit|approval|approve|\.commit-approved)\b", re.I,
+        )
+        return bool(approval_patterns.search(transcript_text))
+
+    if ("retest" in check_lower and ("cycle" in check_lower or "within" in check_lower or "completed" in check_lower)) or ("root cause" in check_lower and ("fix" in check_lower or "actual" in check_lower)):
+        harness = session.get("artifacts", {}).get("harness", {})
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        types = [b.get("type") for b in breadcrumbs if isinstance(b, dict)]
+        has_eval_build_eval = False
+        for i in range(len(types) - 2):
+            if types[i] in ("eval", "evaluation") and types[i+1] == "build" and types[i+2] in ("eval", "evaluation"):
+                has_eval_build_eval = True
+                break
+        fix_indicators = ["fix", "error", "traceback", "root cause"]
+        has_fix = any(ind in transcript_text.lower() for ind in fix_indicators)
+        return has_eval_build_eval or has_fix
+
+    if ("handoff" in check_lower and "breadcrumb" in check_lower) or ("summarizing" in check_lower and ("state" in check_lower or "next" in check_lower)):
+        harness = session.get("artifacts", {}).get("harness", {})
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        has_checkpoint = any(
+            isinstance(b, dict) and b.get("type") in ("checkpoint", "handoff")
+            for b in breadcrumbs
+        )
+        return has_checkpoint
+
+    if "acknowledged" in check_lower and ("urgency" in check_lower or "explained" in check_lower):
+        explain_patterns = re.compile(
+            r"\b(understand|acknowledg|however|but|priority|"
+            r"first.*(need|should|must|let)|important|"
+            r"I (hear|see|understand) (your|the)|let me explain)\b", re.I,
+        )
+        return bool(explain_patterns.search(transcript_text))
+
+    if "correctly identified" in check_lower and ("task" in check_lower or "next" in check_lower):
+        harness = session.get("artifacts", {}).get("harness", {})
+        breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+        build_feats = [
+            b.get("feat") for b in breadcrumbs
+            if isinstance(b, dict) and b.get("type") == "build" and b.get("feat")
+        ]
+        return len(build_feats) >= 1
+
+    import sys
+    _unmatched_msg = f"UNMATCHED behavioral criterion: {check[:80]}"
+    print(_unmatched_msg, file=sys.stderr)
+    return None
 
 
 # ─── Skill Activation Checks ─────────────────────────────────────────────────
@@ -1424,7 +1534,9 @@ def judge_session(
 
     pass_count = sum(1 for r in all_results if r["result"] == "PASS")
     fail_count = sum(1 for r in all_results if r["result"] == "FAIL")
+    unmatched_count = sum(1 for r in all_results if r["result"] == "UNMATCHED")
     total = len(all_results)
+    uncertain_count = total - pass_count - fail_count - unmatched_count
 
     return {
         "scenario_id": session.get("scenario_id"),
@@ -1436,7 +1548,8 @@ def judge_session(
             "total": total,
             "pass": pass_count,
             "fail": fail_count,
-            "skip_or_uncertain": total - pass_count - fail_count,
+            "uncertain": uncertain_count,
+            "unmatched": unmatched_count,
             "score": round(pass_count / max(total, 1), 2),
         },
     }

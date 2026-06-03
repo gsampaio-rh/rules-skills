@@ -72,7 +72,7 @@ def compute_summary(judgments: list[dict]) -> dict:
         model = j.get("model", "unknown")
         key = f"{model}/{sid}"
 
-        dims: dict[str, dict] = defaultdict(lambda: {"pass": 0, "fail": 0, "total": 0})
+        dims: dict[str, dict] = defaultdict(lambda: {"pass": 0, "fail": 0, "unmatched": 0, "uncertain": 0, "total": 0})
 
         for r in j.get("results", []):
             dim = classify_dimension(r)
@@ -81,6 +81,10 @@ def compute_summary(judgments: list[dict]) -> dict:
                 dims[dim]["pass"] += 1
             elif r.get("result") == "FAIL":
                 dims[dim]["fail"] += 1
+            elif r.get("result") == "UNMATCHED":
+                dims[dim]["unmatched"] += 1
+            else:
+                dims[dim]["uncertain"] += 1
 
         dim_scores = {}
         for dim_name in DIMENSIONS:
@@ -103,10 +107,14 @@ def compute_summary(judgments: list[dict]) -> dict:
             "total_checks": overall.get("total", 0),
             "pass_count": overall.get("pass", 0),
             "fail_count": overall.get("fail", 0),
+            "unmatched_count": overall.get("unmatched", 0),
+            "uncertain_count": overall.get("uncertain", 0),
         }
 
     total_pass = sum(s["pass_count"] for s in scenarios.values())
     total_checks = sum(s["total_checks"] for s in scenarios.values())
+    total_unmatched = sum(s["unmatched_count"] for s in scenarios.values())
+    total_uncertain = sum(s["uncertain_count"] for s in scenarios.values())
 
     from datetime import datetime, timezone
 
@@ -117,6 +125,8 @@ def compute_summary(judgments: list[dict]) -> dict:
             "total_scenarios": len(scenarios),
             "total_checks": total_checks,
             "total_pass": total_pass,
+            "total_unmatched": total_unmatched,
+            "total_uncertain": total_uncertain,
             "overall_pass_rate": round(total_pass / max(total_checks, 1), 2),
         },
     }
@@ -155,6 +165,8 @@ def print_table(summary: dict):
     print(f"\nTotal scenarios: {agg['total_scenarios']} | "
           f"Total checks: {agg['total_checks']} | "
           f"Pass: {agg['total_pass']} | "
+          f"Unmatched: {agg.get('total_unmatched', 0)} | "
+          f"Uncertain: {agg.get('total_uncertain', 0)} | "
           f"Pass rate: {agg['overall_pass_rate']:.0%}")
     print()
 

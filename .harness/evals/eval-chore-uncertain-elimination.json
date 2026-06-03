@@ -1,0 +1,74 @@
+{
+  "task_id": "chore-uncertain-elimination",
+  "round": 2,
+  "verdict": "PASS",
+  "ac_results": {
+    "AC1": {
+      "verdict": "PASS",
+      "evidence": "session_judge.py:1060-1063 prints stderr warning and returns None (sentinel); no trailing return True in _evaluate_behavioral()."
+    },
+    "AC2": {
+      "verdict": "PASS",
+      "evidence": "check_behavioral() lines 690-697 map None to result 'UNMATCHED' only; PASS/UNCERTAIN paths require non-None bool."
+    },
+    "AC3": {
+      "verdict": "PASS",
+      "evidence": "UNMATCHED result dict includes warning key (line 696): f'Unmatched criterion: {check_text[:120]}'."
+    },
+    "AC4": {
+      "verdict": "PASS",
+      "evidence": "check_behavioral() sets tier 'structural' and result 'UNMATCHED' when result_val is None (lines 693-696)."
+    },
+    "AC5": {
+      "verdict": "PASS",
+      "evidence": "judge_session() summary (lines 1547-1553) has separate 'unmatched' and 'uncertain' keys; uncertain_count excludes UNMATCHED."
+    },
+    "AC6": {
+      "verdict": "PASS",
+      "evidence": "compute_summary() tracks per-dimension unmatched/uncertain (lines 75-87); aggregate has total_unmatched and total_uncertain (lines 116-129); print_table shows both (lines 168-169)."
+    },
+    "AC7": {
+      "verdict": "PASS",
+      "evidence": "Round 2 corpus audit: 87/87 behavioral criteria in tests/eval/scenarios/**/*.yaml return non-None with realistic session transcript."
+    },
+    "AC8": {
+      "verdict": "PASS",
+      "evidence": "make validate exited 0: Results 0 errors, 2 warnings (pre-existing alwaysApply budget)."
+    },
+    "AC9": {
+      "verdict": "PASS",
+      "evidence": "tests/eval/test_session_judge_behavioral.py committed with 8 pytest cases: synthetic __synthetic_unmatched__ → None/UNMATCHED + warning; 'No apologies in transcript' → True/PASS and False with apology; check_behavioral mixed; judge_session scoring (EC3). pytest 8/8 passed in temp venv. Return type bool | None on _evaluate_behavioral (line 712)."
+    }
+  },
+  "ec_results": {
+    "EC1": {
+      "verdict": "PASS",
+      "evidence": "test_synthetic_returns_none + test_unmatched_criterion_produces_unmatched_result: __synthetic_unmatched__ → UNMATCHED, not PASS."
+    },
+    "EC2": {
+      "verdict": "PASS",
+      "evidence": "test_known_no_apologies_returns_true + test_known_no_apologies_with_apology_returns_false: apology branch unchanged. Corpus audit 87/87 covered."
+    },
+    "EC3": {
+      "verdict": "PASS",
+      "evidence": "TestScoringFormulaEC3: test_unmatched_not_counted_as_pass (score 0.0, pass 0) and test_pass_plus_unmatched_score (pass/total formula excludes UNMATCHED from numerator)."
+    },
+    "EC4": {
+      "verdict": "PASS",
+      "evidence": "None → UNMATCHED (no branch matched). False → UNCERTAIN (branch matched, heuristic failed). test_matched_criterion_produces_pass_or_uncertain exercises traced vs heuristic path."
+    }
+  },
+  "issues": [
+    "Four behavioral branches (focused summary, NOT exploration, resumed/re-explor, full project exploration) still return None when transcript empty — misleading UNMATCHED evidence (non-blocking; not corpus gaps).",
+    "import sys remains inside _evaluate_behavioral (lines 1060-1061) rather than module top.",
+    "Line 735 'should i' substring is broad and precedes commit-approval branch — residual mis-routing risk.",
+    "pytest not in default shell env; tests require pytest install (pyproject.toml has pytest config only)."
+  ],
+  "recommendations": [
+    "Add pytest to tests/eval/requirements.txt or Makefile test target for CI discoverability.",
+    "Fix transcript-dependent branches (882-889, 911-918) to return False when transcript missing instead of falling through to None.",
+    "Move sys import to module top; remove redundant import inside _evaluate_behavioral.",
+    "Narrow line 735 to permission-seeking patterns; avoid bare 'should i'."
+  ],
+  "round_1_delta": "AC9 fixed: committed tests/eval/test_session_judge_behavioral.py; bool | None annotation on _evaluate_behavioral."
+}
