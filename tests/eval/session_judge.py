@@ -415,7 +415,7 @@ def check_contract_quality(session: dict) -> list[dict]:
     ]
     vague_count = sum(
         1 for c in criteria
-        if any(p.search(c) for p in vague_patterns)
+        if isinstance(c, str) and any(p.search(c) for p in vague_patterns)
     )
     results.append({
         "criterion": "Criteria are binary-testable (not vague)",

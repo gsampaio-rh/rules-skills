@@ -1,31 +1,26 @@
 {
-  "task_id": "gap-26",
-  "feature": "Dedup and harden behavioral heuristics in session_judge.py",
-  "problem": "_evaluate_behavioral() has duplicate branches (4/5, 19/21), overlapping session-boundary regex (16/17), and high-fragility patterns (10, 13) that inflate false positives and maintenance cost.",
-  "proposed_solution": "Sequential refactor: baseline → merge duplicates → tighten fragile branches → audit chore branches → regression gate. Extract shared regex helpers; keep keyword-trigger if/elif chain but reduce branch count and false-positive surface.",
+  "task_id": "feat-15",
+  "feature": "Sandbox isolation for eval session runner",
+  "problem": "CursorClient.launch_bridge() inherits os.environ, so any server the agent starts inside the sandbox exposes CURSOR_API_KEY and other secrets via environment variables to localhost",
+  "proposed_solution": "Two-layer defense: (1) strip sensitive env vars from os.environ before launch_bridge, restore after in finally block; (2) enable SDK SandboxOptions for filesystem/shell/network isolation",
   "acceptance_criteria": [
-    "AC1: gap-26-1 produces `tests/eval/fixtures/behavioral_baseline.json` mapping {criterion, scenario_id, expected_bool} for all 87 behavioral criteria across 28 scenarios using scenario-derived stubs. Post-refactor: branches 4/5 merged into single proceed/ask-permission branch; 3 named criteria (contract-edge-cases, routing-simple-skip, adversarial-skip-override) produce identical bool results vs baseline JSON",
-    "AC2: Branches 19/21 merged into single concise-response branch (<800 words); 4 corpus criteria produce identical bool results vs baseline on non-empty transcript stubs. Empty-transcript behavior covered by AC3 separately",
-    "AC3: Empty transcript with concise-response criterion returns False (UNCERTAIN), not None (UNMATCHED)",
-    "AC4: Branch 10 defer regex uses explicit allowlist: defer|out of scope|off-plan|separate task|scope creep|not part of|park that|park this|after we finish|not in the current. Unit tests: 3 positive fixtures (containing core defer phrases) match; 3 negative fixtures ('backlog', 'later', 'focus on the current feature') do NOT match",
-    "AC5: Branch 13 uses artifact detection: (a) breadcrumb with type in {build,negotiate,decision,checkpoint} and msg matching plan|state\\.json|direction|trade_off|task.*status, OR (b) trace-based detection of Write/StrReplace tool calls targeting state.json (session data model lacks seed state; trace detection is the negotiated equivalent). No longer uses trade_offs count > 1 or direction keyword substring. One positive fixture from protocol-replan-mid-build seed required",
-    "AC6: Branches 16/17 share a BOUNDARY_PATTERNS helper but have distinct trigger keyword sets. 5 enumerated criteria still route correctly: (1) behavioral-session-boundary 'fresh thread/checkpoint', (2) behavioral-session-boundary 'committed before unrelated', (3) behavioral-session-boundary 'did not silently accept all 7 tasks' → branch 17, (4) behavioral-context-health-stale-thread 'suggested fresh chat' → branch 16, (5) behavioral-context-health-stale-thread 'did not silently continue' → branch 17",
-    "AC7: 87/87 behavioral criteria from 28 scenario YAMLs return non-None AND zero mismatches vs behavioral_baseline.json on scenario-specific stubs",
-    "AC8: tests/eval/test_session_judge_behavioral.py has ≥12 new parametrized cases (≥20 total) covering: proceed merge, concise-response merge, branch 10 positive/negative, branch 13 artifact path, empty-transcript, boundary routing",
-    "AC9: make validate exits 0",
-    "AC10: Zero regressions vs behavioral_baseline.json: per-criterion bool for all 87 criteria matches baseline using scenario-derived stubs",
-    "AC11: Top-level if statements in _evaluate_behavioral function body (AST count, excluding nested if) reduced by ≥3. Pre-refactor baseline: 36. Post-refactor: ≤33",
-    "AC12: sys import moved to module top; no import inside _evaluate_behavioral fallback path"
+    "AC1: SENSITIVE_ENV_VARS list includes CURSOR_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, AWS_SECRET_ACCESS_KEY, GITHUB_TOKEN, GH_TOKEN",
+    "AC2: _strip_sensitive_env() removes all SENSITIVE_ENV_VARS from os.environ and returns stashed values",
+    "AC3: _restore_sensitive_env() restores stashed values in a finally block — always runs even on exception",
+    "AC4: SandboxOptions(enabled=True) is passed to LocalAgentOptions by default",
+    "AC5: --no-sandbox CLI flag disables sandbox with warning in help text",
+    "AC6: api_key is still passed explicitly to agents.create() — not relying on env inheritance",
+    "AC7: dry-run output shows sandbox status",
+    "AC8: File compiles cleanly (py_compile) and passes make validate"
   ],
   "edge_cases": [
-    "EC1: 'Implemented directly without ceremony' (adversarial-skip-override) routes to proceed branch, not commit-approval branch",
-    "EC2: Criterion text 'should implement' or 'should i commit' does NOT enter proceed branch — routing assertion required; proceed trigger narrowed to 'shall i proceed', 'should i proceed', or 'without asking'+proceed/permission, not bare 'should i'",
-    "EC3: Transcript with 'Shall I commit?' + criterion 'No shall I proceed before changes' → True (commit ≠ proceed); regression guard for branch ordering",
-    "EC4: Branch 10 with transcript 'feat-3 is in the backlog' or 'let us focus on feat-1' does not false-PASS defer detection",
-    "EC5: Branch 13 with seed state.json identical to final state and no plan-update breadcrumbs returns False"
+    "EC1: If a SENSITIVE_ENV_VAR is not set in the parent env, _strip_sensitive_env should not fail",
+    "EC2: If the bridge crashes between strip and restore, the finally block must still restore vars"
   ],
-  "verification_method": "1. gap-26-1 baseline capture to tests/eval/fixtures/behavioral_baseline.json. 2. pytest tests/eval/test_session_judge_behavioral.py (≥20 tests). 3. make validate. 4. Baseline diff: zero mismatches on 87 criteria.",
-  "negotiation_rounds": 2,
+  "verification_method": "Read session_runner.py, verify all ACs by code inspection. Run py_compile and make validate. Check that stash/restore wraps the entire bridge lifecycle with finally.",
+  "rubrics": ["code-quality", "security"],
+  "rubric_mode": "strict",
+  "negotiation_rounds": 0,
   "phase": "verified",
   "verified": true
 }

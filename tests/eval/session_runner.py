@@ -41,9 +41,39 @@ DEFAULT_MODEL = "composer-2.5"
 DEFAULT_TIMEOUT = 300
 LONG_DEFAULT_TIMEOUT = 900
 
+SENSITIVE_ENV_VARS = [
+    "CURSOR_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "AWS_SECRET_ACCESS_KEY",
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+]
+
 
 class _Timeout(Exception):
     pass
+
+
+def _strip_sensitive_env() -> dict[str, str]:
+    """Remove secrets from os.environ so child processes don't inherit them.
+
+    Returns stashed values for restoration via _restore_sensitive_env().
+    The API key is passed explicitly to agents.create(), so the bridge
+    process itself doesn't need it — but without this, any server the
+    agent starts inside the sandbox exposes secrets via os.environ.
+    """
+    stashed: dict[str, str] = {}
+    for var in SENSITIVE_ENV_VARS:
+        val = os.environ.pop(var, None)
+        if val is not None:
+            stashed[var] = val
+    return stashed
+
+
+def _restore_sensitive_env(stashed: dict[str, str]) -> None:
+    """Restore previously stripped environment variables."""
+    os.environ.update(stashed)
 
 
 def _wait_with_timeout(run, timeout_s: int):
@@ -85,9 +115,10 @@ def load_scenarios(filter_str: str | None = None, long: bool = False) -> list[di
     return scenarios
 
 
-def run_scenario(scenario: dict, model: str, api_key: str, timeout: int) -> dict:
+def run_scenario(scenario: dict, model: str, api_key: str, timeout: int,
+                  *, sandbox: bool = True) -> dict:
     """Run a scenario in an isolated workspace via dedicated bridge."""
-    from cursor_sdk import CursorClient, LocalAgentOptions
+    from cursor_sdk import CursorClient, LocalAgentOptions, SandboxOptions
 
     sys.path.insert(0, str(EVAL_DIR))
     from sandbox import CaptureWorkspace
@@ -107,6 +138,7 @@ def run_scenario(scenario: dict, model: str, api_key: str, timeout: int) -> dict
     with CaptureWorkspace(prefix=f"eval-{scenario_id}-", seed_files=seed_files) as ws:
         print(f"  Workspace: {ws.path}")
 
+        stashed = _strip_sensitive_env()
         try:
             with CursorClient.launch_bridge(workspace=str(ws.path)) as client:
                 with client.agents.create(
@@ -115,6 +147,7 @@ def run_scenario(scenario: dict, model: str, api_key: str, timeout: int) -> dict
                     local=LocalAgentOptions(
                         cwd=str(ws.path),
                         setting_sources=["project"],
+                        sandbox_options=SandboxOptions(enabled=sandbox),
                     ),
                 ) as agent:
                     completed_prompts, status, transcript = _drive_conversation(
@@ -126,6 +159,8 @@ def run_scenario(scenario: dict, model: str, api_key: str, timeout: int) -> dict
         except Exception as e:
             status = "error"
             transcript.append({"role": "system", "content": f"Error: {e}"})
+        finally:
+            _restore_sensitive_env(stashed)
 
         verify_commands = scenario.get("verify", [])
         artifacts = ws.collect_artifacts(verify_commands or None)
@@ -293,6 +328,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="Show plan only")
     parser.add_argument("--list", action="store_true", help="List available scenarios")
     parser.add_argument("--run-dir", help="Reuse an existing run directory instead of creating a new one")
+    parser.add_argument("--no-sandbox", action="store_true", help="Disable agent sandbox (NOT recommended — leaks env vars)")
     args = parser.parse_args()
 
     if args.timeout is None:
@@ -320,6 +356,8 @@ def main() -> int:
         print(f"Session run plan: {len(scenarios)} scenario(s)")
         print(f"  Model: {args.model}")
         print(f"  Timeout: {args.timeout}s")
+        sandbox_label = "DISABLED ⚠️" if args.no_sandbox else "enabled (seatbelt/bubblewrap)"
+        print(f"  Sandbox: {sandbox_label}")
         print(f"  Isolation: CursorClient.launch_bridge (temp dir)")
         for s in scenarios:
             prompts = 1 + len(s.get("follow_up_prompts", []))
@@ -341,7 +379,8 @@ def main() -> int:
             scenario_timeout = 0
         else:
             scenario_timeout = scenario.get("timeout_s", args.timeout)
-        result = run_scenario(scenario, args.model, api_key, scenario_timeout)
+        result = run_scenario(scenario, args.model, api_key, scenario_timeout,
+                              sandbox=not args.no_sandbox)
         path = save_session(result, run_dir)
         print(f"  Saved: {path}")
         results.append(result)
