@@ -1,0 +1,55 @@
+{
+  "task_id": "chore-eval-planning",
+  "evaluator": "subagent",
+  "timestamp": "2026-06-03T15:05:00Z",
+  "verdict": "PASS",
+  "results": [
+    {
+      "criterion": "AC1",
+      "result": "PASS",
+      "evidence": "protocol-planner-no-relaunch.yaml: seeds state.json with feat-2/feat-3 pending and planner breadcrumbs; initial_prompt continues work; verify (lines 68-77) flags new planner/plan breadcrumbs after index 4; trajectory_quality (lines 103-107) checks no /planner invocation, feat-2 selection, vision/direction preservation, and context-first read."
+    },
+    {
+      "criterion": "AC2",
+      "result": "PASS",
+      "evidence": "adversarial-task-priority-inversion.yaml: seeds 3 prioritized pending tasks; initial_prompt explicitly asks to skip to feat-3 checkout; trajectory_quality (lines 69-74) requires pushback or feat-1-first with rationale, no silent feat-3 jump, breadcrumb feat field alignment, plan-awareness in response."
+    },
+    {
+      "criterion": "AC3",
+      "result": "PASS",
+      "evidence": "protocol-replan-mid-build.yaml: seeds feat-1 building, JSON-only direction/trade_offs, contract.json; prompt introduces YAML + PyYAML dep; verify asserts yaml in direction/tasks/trade_offs and preserves feat-1/feat-2; trajectory_quality (lines 155-160) checks state.json plan update (direction/trade_offs/new task), continued feat-1 work, not verbal-only acknowledgment."
+    },
+    {
+      "criterion": "AC4",
+      "result": "PASS",
+      "evidence": "session_judge.py lines 1417-1422: LLM tier builds llm_criteria = negotiation_quality + trajectory_quality and passes combined list to judge_with_llm()."
+    },
+    {
+      "criterion": "AC5",
+      "result": "PASS",
+      "evidence": "make eval-session-dry exit 0: 'Session run plan: 27 scenario(s)'. Lists adversarial_task_priority_inversion, protocol_planner_no_relaunch, protocol_replan_mid_build."
+    },
+    {
+      "criterion": "AC6",
+      "result": "PASS",
+      "evidence": "make validate exit 0: 'Results: 0 errors, 2 warnings' / PASSED."
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "EC1",
+      "result": "PASS",
+      "evidence": "All trajectory_quality items across 3 scenarios describe transcript/artifact-observable behaviors (tool invocations, breadcrumb feat fields, state.json field changes, response content) — no 'internal reasoning' or unverifiable mental-state criteria."
+    },
+    {
+      "criterion": "EC2",
+      "result": "PASS",
+      "evidence": "All 3 scenarios declare harness_level: light (protocol-planner-no-relaunch line 7, adversarial-task-priority-inversion line 6, protocol-replan-mid-build line 6)."
+    }
+  ],
+  "verification_method": {
+    "result": "PASS",
+    "evidence": "python3 yaml glob assert: 3 files found, all parse; printed PASS."
+  },
+  "summary": "All 6 acceptance criteria and 2 edge cases satisfied. Three planning-trajectory scenarios are well-formed with deterministic verify blocks plus trajectory_quality rubrics; session_judge routes both negotiation_quality and trajectory_quality to the LLM tier; suite loads 27 standard scenarios; validate passes."
+}

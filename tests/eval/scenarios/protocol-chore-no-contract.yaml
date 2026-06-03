@@ -1,0 +1,72 @@
+id: protocol_chore_no_contract
+name: "Chore task bypasses contract-gate when no gatable tasks pending"
+difficulty: medium
+estimated_duration: 5m
+harness_level: light
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "chore-bypass-test",
+      "created": "2026-06-01T10:00:00Z",
+      "schema_version": 2,
+      "vision": "Test project for chore gate bypass behavior.",
+      "direction": "Python scripts, dev tooling.",
+      "tasks": [
+        {"id": "feat-1", "name": "Core API", "type": "feature", "status": "committed"},
+        {"id": "chore-1", "name": "Add pre-commit hooks and linting config", "type": "chore", "status": "pending"}
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-06-01T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 2 tasks"}
+    {"ts":"2026-06-01T11:00:00Z","role":"builder","type":"checkpoint","feat":"feat-1","msg":"feat-1 committed"}
+  src/api.py: |
+    def greet(name: str) -> str:
+        return f"Hello, {name}!"
+
+    def farewell(name: str) -> str:
+        return f"Goodbye, {name}!"
+
+initial_prompt: >
+  Start working on chore-1: Add pre-commit hooks and linting config.
+  Create a .pre-commit-config.yaml with ruff for Python linting and a
+  pyproject.toml with basic ruff settings.
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import os
+      contract = '.harness/contract.json'
+      if os.path.exists(contract):
+          print('FAIL: contract.json should NOT exist for chore task with no gatable pending')
+      else:
+          print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import os
+      files = ['.pre-commit-config.yaml', 'pyproject.toml']
+      found = [f for f in files if os.path.exists(f)]
+      assert len(found) >= 1, f'Expected at least 1 config file, found {found}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent detected existing .harness/state.json and resumed workflow"
+    - "No .harness/contract.json created (chore with no gatable pending should bypass)"
+    - "contract-gate allowed writes via type-aware SKIP (hooks.log shows bypass, not DENIED)"
+  artifact_quality:
+    - "Agent produced linting configuration files (.pre-commit-config.yaml or pyproject.toml)"
+    - "Configuration is valid YAML/TOML syntax"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent worked on chore-1 without requiring contract negotiation"
+    - "Agent did not launch /planner (plan already exists)"
+    - "Agent correctly identified chore-1 as next task (feat-1 is committed)"

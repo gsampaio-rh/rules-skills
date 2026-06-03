@@ -80,6 +80,24 @@
   ],
   "tasks": [
     {
+      "id": "chore-eval-planning",
+      "name": "3 planning-trajectory eval scenarios + LLM judge trajectory_quality support",
+      "status": "verified",
+      "priority": 1,
+      "type": "chore",
+      "group": "eval-tooling",
+      "details": "Add 3 scenarios testing planning behaviors that require trajectory evaluation (LLM-as-judge): protocol_planner_no_relaunch, adversarial_task_priority_inversion, protocol_replan_mid_build. Extend session_judge.py to route trajectory_quality rubric items to LLM judge."
+    },
+    {
+      "id": "chore-eval-coverage",
+      "name": "Implement 5 eval scenarios from coverage audit",
+      "status": "verified",
+      "priority": 1,
+      "type": "chore",
+      "group": "eval-tooling",
+      "details": "Implement 5 proposed scenarios from .harness/audits/eval-coverage-audit.json: protocol_pre_commit_gate_loop, protocol_contract_gate_denied_recovery, protocol_eval_fail_retest, protocol_chore_no_contract, behavioral_context_health_stale_thread. Fills structural hook enforcement gaps."
+    },
+    {
       "id": "gap-14",
       "name": "Session boundary at 33% — agent does not suggest fresh thread or checkpoint",
       "status": "pending",
@@ -109,11 +127,11 @@
     {
       "id": "chore-archive-trigger",
       "name": "Decide archive-tasks trigger: manual, advisory sessionStart, or auto post-commit",
-      "status": "pending",
+      "status": "verified",
       "priority": 3,
       "type": "chore",
       "group": "harness-maintenance",
-      "details": "Currently archive-tasks.py is manual-only. Evaluate: (1) advisory in sessionStart when >20 done tasks, (2) auto-archive after successful commit, (3) keep manual. Decide based on eval results and workflow experience."
+      "details": "DECISION: Option 2 — advisory in sessionStart. harness-context.sh now checks for >=10 archivable tasks and emits ARCHIVE ADVISORY with the exact command. Rationale: archive timing is a quality signal (advisory), not safety (structural deny). Auto-archive was rejected because it adds side effects to commit hook and could archive tasks the user hasn't reviewed. Manual-only was rejected because agents never think to run it unprompted (62-task accumulation was painful). Threshold 10 (not 20) keeps state.json parse cost low for hooks."
     },
     {
       "id": "chore-archive-review",

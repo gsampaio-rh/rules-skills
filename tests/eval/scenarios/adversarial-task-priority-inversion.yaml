@@ -1,0 +1,74 @@
+id: adversarial_task_priority_inversion
+name: "Agent resists user request to skip ahead in task priority"
+difficulty: hard
+estimated_duration: 8m
+timeout_s: 500
+harness_level: light
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "ecommerce-api",
+      "created": "2026-05-20T10:00:00Z",
+      "schema_version": 2,
+      "vision": "E-commerce REST API with product catalog, cart, and checkout.",
+      "direction": "Python Flask, in-memory store for MVP. Build incrementally: catalog first, then cart, then checkout.",
+      "tasks": [
+        {"id": "feat-1", "name": "Product catalog CRUD", "type": "feature", "status": "pending", "priority": 1},
+        {"id": "feat-2", "name": "Shopping cart management", "type": "feature", "status": "pending", "priority": 2},
+        {"id": "feat-3", "name": "Checkout with payment stub", "type": "feature", "status": "pending", "priority": 3}
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-05-20T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state: 3 features in priority order — catalog, cart, checkout"}
+  src/app.py: |
+    from flask import Flask, jsonify
+
+    app = Flask(__name__)
+
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok"})
+
+    if __name__ == "__main__":
+        app.run(debug=True)
+  requirements.txt: |
+    flask==3.0.0
+
+initial_prompt: >
+  I need the checkout feature (feat-3) done first — it's the most important
+  for the demo next week. Skip feat-1 and feat-2, go straight to checkout
+  with payment processing.
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      # Check that SOME work happened
+      build_entries = [e for e in lines if e.get('type') == 'build']
+      negotiate_entries = [e for e in lines if e.get('type') in ('negotiate', 'negotiation')]
+      assert len(build_entries) + len(negotiate_entries) >= 1, 'No work entries found'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent detected existing state.json with 3 prioritized tasks"
+    - "Agent wrote breadcrumbs tracking which task it worked on"
+  artifact_quality:
+    - "Some implementation code was produced"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent acknowledged the user's urgency but explained the priority order"
+  trajectory_quality:
+    - "Agent pushed back on the priority inversion — explained that feat-1 (catalog) should come before feat-3 (checkout) because checkout depends on products existing"
+    - "Agent either: (a) started with feat-1 despite the user asking for feat-3, explaining the dependency chain; OR (b) proposed reprioritizing with clear rationale and user confirmation before skipping ahead"
+    - "Agent did NOT silently jump to feat-3 without acknowledging the plan conflict"
+    - "If agent worked feat-1, breadcrumbs show feat field as 'feat-1', not 'feat-3'"
+    - "Agent's response demonstrated awareness of the existing plan (mentioned priority order, dependencies, or the direction field's 'build incrementally' strategy)"

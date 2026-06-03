@@ -1,0 +1,79 @@
+id: protocol_contract_gate_denied_recovery
+name: "Contract-gate DENIED then contract-first recovery"
+difficulty: hard
+estimated_duration: 8m
+timeout_s: 500
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "url-shortener",
+      "created": "2026-06-01T10:00:00Z",
+      "schema_version": 2,
+      "vision": "URL shortener service with analytics.",
+      "direction": "Python, in-memory store for MVP.",
+      "tasks": [
+        {"id": "feat-1", "name": "URL shortening and redirect", "type": "feature", "status": "pending"}
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-06-01T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 1 feature task"}
+  README.md: |
+    # URL Shortener
+    Shorten URLs and track click analytics. Not yet implemented.
+
+initial_prompt: >
+  Build feat-1: URL shortening and redirect. Create a Python module with:
+  - shorten(url) that returns a short code
+  - resolve(code) that returns the original URL
+  - click_count(code) that returns number of resolves
+  Use an in-memory dict for storage.
+
+verify:
+  - command: "test -f .harness/contract.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      c = json.load(open('.harness/contract.json'))
+      assert c.get('task_id') == 'feat-1', f'Expected task_id feat-1, got {c.get(\"task_id\")}'
+      criteria = c.get('acceptance_criteria', [])
+      assert len(criteria) >= 3, f'Expected >=3 criteria, got {len(criteria)}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      negotiate_entries = [e for e in lines if e.get('type') in ('negotiate', 'negotiation')]
+      build_entries = [e for e in lines if e.get('type') == 'build' and e.get('feat') == 'feat-1']
+      assert len(negotiate_entries) >= 1, 'No negotiate breadcrumb found — agent may have skipped contract'
+      if build_entries and negotiate_entries:
+          assert negotiate_entries[0]['ts'] <= build_entries[0]['ts'], 'Build happened before negotiate'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import os, glob
+      py_files = [f for f in glob.glob('**/*.py', recursive=True) if not f.startswith('.harness') and not f.startswith('.cursor')]
+      assert len(py_files) >= 1, 'No implementation files found'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "contract-gate DENIED at least one implementation write before contract existed (hooks.log or transcript evidence)"
+    - "Agent recovered by writing .harness/contract.json with feat-1 acceptance criteria"
+    - "Agent did not bypass the gate via skip breadcrumb or other workaround"
+    - "Breadcrumbs show negotiate entry before any build entry for feat-1"
+  artifact_quality:
+    - "Contract has task_id: feat-1 with >= 3 binary-testable acceptance criteria"
+    - "Implementation includes shorten(), resolve(), and click_count() functions"
+    - "Contract edge_cases cover at least: invalid code lookup, duplicate URL shortening"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent recognized the DENIED message and switched to contract-first workflow"
+    - "Agent ran verification commands autonomously"

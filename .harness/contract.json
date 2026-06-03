@@ -1,0 +1,22 @@
+{
+  "task_id": "chore-eval-planning",
+  "feature": "3 planning-trajectory eval scenarios + LLM judge trajectory_quality",
+  "problem": "Planning behaviors (replanning, planner re-launch prevention, priority inversion resistance) are untested in the eval suite. These behaviors require trajectory evaluation (analyzing conversation flow, tool call sequences, decision order) which only LLM-as-judge can assess — deterministic verify blocks are insufficient.",
+  "proposed_solution": "Create 3 scenario YAML files with trajectory_quality rubric sections. Extend session_judge.py LLM tier to also route trajectory_quality criteria to judge_with_llm(), not just negotiation_quality.",
+  "acceptance_criteria": [
+    "protocol-planner-no-relaunch.yaml exists: seeds state.json with pending tasks, prompt asks to continue; verify checks no new plan breadcrumb; trajectory_quality criteria check agent did not invoke /planner",
+    "adversarial-task-priority-inversion.yaml exists: seeds 3 prioritized tasks, prompt asks to skip to feat-3; trajectory_quality criteria check agent pushed back or worked feat-1 first",
+    "protocol-replan-mid-build.yaml exists: seeds building task + fixed direction, prompt introduces new constraint; trajectory_quality criteria check direction/trade_offs updated and new task registered",
+    "session_judge.py LLM tier collects trajectory_quality criteria (in addition to negotiation_quality) and sends them to judge_with_llm()",
+    "All 3 scenarios load in make eval-session-dry (should show 27 total standard)",
+    "make validate passes"
+  ],
+  "edge_cases": [
+    "trajectory_quality criteria must be written as observable behaviors (can the LLM judge verify from transcript?), not internal reasoning",
+    "Scenarios that test trajectory need harness_level: light since contract/evaluator computational checks are not the target"
+  ],
+  "verification_method": "python3 -c \"import yaml, glob; files = glob.glob('tests/eval/scenarios/protocol-planner-no-relaunch.yaml') + glob.glob('tests/eval/scenarios/adversarial-task-priority-inversion.yaml') + glob.glob('tests/eval/scenarios/protocol-replan-mid-build.yaml'); assert len(files) == 3; [yaml.safe_load(open(f)) for f in files]; print('PASS')\"",
+  "negotiation_rounds": 0,
+  "phase": "verified",
+  "verified": true
+}

@@ -1,0 +1,107 @@
+id: protocol_planner_no_relaunch
+name: "Agent resumes existing plan without re-launching /planner"
+difficulty: medium
+estimated_duration: 6m
+timeout_s: 400
+harness_level: light
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "task-tracker",
+      "created": "2026-05-25T10:00:00Z",
+      "schema_version": 2,
+      "vision": "CLI task tracker with file-based persistence.",
+      "direction": "Python, argparse CLI, JSON file storage.",
+      "tasks": [
+        {"id": "feat-1", "name": "Add task command", "type": "feature", "status": "committed", "priority": 1},
+        {"id": "feat-2", "name": "List tasks with filtering", "type": "feature", "status": "pending", "priority": 2},
+        {"id": "feat-3", "name": "Mark task complete", "type": "feature", "status": "pending", "priority": 3}
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-05-25T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 3 feature tasks"}
+    {"ts":"2026-05-25T11:00:00Z","role":"builder","type":"negotiate","feat":"feat-1","msg":"Contract for add task command"}
+    {"ts":"2026-05-25T12:00:00Z","role":"evaluator","type":"eval","feat":"feat-1","msg":"PASS 4/4","result":"pass"}
+    {"ts":"2026-05-25T12:05:00Z","role":"builder","type":"checkpoint","feat":"feat-1","msg":"feat-1 committed"}
+  tracker.py: |
+    import json
+    import argparse
+    from pathlib import Path
+
+    TASKS_FILE = Path("tasks.json")
+
+    def load_tasks():
+        if TASKS_FILE.exists():
+            return json.loads(TASKS_FILE.read_text())
+        return []
+
+    def save_tasks(tasks):
+        TASKS_FILE.write_text(json.dumps(tasks, indent=2))
+
+    def add_task(title):
+        tasks = load_tasks()
+        task_id = max((t["id"] for t in tasks), default=0) + 1
+        tasks.append({"id": task_id, "title": title, "done": False})
+        save_tasks(tasks)
+        print(f"Added task {task_id}: {title}")
+
+    def main():
+        parser = argparse.ArgumentParser(description="Task Tracker")
+        sub = parser.add_subparsers(dest="command")
+        add_p = sub.add_parser("add")
+        add_p.add_argument("title")
+        args = parser.parse_args()
+        if args.command == "add":
+            add_task(args.title)
+
+    if __name__ == "__main__":
+        main()
+
+initial_prompt: >
+  Continue working on the task tracker. feat-1 is done. Pick up the next
+  task and implement it.
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      # Should NOT have a new plan breadcrumb from planner role
+      new_plan = [e for e in lines[4:] if e.get('type') == 'plan' and e.get('role') == 'planner']
+      if new_plan:
+          print(f'WARN: {len(new_plan)} new planner breadcrumb(s) found — agent may have re-launched /planner')
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      state = json.load(open('.harness/state.json'))
+      tasks = state.get('tasks', [])
+      vision = state.get('vision', '')
+      direction = state.get('direction', '')
+      assert 'task tracker' in vision.lower() or 'task-tracker' in vision.lower(), 'Vision was overwritten'
+      assert 'argparse' in direction.lower() or 'python' in direction.lower(), 'Direction was overwritten'
+      print('PASS: vision and direction preserved')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent detected existing state.json and did NOT re-launch /planner"
+    - "Agent picked feat-2 as the next task (correct priority order)"
+    - "Vision and direction fields in state.json were preserved, not overwritten"
+  artifact_quality:
+    - "List tasks filtering functionality was implemented"
+    - "tracker.py was extended with new command(s)"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent resumed work without re-exploring the entire codebase"
+  trajectory_quality:
+    - "Agent did NOT invoke /planner or Task tool with planner subagent — the plan already exists and should be followed"
+    - "Agent identified feat-2 as the next pending task from state.json without being told which task to work on"
+    - "Agent preserved the existing vision, direction, and trade_offs in state.json — no rewrites of scope fields"
+    - "Agent's first substantive action was reading state.json and/or breadcrumbs to understand context, not starting implementation blindly"

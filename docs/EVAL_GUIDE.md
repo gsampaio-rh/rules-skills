@@ -26,14 +26,14 @@ make eval-session-long-judge # Judge long scenario results
 │         Tier 1               │         Tier 3                    │
 │       Fast Static            │     Session Scenarios             │
 │                              │                                   │
-│  contract_lint.py            │  scenarios/*.yaml (20 scenarios)  │
+│  contract_lint.py            │  scenarios/*.yaml (28 scenarios)  │
 │  harness_lint.py             │  session_runner.py                │
 │  validate.py                 │  session_judge.py                 │
 │                              │  session_report.py                │
 │                              │  sandbox.py                       │
 ├──────────────────────────────┼───────────────────────────────────┤
 │  No API keys                 │  Needs CURSOR_API_KEY             │
-│  Runs in seconds             │  ~20 min for full suite           │
+│  Runs in seconds             │  ~30 min for full suite           │
 │  Checks local .harness/      │  Runs real agent in isolated      │
 │  files are well-formed       │  temp git repo via SDK bridge     │
 └──────────────────────────────┴───────────────────────────────────┘
@@ -164,7 +164,7 @@ post_hoc_rubric:
     - "Acceptance criteria are binary-testable"
 ```
 
-Scenarios live in `tests/eval/scenarios/` (20 scenarios: 19 standard + 1 long). Each YAML file defines one scenario.
+Scenarios live in `tests/eval/scenarios/` (28 scenarios: 27 standard + 1 long). Each YAML file defines one scenario.
 
 ### Judging tiers
 
@@ -280,12 +280,12 @@ tests/eval/
 ├── session_runner.py         # Tier 3: scenario execution via SDK bridge
 ├── session_judge.py          # Tier 3: post-hoc judging (computational + structural + LLM)
 ├── session_report.py         # Tier 3: aggregated reporting
-├── scenarios/                # 20 core scenario YAML definitions
+├── scenarios/                # 28 core scenario YAML definitions
 │   ├── routing-*.yaml        # 2 routing scenarios
 │   ├── contract-*.yaml       # 4 contract quality scenarios
-│   ├── protocol-*.yaml       # 8 protocol lifecycle scenarios
-│   ├── adversarial-*.yaml    # 2 adversarial scenarios
-│   ├── behavioral-*.yaml     # 3 behavioral scenarios
+│   ├── protocol-*.yaml       # 14 protocol lifecycle scenarios
+│   ├── adversarial-*.yaml    # 3 adversarial scenarios
+│   ├── behavioral-*.yaml     # 4 behavioral scenarios
 │   └── long/                 # 1 long-running scenario (10-15 min)
 │       └── long-full-harness-cycle.yaml
 │       ├── long-multi-feature-coherence.yaml
@@ -417,4 +417,4 @@ Recommended pipeline:
 - run: make eval-session-report
 ```
 
-Tier 1 runs in seconds with no API keys — it should block every PR. Tier 3 needs `CURSOR_API_KEY` and takes ~40 min for the 20-scenario suite.
+Tier 1 runs in seconds with no API keys — it should block every PR. Tier 3 needs `CURSOR_API_KEY` and takes ~55 min for the 28-scenario suite.

@@ -1,0 +1,81 @@
+{
+  "task_id": "chore-eval-coverage",
+  "evaluator": "subagent",
+  "timestamp": "2026-06-03T14:40:00Z",
+  "round": 2,
+  "verdict": "PASS",
+  "results": [
+    {
+      "criterion": "AC1",
+      "result": "PASS",
+      "evidence": "protocol-pre-commit-gate-loop.yaml: verified contract + calc.py/test_calc.py seeded; initial_prompt requests commit; verify asserts >=2 checkpoint entries with commit in msg. Unchanged from round 1."
+    },
+    {
+      "criterion": "AC2",
+      "result": "PASS",
+      "evidence": "protocol-contract-gate-denied-recovery.yaml: pending feat-1, no seed contract; verify requires contract.json, negotiate-before-build ordering, impl files. Unchanged from round 1."
+    },
+    {
+      "criterion": "AC3",
+      "result": "PASS",
+      "evidence": "protocol-eval-fail-retest.yaml: building task + contract; verify asserts eval fail and pass breadcrumbs plus bug fixes. Unchanged from round 1."
+    },
+    {
+      "criterion": "AC4",
+      "result": "PASS",
+      "evidence": "protocol-chore-no-contract.yaml: committed feat + pending chore, harness_level light; verify fails if contract.json exists. Unchanged from round 1."
+    },
+    {
+      "criterion": "AC5",
+      "result": "PASS",
+      "evidence": "behavioral-context-health-stale-thread.yaml: 36 seed breadcrumbs, 2 session_start markers; verify lines 105-106 assert total>=30 AND len(handoff)>=1 where handoff matches handoff type, fresh/new chat in msg, or checkpoint type (fixed from round 1)."
+    },
+    {
+      "criterion": "AC6",
+      "result": "PASS",
+      "evidence": "make eval-session-dry exit 0, 24 scenarios; all five new scenario ids listed including behavioral_context_health_stale_thread and protocol_pre_commit_gate_loop."
+    },
+    {
+      "criterion": "AC7",
+      "result": "PASS",
+      "evidence": "docs/EVAL_GUIDE.md documents 25 scenarios (24 standard + 1 long) at lines 29 and 167."
+    }
+  ],
+  "edge_cases": [
+    {
+      "criterion": "EC1",
+      "result": "PASS",
+      "evidence": "protocol-pre-commit-gate-loop.yaml line 6: harness_level: light (fixed). behavioral-context-health and protocol-chore-no-contract also light; contract-gate and eval-fail-retest correctly omit light as contract/evaluator targets."
+    },
+    {
+      "criterion": "EC2",
+      "result": "PASS",
+      "evidence": "Spot check on modified files: protocol-pre-commit (4 seed breadcrumbs) and behavioral-context-health (36 seed breadcrumbs) — all lines have ts, role, type, feat, msg."
+    }
+  ],
+  "verification_steps": [
+    {
+      "step": "contract verification_method",
+      "result": "PASS",
+      "evidence": "python3 yaml load of 5 scenario files printed PASS, exit 0"
+    },
+    {
+      "step": "make eval-session-dry",
+      "result": "PASS",
+      "evidence": "24 scenarios, no load errors"
+    },
+    {
+      "step": "make validate",
+      "result": "PASS",
+      "evidence": "0 errors, 2 warnings, PASSED"
+    }
+  ],
+  "retest_notes": {
+    "round_1_failures_fixed": [
+      "AC5: assert len(handoff) >= 1 added to behavioral-context-health-stale-thread verify",
+      "EC1: harness_level: light added to protocol-pre-commit-gate-loop"
+    ],
+    "round_1_failures_remaining": []
+  },
+  "summary": "Round 2 retest: both builder fixes verified. AC5 verify now requires at least one handoff/checkpoint/fresh-thread breadcrumb in addition to 30+ total entries. EC1 satisfied by harness_level: light on the pre-commit scenario. All seven acceptance criteria and both edge cases pass; contract verification_method, eval-session-dry, and make validate succeed. Verdict PASS — chore-eval-coverage implementation meets contract."
+}

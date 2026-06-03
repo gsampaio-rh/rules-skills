@@ -1415,7 +1415,8 @@ def judge_session(
         all_results.extend(check_long_scenario(session, rubric))
 
     if "llm" in tiers and api_key:
-        llm_criteria = rubric.get("post_hoc_rubric", {}).get("negotiation_quality", [])
+        phr = rubric.get("post_hoc_rubric", {})
+        llm_criteria = phr.get("negotiation_quality", []) + phr.get("trajectory_quality", [])
         if llm_criteria:
             all_results.extend(
                 judge_with_llm(session, rubric, llm_criteria, api_key, judge_model)

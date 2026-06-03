@@ -40,12 +40,16 @@ if os.path.isfile(state_path):
         project = state.get('project', 'unknown')
         tasks = state.get('tasks', [])
         total = len(tasks)
-        done = sum(1 for t in tasks if t.get('status') in ('verified', 'committed'))
+        archivable = [t for t in tasks if t.get('status') in ('verified', 'committed', 'cancelled')]
+        done = len(archivable)
         sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
         pending = [t for t in sorted_tasks if t.get('status') == 'pending']
         building = [t for t in sorted_tasks if t.get('status') == 'building']
 
         parts.append(f'Harness active for \"{project}\": {done}/{total} tasks done.')
+
+        if len(archivable) >= 10:
+            parts.append(f'ARCHIVE ADVISORY: {len(archivable)} completed/cancelled tasks in state.json. Run `python scripts/archive-tasks.py` (or --dry-run first) to move them to .harness/archive.jsonl and keep the backlog lean.')
 
         if building:
             b = building[0]

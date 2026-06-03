@@ -1,0 +1,160 @@
+id: protocol_replan_mid_build
+name: "Agent updates plan when mid-build discovery changes scope"
+difficulty: hard
+estimated_duration: 8m
+timeout_s: 500
+harness_level: light
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "config-manager",
+      "created": "2026-05-28T10:00:00Z",
+      "schema_version": 2,
+      "vision": "Configuration management library for Python apps.",
+      "direction": "Pure Python, no external dependencies. Read from JSON files only.",
+      "trade_offs": [
+        {
+          "decision": "JSON-only config format",
+          "alternative": "Support YAML, TOML, INI",
+          "reasoning": "Keep it simple for v1; JSON is stdlib. Can extend later."
+        }
+      ],
+      "tasks": [
+        {"id": "feat-1", "name": "Load config from JSON file", "type": "feature", "status": "building", "priority": 1},
+        {"id": "feat-2", "name": "Environment variable override", "type": "feature", "status": "pending", "priority": 2}
+      ]
+    }
+  .harness/contract.json: |
+    {
+      "task_id": "feat-1",
+      "feature": "Load config from JSON file",
+      "problem": "Need to load configuration from a JSON file with nested key access",
+      "proposed_solution": "ConfigManager class with load() and get() methods supporting dot-notation keys",
+      "acceptance_criteria": [
+        "ConfigManager.load(path) reads a JSON file",
+        "ConfigManager.get('key.subkey') supports dot-notation access",
+        "ConfigManager.get('missing', default) returns default for missing keys",
+        "Raises FileNotFoundError for non-existent config files"
+      ],
+      "edge_cases": [
+        "Empty JSON file returns empty config",
+        "Deeply nested keys (3+ levels) work with dot notation"
+      ],
+      "verification_method": "python3 -m pytest test_config.py -v",
+      "negotiation_rounds": 1,
+      "phase": "building",
+      "verified": false
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-05-28T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state: 2 features. Direction: JSON-only, no deps."}
+    {"ts":"2026-05-28T10:10:00Z","role":"builder","type":"negotiate","feat":"feat-1","msg":"Contract for JSON config loader: 4 criteria, 2 edge cases"}
+    {"ts":"2026-05-28T10:15:00Z","role":"builder","type":"build","feat":"feat-1","msg":"Started ConfigManager implementation"}
+  config_manager.py: |
+    import json
+    from pathlib import Path
+
+    class ConfigManager:
+        def __init__(self):
+            self._data = {}
+
+        def load(self, path):
+            with open(path) as f:
+                self._data = json.load(f)
+            return self
+
+        def get(self, key, default=None):
+            parts = key.split(".")
+            current = self._data
+            for part in parts:
+                if isinstance(current, dict) and part in current:
+                    current = current[part]
+                else:
+                    return default
+            return current
+  test_config.py: |
+    import json
+    import pytest
+    from pathlib import Path
+    from config_manager import ConfigManager
+
+    @pytest.fixture
+    def tmp_config(tmp_path):
+        config = {"db": {"host": "localhost", "port": 5432}, "debug": True}
+        p = tmp_path / "config.json"
+        p.write_text(json.dumps(config))
+        return str(p)
+
+    def test_load(tmp_config):
+        cm = ConfigManager().load(tmp_config)
+        assert cm.get("debug") is True
+
+    def test_dot_notation(tmp_config):
+        cm = ConfigManager().load(tmp_config)
+        assert cm.get("db.host") == "localhost"
+
+    def test_missing_key(tmp_config):
+        cm = ConfigManager().load(tmp_config)
+        assert cm.get("missing", "fallback") == "fallback"
+
+    def test_file_not_found():
+        with pytest.raises(FileNotFoundError):
+            ConfigManager().load("/nonexistent/config.json")
+
+initial_prompt: >
+  I'm building feat-1 (JSON config loader). Tests pass, but I just realized
+  we also need YAML support — our ops team uses YAML for all their configs.
+  Update the plan: add YAML support, and note that we'll need PyYAML as a
+  dependency (breaking the "no external deps" direction). Continue with feat-1
+  for now.
+
+verify:
+  - command: "test -f .harness/state.json && echo PASS || echo FAIL"
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      state = json.load(open('.harness/state.json'))
+      direction = state.get('direction', '').lower()
+      tasks = state.get('tasks', [])
+      task_names = [t.get('name', '').lower() for t in tasks]
+      trade_offs = state.get('trade_offs', [])
+      trade_off_text = json.dumps(trade_offs).lower()
+      has_yaml_ref = 'yaml' in direction or any('yaml' in n for n in task_names) or 'yaml' in trade_off_text
+      assert has_yaml_ref, f'No YAML reference in direction, tasks, or trade_offs'
+      print('PASS: plan updated with YAML')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json
+      state = json.load(open('.harness/state.json'))
+      tasks = state.get('tasks', [])
+      feat1 = next((t for t in tasks if t['id'] == 'feat-1'), None)
+      feat2 = next((t for t in tasks if t['id'] == 'feat-2'), None)
+      assert feat1, 'feat-1 missing from tasks'
+      assert feat2, 'feat-2 missing from tasks'
+      print('PASS: existing tasks preserved')
+      "
+    timeout_s: 5
+  - command: "python3 -m pytest test_config.py -v 2>&1 | tail -3"
+    timeout_s: 10
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent updated state.json to reflect the new YAML requirement (in direction, trade_offs, or new task)"
+    - "Agent preserved existing tasks (feat-1, feat-2) and did not delete or overwrite them"
+    - "Agent continued working on feat-1 as instructed (did not switch to YAML task)"
+  artifact_quality:
+    - "state.json direction or trade_offs acknowledges the dependency change (PyYAML)"
+    - "A new task for YAML support was added, OR the scope change was documented in direction/trade_offs"
+    - "Existing feat-1 tests still pass"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent updated plan fields in state.json, not just code"
+  trajectory_quality:
+    - "Agent recognized the mid-build scope change and updated the plan (state.json) rather than just acknowledging it verbally"
+    - "Agent updated direction field to reflect 'no external deps' is no longer the constraint (or added a trade_off documenting the change)"
+    - "Agent registered a new task or modified an existing task to cover YAML support, preserving the backlog structure"
+    - "Agent did NOT abandon feat-1 to start YAML work — continued building JSON config as instructed"
+    - "Agent used /planner delegation (or directly edited state.json) to register the scope change — the key is that state.json was updated, not just a verbal acknowledgment"

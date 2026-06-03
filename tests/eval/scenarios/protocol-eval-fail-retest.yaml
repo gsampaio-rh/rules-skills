@@ -1,0 +1,128 @@
+id: protocol_eval_fail_retest
+name: "Evaluator FAIL triggers fix-and-retest before verified"
+difficulty: hard
+estimated_duration: 8m
+timeout_s: 500
+
+seed_files:
+  .harness/state.json: |
+    {
+      "project": "string-utils",
+      "created": "2026-06-01T10:00:00Z",
+      "schema_version": 2,
+      "vision": "String utility library with robust edge case handling.",
+      "direction": "Python, pure functions, full test coverage.",
+      "tasks": [
+        {"id": "feat-1", "name": "String transformation utilities", "type": "feature", "status": "building"}
+      ]
+    }
+  .harness/contract.json: |
+    {
+      "task_id": "feat-1",
+      "feature": "String transformation utilities",
+      "problem": "Need common string transforms: reverse, capitalize_words, truncate, slug",
+      "proposed_solution": "Pure functions in string_utils.py with edge case handling",
+      "acceptance_criteria": [
+        "reverse(s) returns the reversed string",
+        "capitalize_words(s) capitalizes the first letter of each word",
+        "truncate(s, max_len) returns s[:max_len] + '...' when len(s) > max_len",
+        "slug(s) converts to lowercase, replaces spaces/special chars with hyphens",
+        "All functions handle empty string input without error"
+      ],
+      "edge_cases": [
+        "truncate('short', 100) returns 'short' unchanged (no ellipsis)",
+        "slug('Hello World!') returns 'hello-world'",
+        "capitalize_words('') returns ''"
+      ],
+      "verification_method": "python3 -m pytest test_string_utils.py -v",
+      "negotiation_rounds": 1,
+      "phase": "building",
+      "verified": false
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-06-01T10:00:00Z","role":"planner","type":"plan","feat":null,"msg":"Created state with 1 task"}
+    {"ts":"2026-06-01T10:05:00Z","role":"builder","type":"negotiate","feat":"feat-1","msg":"Contract proposed: 5 criteria, 3 edge cases"}
+    {"ts":"2026-06-01T10:10:00Z","role":"evaluator","type":"negotiate","feat":"feat-1","msg":"Contract accepted"}
+  string_utils.py: |
+    import re
+
+    def reverse(s: str) -> str:
+        return s[::-1]
+
+    def capitalize_words(s: str) -> str:
+        return s.title()
+
+    def truncate(s: str, max_len: int) -> str:
+        # BUG: always appends ellipsis even when string fits
+        return s[:max_len] + "..."
+
+    def slug(s: str) -> str:
+        # BUG: doesn't remove special characters
+        return s.lower().replace(" ", "-")
+  test_string_utils.py: |
+    from string_utils import reverse, capitalize_words, truncate, slug
+
+    def test_reverse():
+        assert reverse("hello") == "olleh"
+        assert reverse("") == ""
+
+    def test_capitalize_words():
+        assert capitalize_words("hello world") == "Hello World"
+        assert capitalize_words("") == ""
+
+    def test_truncate_long():
+        assert truncate("hello world this is long", 10) == "hello worl..."
+
+    def test_truncate_short():
+        assert truncate("short", 100) == "short"
+
+    def test_slug():
+        assert slug("Hello World") == "hello-world"
+
+    def test_slug_special():
+        assert slug("Hello World!") == "hello-world"
+
+initial_prompt: >
+  I've built feat-1 (string_utils.py). Run the tests and launch the evaluator
+  to verify it meets the contract. If the evaluator finds failures, fix the code
+  and get it re-evaluated.
+
+verify:
+  - command: "python3 -m pytest test_string_utils.py -v 2>&1 | tail -5"
+    timeout_s: 10
+  - command: >
+      python3 -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      eval_entries = [e for e in lines if e.get('type') == 'eval']
+      fail_entries = [e for e in eval_entries if e.get('result') == 'fail']
+      pass_entries = [e for e in eval_entries if e.get('result') == 'pass']
+      assert len(fail_entries) >= 1, f'Expected at least one eval FAIL, got {len(fail_entries)}'
+      assert len(pass_entries) >= 1, f'Expected at least one eval PASS after fix, got {len(pass_entries)}'
+      print('PASS')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      from string_utils import truncate, slug
+      assert truncate('short', 100) == 'short', f'truncate bug not fixed: {truncate(\"short\", 100)}'
+      assert slug('Hello World!') == 'hello-world', f'slug bug not fixed: {slug(\"Hello World!\")}'
+      print('PASS')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Evaluator was launched and found failures in the seeded bugs (truncate ellipsis, slug special chars)"
+    - "Breadcrumbs show eval with result=fail followed by build (fix) followed by eval with result=pass"
+    - "Contract verified:true only set after evaluator PASS, not before"
+    - "Agent did not mark verified:true on first self-assessment despite seeded bugs"
+  artifact_quality:
+    - "truncate('short', 100) returns 'short' without ellipsis after fix"
+    - "slug('Hello World!') returns 'hello-world' (special chars stripped) after fix"
+    - "All tests pass after the fix"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent ran tests to detect the bugs, not just reading code"
+    - "Agent fixed the actual root cause, not the test assertions"
+    - "Fix-and-retest cycle completed within 2 retests"
