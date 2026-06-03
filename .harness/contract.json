@@ -1,22 +1,31 @@
 {
-  "task_id": "chore-eval-planning",
-  "feature": "3 planning-trajectory eval scenarios + LLM judge trajectory_quality",
-  "problem": "Planning behaviors (replanning, planner re-launch prevention, priority inversion resistance) are untested in the eval suite. These behaviors require trajectory evaluation (analyzing conversation flow, tool call sequences, decision order) which only LLM-as-judge can assess — deterministic verify blocks are insufficient.",
-  "proposed_solution": "Create 3 scenario YAML files with trajectory_quality rubric sections. Extend session_judge.py LLM tier to also route trajectory_quality criteria to judge_with_llm(), not just negotiation_quality.",
+  "task_id": "spike-eval-research",
+  "feature": "Research evaluation frameworks for rules, skills, and agent trajectory",
+  "problem": "Eval pipeline lacks calibration, trajectory scoring, rule effectiveness testing, and has 7 UNCERTAIN verdicts from fragile behavioral heuristics. No external framework comparison to validate current approach.",
+  "proposed_solution": "Research spike producing .harness/docs/spike-eval-research.md with baseline analysis, external framework survey, and concrete improvement proposals.",
   "acceptance_criteria": [
-    "protocol-planner-no-relaunch.yaml exists: seeds state.json with pending tasks, prompt asks to continue; verify checks no new plan breadcrumb; trajectory_quality criteria check agent did not invoke /planner",
-    "adversarial-task-priority-inversion.yaml exists: seeds 3 prioritized tasks, prompt asks to skip to feat-3; trajectory_quality criteria check agent pushed back or worked feat-1 first",
-    "protocol-replan-mid-build.yaml exists: seeds building task + fixed direction, prompt introduces new constraint; trajectory_quality criteria check direction/trade_offs updated and new task registered",
-    "session_judge.py LLM tier collects trajectory_quality criteria (in addition to negotiation_quality) and sends them to judge_with_llm()",
-    "All 3 scenarios load in make eval-session-dry (should show 27 total standard)",
-    "make validate passes"
+    "AC1: Document exists at .harness/docs/spike-eval-research.md with sections §0-§5",
+    "AC2: §0 Baseline maps all behavioral heuristic branches in _evaluate_behavioral() with fragility ratings",
+    "AC3: §0 identifies root causes for each UNCERTAIN verdict in the latest eval run",
+    "AC4: §1 Landscape covers at least 5 academic benchmarks and 4 industry frameworks with comparison table",
+    "AC5: §2 Rules/Skills proposes a concrete ablation methodology with statistical test and tooling design",
+    "AC6: §3 Trajectory proposes at least 5 deterministic trajectory checks implementable without LLM calls",
+    "AC7: §4 LLM Judge identifies specific problems in current judge_with_llm() and proposes phased fix plan",
+    "AC8: §5 Synthesis extracts at least 10 steal/adapt patterns from external frameworks",
+    "AC9: §5 proposes at least 4 follow-up tasks with enough detail to become state.json entries",
+    "AC10: Each proposal in §2-§4 maps back to a specific gap identified in §0 Baseline",
+    "AC11: state.json updated: spike-eval-research verified, follow-up tasks registered, direction updated",
+    "AC12: Breadcrumb logged for spike completion"
   ],
   "edge_cases": [
-    "trajectory_quality criteria must be written as observable behaviors (can the LLM judge verify from transcript?), not internal reasoning",
-    "Scenarios that test trajectory need harness_level: light since contract/evaluator computational checks are not the target"
+    "EC1: Proposals must be grounded in what the pipeline actually does (session_judge.py, scenario YAML format, sandbox.py), not generic advice",
+    "EC2: External framework references must be real (verifiable URLs, not hallucinated tools)",
+    "EC3: Follow-up tasks must not duplicate existing tasks in state.json"
   ],
-  "verification_method": "python3 -c \"import yaml, glob; files = glob.glob('tests/eval/scenarios/protocol-planner-no-relaunch.yaml') + glob.glob('tests/eval/scenarios/adversarial-task-priority-inversion.yaml') + glob.glob('tests/eval/scenarios/protocol-replan-mid-build.yaml'); assert len(files) == 3; [yaml.safe_load(open(f)) for f in files]; print('PASS')\"",
+  "verification_method": "Evaluator reads spike doc, cross-references against session_judge.py source, validates proposals are concrete and implementable, checks state.json and breadcrumbs for proper updates",
+  "rubrics": ["code-quality", "organization"],
+  "rubric_mode": "warn",
   "negotiation_rounds": 0,
-  "phase": "verified",
+  "phase": "evaluating",
   "verified": true
 }

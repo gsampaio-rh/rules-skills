@@ -3,7 +3,7 @@
   "created": "2026-05-27T14:00:00Z",
   "schema_version": 2,
   "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. THE HARNESS IS: a durable, file-system task system that keeps AI agents honest across sessions. It solves five problems the owner identified: (1) repository scope — vision, direction, trade-offs in state.json; (2) task definition — discrete tasks with type and scope; (3) task grouping — flat tasks[] array filtered by status at read time; (4) task status tracking — lifecycle enum + append-only breadcrumbs.jsonl for session recovery; (5) acceptance criteria — contract.json with binary-testable criteria negotiated before implementation. For whom: teams using Cursor/Claude Code on non-trivial multi-file work who need agents to stop self-grading and stop losing context between sessions. Why each component exists: state.json = scope + backlog; contract.json = definition of done; breadcrumbs = audit trail; planner subagent = decompose vague requests; evaluator subagent = adversarial QA separate from builder context; hooks (lean) = enforce contract-before-code structurally; eval pipeline = regression test that agents follow the workflow. HONEST ASSESSMENT: the core five-problem harness is sound and ~40 lines of JSON + rules. Everything layered on top — negotiations/ JSON schemas, 11 hooks (full profile), metrics dashboard, 41 scenario evals with 5 judge tiers, multi-agent orchestration, UI dashboard — has grown organically and now obscures the value proposition. 47 verified tasks prove the core works; 13 pending tasks are mostly eval-tooling bugs and nice-to-haves, not harness failures.",
-  "direction": "POST SPIKE-AUDIT-1 (2026-06-03): Harness simplified around five-problem core. DONE: killed harness_metrics.py, HARNESS_STANDARD.md, LLM prompt hooks, negotiations/ schema, 24 eval scenarios. Created HARNESS_ESSENCE.md (82 lines). Promoted pre-commit to lean (8 hooks). Full profile = 10 hooks (lean + evaluator-guard + chain-evaluator). Eval scope: 20 scenarios (19 + 1 long) covering all 5 problems. Fixed gap-20 (harness_level nested fallback), gap-24 (TTL on commit flag). Resolved gap-23 (enforcement map in Doc A). REMAINING: gap-14 session boundary (33%) — behavioral, needs rule strength; gap-18 skip-harness auth (57%) — agent coding failure; feat-14 LLM judge — deferred. ARCHITECTURE: structural deny for critical steps (contract-gate, pre-commit, evaluator-guard), advisory for quality signals (enforce-progress, context-health). Known debt: verify-harness self-verify bypass (agent can set verified:true without evaluator). Consumer adoption path: 6-step setup documented in .harness/docs/design-consumer-quickstart.md.",
+  "direction": "POST SPIKE-EVAL-RESEARCH (2026-06-03): spike-eval-research VERIFIED — surveyed SWE-bench, AgentBench, Inspect AI, METR, Braintrust, LangSmith, trajscore, trajectly, Anthropic eval guide. Key findings: (1) deterministic trajectory checks are industry standard and we lack them, (2) LLM judge needs calibration against golden set, (3) default return True in behavioral heuristics silently hides failures, (4) rule ablation via paired comparison is standard for measuring rule effectiveness. NEW TASKS: feat-14a (LLM judge Phase A: calibration + UNKNOWN + smart truncation), feat-15 (trajectory tier), feat-16 (rule ablation), chore-uncertain-elimination (kill return True default), gap-26 (heuristic dedup). feat-14 CANCELLED in favor of phased feat-14a. REMAINING: gap-14 session boundary (33%), gap-18 skip-harness auth (57%), chore-archive-review. ARCHITECTURE unchanged: structural deny for critical steps, advisory for quality signals.",
   "trade_offs": [
     {
       "decision": "Flat tasks array, not grouped buckets",
@@ -69,6 +69,11 @@
       "decision": "Make negotiations/ optional, not required",
       "alternative": "Enforce structured negotiation JSON per HARNESS_STANDARD.md",
       "reasoning": "negotiations/ directory is rarely populated in practice. Breadcrumbs with type=negotiate capture the same signal with less schema burden. HARNESS_STANDARD over-specifies this artifact."
+    },
+    {
+      "decision": "Decompose spike-eval-research into 6 sequential research phases",
+      "alternative": "Single monolithic research task",
+      "reasoning": "Four distinct eval dimensions (rules, skills, trajectory, LLM judge) plus baseline inventory and synthesis need focused research passes. Sequential phases produce partial notes that roll into one spike doc without scope creep into implementation."
     }
   ],
   "open_questions": [
@@ -76,27 +81,11 @@
     "Is full hook profile worth maintaining for consumer projects, or ship lean-only?",
     "What is the minimum eval scenario set that protects the five-problem core? Target: 12-15 protocol scenarios.",
     "Should contract.json phase enum add 'verified' explicitly (used in practice, missing from HARNESS_STANDARD.md)?",
-    "Does gap-14 need feat-14 LLM judge, or stronger planning_discipline.mdc enforcement?"
+    "Does gap-14 need feat-14 LLM judge, or stronger planning_discipline.mdc enforcement?",
+    "Can rule/skill A/B scenarios run in our worktree-based session_runner without doubling eval cost?",
+    "Should trajectory scoring be deterministic (tool-call graph) or LLM-only (feat-14 path)?"
   ],
   "tasks": [
-    {
-      "id": "chore-eval-planning",
-      "name": "3 planning-trajectory eval scenarios + LLM judge trajectory_quality support",
-      "status": "verified",
-      "priority": 1,
-      "type": "chore",
-      "group": "eval-tooling",
-      "details": "Add 3 scenarios testing planning behaviors that require trajectory evaluation (LLM-as-judge): protocol_planner_no_relaunch, adversarial_task_priority_inversion, protocol_replan_mid_build. Extend session_judge.py to route trajectory_quality rubric items to LLM judge."
-    },
-    {
-      "id": "chore-eval-coverage",
-      "name": "Implement 5 eval scenarios from coverage audit",
-      "status": "verified",
-      "priority": 1,
-      "type": "chore",
-      "group": "eval-tooling",
-      "details": "Implement 5 proposed scenarios from .harness/audits/eval-coverage-audit.json: protocol_pre_commit_gate_loop, protocol_contract_gate_denied_recovery, protocol_eval_fail_retest, protocol_chore_no_contract, behavioral_context_health_stale_thread. Fills structural hook enforcement gaps."
-    },
     {
       "id": "gap-14",
       "name": "Session boundary at 33% — agent does not suggest fresh thread or checkpoint",
@@ -109,11 +98,11 @@
     {
       "id": "feat-14",
       "name": "LLM-as-judge for post_hoc_rubric",
-      "status": "pending",
+      "status": "cancelled",
       "priority": 4,
       "type": "feature",
       "group": "eval-tooling",
-      "details": "AUDIT DEFERRED: Fix judge tooling bugs (gap-19, gap-20) before adding LLM cost. 89.8% eval mean is acceptable. Revisit only if protocol scenarios drop below 80% after simplification."
+      "details": "SUPERSEDED by feat-14a (phased approach from spike-eval-research). feat-14a covers calibration set + UNKNOWN verdict + smart truncation + per-dimension rubrics as Phase A. Original feat-14 scope was too broad and lacked calibration prerequisite."
     },
     {
       "id": "gap-18",
@@ -125,13 +114,67 @@
       "details": "AUDIT: REAL agent failure, NOT harness over-engineering. Agent skips harness correctly but doesn't finish JWT auth. Deprioritized P2→P3: tests agent coding under skip-harness, not the five-problem core. May be timeout (300s). Fix: extend scenario timeout or narrow auth scope in seed."
     },
     {
-      "id": "chore-archive-trigger",
-      "name": "Decide archive-tasks trigger: manual, advisory sessionStart, or auto post-commit",
+      "id": "spike-eval-research",
+      "name": "Research evaluation frameworks for rules, skills, and agent trajectory",
       "status": "verified",
+      "priority": 2,
+      "type": "spike",
+      "group": "eval-tooling",
+      "details": "COMPLETE. Deliverable: .harness/docs/spike-eval-research.md (6 sections). Surveyed SWE-bench, AgentBench, Inspect AI, METR, Braintrust, LangSmith, trajscore, trajectly, Anthropic eval guide. Proposed 6 follow-up tasks: feat-14a (LLM judge calibration), feat-15 (trajectory tier), feat-16 (rule ablation), chore-uncertain-elimination, chore-skill-scenarios, gap-26 (heuristic dedup). Key findings: (1) deterministic trajectory checks are standard and we lack them, (2) LLM judge needs calibration against golden set before any improvement, (3) default return True in behavioral heuristics silently hides failures, (4) rule ablation via paired comparison is the standard for measuring rule effectiveness."
+    },
+    {
+      "id": "feat-14a",
+      "name": "LLM judge Phase A: calibration set + UNKNOWN verdict + smart truncation + per-dimension rubrics",
+      "status": "pending",
+      "priority": 2,
+      "type": "feature",
+      "group": "eval-tooling",
+      "details": "From spike-eval-research. Phase A of feat-14 redesign: (1) Build golden calibration set of 30-50 human-labeled session transcripts across negotiation_quality and trajectory_quality criteria, (2) Add UNKNOWN verdict to judge_with_llm() for insufficient evidence, (3) Smart truncation: extract first turn + tool calls + errors + harness interactions + last turn instead of head-truncating to 8KB, (4) Per-dimension rubric prompts with anchor examples (1 PASS, 1 FAIL per dimension), (5) Confidence thresholding: confidence < 3 → UNCERTAIN. Measure Cohen's κ against golden set before/after changes."
+    },
+    {
+      "id": "feat-15",
+      "name": "Trajectory tier: deterministic tool-call checks in session_judge.py",
+      "status": "pending",
+      "priority": 2,
+      "type": "feature",
+      "group": "eval-tooling",
+      "details": "From spike-eval-research. Add trajectory tier between structural and LLM in session_judge.py. Deterministic checks: (1) loop detection — repeated identical tool calls (same name + args) > 2 consecutive, (2) step efficiency — total tool calls vs difficulty-adjusted range, (3) read-before-write — verify Read before Write/StrReplace on same file, (4) skeleton matching — required tool-call subsequence from scenario YAML trajectory_skeleton field, (5) backtracking ratio — StrReplace(same file)/total edits, (6) idle detection — consecutive responses without tool calls, (7) error recovery — Shell non-zero exit → next action addresses it within 3 steps. Inspired by trajscore and trajectly."
+    },
+    {
+      "id": "feat-16",
+      "name": "Rule ablation mode in session_runner.py for paired A/B comparison",
+      "status": "pending",
+      "priority": 3,
+      "type": "feature",
+      "group": "eval-tooling",
+      "details": "From spike-eval-research. Add --ablate-rule flag to session_runner.py. Runs each scenario twice: with full .cursor/rules/ and with target rule removed. session_judge scores both sessions. Report per-criterion delta, aggregate delta, Wilcoxon signed-rank test, Cohen's d effect size. Priority rules to ablate: adversarial_harness.mdc, autonomous_execution.mdc, progress_tracking.mdc, planning_discipline.mdc."
+    },
+    {
+      "id": "chore-uncertain-elimination",
+      "name": "Kill default return True in _evaluate_behavioral(); require explicit handling",
+      "status": "pending",
+      "priority": 2,
+      "type": "chore",
+      "group": "eval-tooling",
+      "details": "From spike-eval-research. The default return True at line 953 of session_judge.py silently passes any unrecognized criterion text, hiding rubric drift and scenario-judge misalignment. Replace with: (1) log warning for unmatched criteria, (2) return UNKNOWN verdict requiring LLM fallback or explicit SKIP, (3) update session_report to distinguish UNKNOWN from UNCERTAIN. Highest signal/effort ratio of all spike proposals."
+    },
+    {
+      "id": "gap-26",
+      "name": "Behavioral heuristic dedup and fragility reduction in session_judge.py",
+      "status": "pending",
+      "priority": 2,
+      "type": "bug",
+      "group": "eval-tooling",
+      "details": "From spike-eval-research. _evaluate_behavioral() has 26 branches with duplicates and high-fragility patterns. (1) Merge branches 4/5 (both check proceed_patterns) and 19/21 (both check response < 800 words), (2) Reduce false-positive surface of high-fragility branches 10 (off-plan, 20+ regex alternatives), 13 (proactively updated, indirect signal), 16/17 (session boundary, overlapping patterns), (3) Tighten default fallback per chore-uncertain-elimination."
+    },
+    {
+      "id": "chore-skill-scenarios",
+      "name": "Create 2-3 scenarios with skill_activation rubric to test skill quality",
+      "status": "pending",
       "priority": 3,
       "type": "chore",
-      "group": "harness-maintenance",
-      "details": "DECISION: Option 2 — advisory in sessionStart. harness-context.sh now checks for >=10 archivable tasks and emits ARCHIVE ADVISORY with the exact command. Rationale: archive timing is a quality signal (advisory), not safety (structural deny). Auto-archive was rejected because it adds side effects to commit hook and could archive tasks the user hasn't reviewed. Manual-only was rejected because agents never think to run it unprompted (62-task accumulation was painful). Threshold 10 (not 20) keeps state.json parse cost low for hooks."
+      "group": "eval-tooling",
+      "details": "From spike-eval-research. check_skill_activation() exists in session_judge.py but no scenario uses skill_activation rubric. SDK bridge doesn't auto-route skills, so agent must proactively read SKILL.md. Create 2-3 scenarios that seed task descriptions matching skill keywords, then check whether agent reads the skill file and follows instructions. Tests skill quality (does the skill produce better output?), not routing (IDE concern)."
     },
     {
       "id": "chore-archive-review",
