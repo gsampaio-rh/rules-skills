@@ -96,15 +96,6 @@
       "details": "AUDIT: REAL but NOT harness-core. behavioral_session_boundary 33% (was 70%). Agent behavior gap, not missing infrastructure. Fix path: strengthen planning_discipline.mdc + agent_behavior opener (not feat-14 LLM judge, not new hooks). Deprioritized P1→P2: session hygiene is nice-to-have; contract-gate and acceptance criteria are essential."
     },
     {
-      "id": "feat-14",
-      "name": "LLM-as-judge for post_hoc_rubric",
-      "status": "cancelled",
-      "priority": 4,
-      "type": "feature",
-      "group": "eval-tooling",
-      "details": "SUPERSEDED by feat-14a (phased approach from spike-eval-research). feat-14a covers calibration set + UNKNOWN verdict + smart truncation + per-dimension rubrics as Phase A. Original feat-14 scope was too broad and lacked calibration prerequisite."
-    },
-    {
       "id": "gap-18",
       "group": "agent-behavior",
       "name": "adversarial_skip_override at 57% — auth implementation incomplete under skip-harness",
@@ -112,15 +103,6 @@
       "priority": 3,
       "type": "bug",
       "details": "AUDIT: REAL agent failure, NOT harness over-engineering. Agent skips harness correctly but doesn't finish JWT auth. Deprioritized P2→P3: tests agent coding under skip-harness, not the five-problem core. May be timeout (300s). Fix: extend scenario timeout or narrow auth scope in seed."
-    },
-    {
-      "id": "spike-eval-research",
-      "name": "Research evaluation frameworks for rules, skills, and agent trajectory",
-      "status": "verified",
-      "priority": 2,
-      "type": "spike",
-      "group": "eval-tooling",
-      "details": "COMPLETE. Deliverable: .harness/docs/spike-eval-research.md (6 sections). Surveyed SWE-bench, AgentBench, Inspect AI, METR, Braintrust, LangSmith, trajscore, trajectly, Anthropic eval guide. Proposed 6 follow-up tasks: feat-14a (LLM judge calibration), feat-15 (trajectory tier), feat-16 (rule ablation), chore-uncertain-elimination, chore-skill-scenarios, gap-26 (heuristic dedup). Key findings: (1) deterministic trajectory checks are standard and we lack them, (2) LLM judge needs calibration against golden set before any improvement, (3) default return True in behavioral heuristics silently hides failures, (4) rule ablation via paired comparison is the standard for measuring rule effectiveness."
     },
     {
       "id": "feat-14a",
@@ -132,15 +114,6 @@
       "details": "From spike-eval-research. Phase A of feat-14 redesign: (1) Build golden calibration set of 30-50 human-labeled session transcripts across negotiation_quality and trajectory_quality criteria, (2) Add UNKNOWN verdict to judge_with_llm() for insufficient evidence, (3) Smart truncation: extract first turn + tool calls + errors + harness interactions + last turn instead of head-truncating to 8KB, (4) Per-dimension rubric prompts with anchor examples (1 PASS, 1 FAIL per dimension), (5) Confidence thresholding: confidence < 3 → UNCERTAIN. Measure Cohen's κ against golden set before/after changes."
     },
     {
-      "id": "feat-15",
-      "name": "Trajectory tier: deterministic tool-call checks in session_judge.py",
-      "status": "verified",
-      "priority": 2,
-      "type": "feature",
-      "group": "eval-tooling",
-      "details": "COMPLETE. New trajectory tier in tests/eval/trajectory_checks.py with 7 deterministic checks: loop detection (>2 consecutive), step efficiency (difficulty ranges), read-before-write, skeleton matching (optional YAML field), backtracking ratio (>50%), idle detection (>3 consecutive), error recovery (3-step window). Wired into judge_session between structural and LLM. CLI --tier trajectory. session_report trajectory dimension. 3 scenarios with trajectory_skeleton. Shell exit-code parsing from toolCall results. 33 regression tests. Evaluator: PASS 15/15 AC + 6/6 EC (round 2)."
-    },
-    {
       "id": "feat-16",
       "name": "Rule ablation mode in session_runner.py for paired A/B comparison",
       "status": "pending",
@@ -150,22 +123,13 @@
       "details": "From spike-eval-research. Add --ablate-rule flag to session_runner.py. Runs each scenario twice: with full .cursor/rules/ and with target rule removed. session_judge scores both sessions. Report per-criterion delta, aggregate delta, Wilcoxon signed-rank test, Cohen's d effect size. Priority rules to ablate: adversarial_harness.mdc, autonomous_execution.mdc, progress_tracking.mdc, planning_discipline.mdc."
     },
     {
-      "id": "chore-uncertain-elimination",
-      "name": "Kill default return True in _evaluate_behavioral(); require explicit handling",
-      "status": "verified",
-      "priority": 2,
-      "type": "chore",
-      "group": "eval-tooling",
-      "details": "COMPLETE. Replaced default return True with return None → UNMATCHED sentinel. Added 10 new behavioral branches + broadened 6 existing to cover all 87 corpus criteria (0 fallthroughs). check_behavioral maps None→UNMATCHED result with warning. judge_session tracks unmatched count separately. session_report counts UNMATCHED in dimensions and aggregate. Regression tests in tests/eval/test_session_judge_behavioral.py. Evaluator: PASS 9/9 AC + 4/4 EC (round 2)."
-    },
-    {
       "id": "gap-26",
       "name": "Behavioral heuristic dedup and fragility reduction in session_judge.py",
-      "status": "pending",
+      "status": "verified",
       "priority": 2,
       "type": "bug",
       "group": "eval-tooling",
-      "details": "From spike-eval-research. _evaluate_behavioral() has 26 branches with duplicates and high-fragility patterns. (1) Merge branches 4/5 (both check proceed_patterns) and 19/21 (both check response < 800 words), (2) Reduce false-positive surface of high-fragility branches 10 (off-plan, 20+ regex alternatives), 13 (proactively updated, indirect signal), 16/17 (session boundary, overlapping patterns), (3) Tighten default fallback per chore-uncertain-elimination."
+      "details": "COMPLETED 2026-06-03: merged branches 4/5 (proceed), 19/21 (concise-response), consolidated 16/17 (boundary helper), tightened branch 10 (9 alternatives), strengthened branch 13 (artifact detection). Branch count 36→33. 44 tests, 87/87 baseline. Eval report: .harness/evals/eval-gap-26.json."
     },
     {
       "id": "chore-skill-scenarios",

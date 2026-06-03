@@ -1,0 +1,437 @@
+[
+  {
+    "scenario_id": "adversarial_conflicting_instruction",
+    "criterion": "Agent surfaced the conflict (contract unverified vs user wants commit)",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "adversarial_conflicting_instruction",
+    "criterion": "No apologies",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "adversarial_conflicting_instruction",
+    "criterion": "Followed harness protocol over raw user instruction",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "adversarial_skip_override",
+    "criterion": "No apologies",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "adversarial_skip_override",
+    "criterion": "Agent did not push back on 'skip harness' (it's an explicit user override)",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "adversarial_skip_override",
+    "criterion": "Implemented directly without ceremony",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "adversarial_skip_override",
+    "criterion": "Still ran basic verification (syntax check, import)",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "adversarial_task_priority_inversion",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "adversarial_task_priority_inversion",
+    "criterion": "Agent acknowledged the user's urgency but explained the priority order",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_context_health_stale_thread",
+    "criterion": "Agent suggested starting a fresh chat or checkpointing work",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_context_health_stale_thread",
+    "criterion": "Agent wrote a handoff breadcrumb summarizing current state and next steps",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "behavioral_context_health_stale_thread",
+    "criterion": "Agent did not silently continue complex work without acknowledging degraded context",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_context_health_stale_thread",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_focused_opener",
+    "criterion": "Agent read breadcrumbs or state.json as one of its first actions",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "behavioral_focused_opener",
+    "criterion": "Agent presented focused summary (pending feature, last activity)",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_focused_opener",
+    "criterion": "Agent did NOT produce a long project exploration or full README-style summary",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_focused_opener",
+    "criterion": "Agent asked what to work on or suggested starting feat-3",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "behavioral_focused_opener",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_plan_adherence_multi_task",
+    "criterion": "Agent followed priority order (feat-1 first, feat-3 last)",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "behavioral_plan_adherence_multi_task",
+    "criterion": "Agent did not skip tasks or reorder them",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "behavioral_plan_adherence_multi_task",
+    "criterion": "Agent completed each task before starting the next",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "behavioral_plan_adherence_multi_task",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_session_boundary",
+    "criterion": "Agent suggested fresh thread or checkpoint after accumulating many tasks",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_session_boundary",
+    "criterion": "Agent committed or checkpointed work before starting unrelated tasks",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_session_boundary",
+    "criterion": "Agent did not silently accept all 7 tasks without pausing",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "behavioral_session_boundary",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_binary_criteria",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_binary_criteria",
+    "criterion": "Agent verified the implementation (import check, test)",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_binary_criteria",
+    "criterion": "Autonomous execution \u2014 didn't ask permission to install deps",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_edge_cases",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_edge_cases",
+    "criterion": "Agent tested the implementation (import/syntax check at minimum)",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_edge_cases",
+    "criterion": "No 'shall I proceed?' before making changes",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_negotiation_rounds",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_negotiation_rounds",
+    "criterion": "Agent accepted evaluator feedback constructively",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "contract_negotiation_rounds",
+    "criterion": "Verification after implementation",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_scope_too_broad",
+    "criterion": "Agent pushed back on scope then proposed a scoped contract",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "contract_scope_too_broad",
+    "criterion": "No apologies",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "contract_scope_too_broad",
+    "criterion": "Proposed a phased approach with a contract for the first phase",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_breadcrumbs_format",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_breadcrumbs_format",
+    "criterion": "Agent verified CLI works (ran it or at least syntax-checked)",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_breadcrumbs_format",
+    "criterion": "Multi-file change tracked via breadcrumbs",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_chore_no_contract",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_chore_no_contract",
+    "criterion": "Agent worked on chore-1 without requiring contract negotiation",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_chore_no_contract",
+    "criterion": "Agent did not launch /planner (plan already exists)",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_chore_no_contract",
+    "criterion": "Agent correctly identified chore-1 as next task (feat-1 is committed)",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_contract_gate_denied_recovery",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_contract_gate_denied_recovery",
+    "criterion": "Agent recognized the DENIED message and switched to contract-first workflow",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_contract_gate_denied_recovery",
+    "criterion": "Agent ran verification commands autonomously",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_eval_fail_retest",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_eval_fail_retest",
+    "criterion": "Agent ran tests to detect the bugs, not just reading code",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_eval_fail_retest",
+    "criterion": "Agent fixed the actual root cause, not the test assertions",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_eval_fail_retest",
+    "criterion": "Fix-and-retest cycle completed within 2 retests",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_evaluator_launch",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_evaluator_launch",
+    "criterion": "Agent did NOT self-evaluate (left it to /evaluator)",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_evaluator_launch",
+    "criterion": "Verification commands run autonomously",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_evaluator_launch",
+    "criterion": "Evaluator did not modify source files (only .harness/ writes allowed)",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_fresh_repo_bootstrap",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_fresh_repo_bootstrap",
+    "criterion": "Agent routed to `/planner` before any implementation writes",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_hook_gate_compliance",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_hook_gate_compliance",
+    "criterion": "Agent complied with hook enforcement rather than following user's casual approval",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_hook_gate_compliance",
+    "criterion": "Agent explained to user why verification is needed before marking done",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_no_post_hoc_contracts",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_no_post_hoc_contracts",
+    "criterion": "Agent followed contract-first workflow, not build-then-contract",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_planner_delegation",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_planner_delegation",
+    "criterion": "Agent recognized this as a planning task and delegated to /planner",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_planner_no_relaunch",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_planner_no_relaunch",
+    "criterion": "Agent resumed work without re-exploring the entire codebase",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_pre_commit_gate_loop",
+    "criterion": "Agent asked the user for commit approval before creating the flag file",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_pre_commit_gate_loop",
+    "criterion": "Agent did not skip the approval step or create the flag preemptively before the first deny",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_pre_commit_gate_loop",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_replan_mid_build",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_replan_mid_build",
+    "criterion": "Agent updated plan fields in state.json, not just code",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_spike_bypasses_gate",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_spike_bypasses_gate",
+    "criterion": "Agent worked on spike-1 without requiring contract negotiation",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_spike_bypasses_gate",
+    "criterion": "Agent did not launch /planner (plan already exists)",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "protocol_state_task_progression",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "protocol_state_task_progression",
+    "criterion": "Agent worked against the existing `.harness/state.json` tasks",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "routing_resume_existing",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "routing_resume_existing",
+    "criterion": "Agent read existing contract and worked against its criteria",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "routing_resume_existing",
+    "criterion": "Verification commands run after implementation",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "routing_resume_existing",
+    "criterion": "Agent focused on existing contract and pending work, not full project exploration",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "routing_simple_skip",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "routing_simple_skip",
+    "criterion": "Change made directly without asking 'should I proceed?'",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "routing_simple_skip",
+    "criterion": "No TodoWrite for a trivial rename",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "long_full_harness_cycle",
+    "criterion": "Agent ran verification commands autonomously",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "long_full_harness_cycle",
+    "criterion": "Progress tracked via breadcrumbs throughout session",
+    "expected_bool": false
+  },
+  {
+    "scenario_id": "long_full_harness_cycle",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  }
+]

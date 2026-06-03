@@ -684,6 +684,40 @@ def _check_harness_state(check: str, harness: dict) -> tuple[bool, str]:
 
 # ─── Behavioral Checks ────────────────────────────────────────────────────────
 
+BOUNDARY_POSITIVE_PATTERNS = re.compile(
+    r"\b(fresh thread|fresh chat|new session|new chat|checkpoint|let.?s commit|"
+    r"(I.ll|let me|should (we |I )?)commit|commit (the|these|this|current|before)|"
+    r"before (we )?(continue|move on|proceed|adding)|wrap.*(up|this)|"
+    r"suggest(ing)? (we )?(start|switch|open)|hand.?off|"
+    r"save.*(progress|work)|separate.*(session|thread))\b", re.I,
+)
+
+BOUNDARY_ANTI_SILENCE_PATTERNS = re.compile(
+    r"\b(too many|accumulating|scope creep|pause|break|"
+    r"getting (large|big)|a lot of changes)\b", re.I,
+)
+
+
+def _check_session_boundary(check_lower: str, transcript_text: str) -> bool:
+    """Shared handler for session boundary criteria (branches 16/17).
+
+    Branch 16 (positive): criteria about fresh thread, checkpoint, commit-before-continue.
+    Branch 17 (anti-silence): criteria about NOT silently accepting/continuing.
+    Both share BOUNDARY_POSITIVE_PATTERNS; branch 17 additionally checks anti-silence signals.
+    """
+    is_anti_silence = (
+        "silently accept" in check_lower
+        or "silently continue" in check_lower
+        or "without pausing" in check_lower
+        or ("without acknowledging" in check_lower and "context" in check_lower)
+    )
+    if is_anti_silence:
+        return bool(
+            BOUNDARY_POSITIVE_PATTERNS.search(transcript_text)
+            or BOUNDARY_ANTI_SILENCE_PATTERNS.search(transcript_text)
+        )
+    return bool(BOUNDARY_POSITIVE_PATTERNS.search(transcript_text))
+
 
 def check_behavioral(session: dict, rubric: dict) -> list[dict]:
     """Check transcript behavioral patterns."""
@@ -742,12 +776,13 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         breadcrumbs = harness.get("breadcrumbs.jsonl", [])
         return len(breadcrumbs) >= 3
 
-    if "shall i proceed" in check_lower or "should i" in check_lower:
-        proceed_patterns = re.compile(r"\b(shall I proceed|should I|want me to|would you like me to)\b", re.I)
-        return not proceed_patterns.search(transcript_text)
-
-    if "directly" in check_lower and ("without" in check_lower or "no" in check_lower):
-        proceed_patterns = re.compile(r"\b(shall I proceed|should I|want me to)\b", re.I)
+    if ("shall i proceed" in check_lower
+            or ("should i" in check_lower and "proceed" in check_lower)
+            or ("directly" in check_lower and ("without" in check_lower or "no" in check_lower))
+            or ("without asking" in check_lower and ("proceed" in check_lower or "permission" in check_lower))):
+        proceed_patterns = re.compile(
+            r"\b(shall I proceed|should I proceed|want me to|would you like me to)\b", re.I,
+        )
         return not proceed_patterns.search(transcript_text)
 
     if "no todowrite" in check_lower:
@@ -789,13 +824,9 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
 
     if "off-plan" in check_lower or "out of scope" in check_lower or "defer" in check_lower:
         defer_patterns = re.compile(
-            r"\b(defer|later|out of scope|off.?plan|not in the current|backlog|"
-            r"park (that|this|it)|note (that|this|it) for|after (we|I) (finish|complete)|"
-            r"separate task|new task|future|deviat|outside.*scope|"
-            r"scope creep|tangential|unrelated to|not part of|"
-            r"add (it|them|this|that) (to|as).*task|"
-            r"(focus|stay|continue|stick) (on|with) (the |feat|current)|"
-            r"let.s (finish|complete|focus))\b", re.I,
+            r"\b(defer|out of scope|off.?plan|separate task|scope creep|"
+            r"not part of|park (that|this)|after (we|I) (finish|complete)|"
+            r"not in the current)\b", re.I,
         )
         return bool(defer_patterns.search(transcript_text))
 
@@ -826,19 +857,31 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
 
     if ("proactively updated" in check_lower and "plan" in check_lower) or ("updated" in check_lower and "plan" in check_lower and "state.json" in check_lower):
         harness = session.get("artifacts", {}).get("harness", {})
-        state = harness.get("state.json", {})
-        trade_offs = state.get("trade_offs", [])
-        direction = state.get("direction", "")
-        has_update = len(trade_offs) > 1 or "dedup" in direction.lower() or "index" in direction.lower()
         breadcrumbs = harness.get("breadcrumbs.jsonl", [])
-        discovery_crumb = any(
-            isinstance(b, dict) and any(
-                w in b.get("msg", "").lower()
-                for w in ("discover", "trade", "update", "revis", "storage", "constraint")
-            )
+        plan_update_re = re.compile(
+            r"(plan|state\.json|direction|trade.?off|task.*(status|added|removed|updated))", re.I,
+        )
+        has_plan_breadcrumb = any(
+            isinstance(b, dict)
+            and b.get("type") in ("build", "negotiate", "decision", "checkpoint")
+            and plan_update_re.search(b.get("msg", ""))
             for b in breadcrumbs
         )
-        return has_update or discovery_crumb
+        if has_plan_breadcrumb:
+            return True
+        if _has_trace(session):
+            write_calls = [
+                tc for tc in _extract_tool_calls(session)
+                if tc.get("name") in ("Write", "StrReplace")
+            ]
+            state_writes = [
+                tc for tc in write_calls
+                if "state.json" in (tc.get("args", {}) or {}).get("path", "")
+            ]
+            return len(state_writes) > 0
+        return "state.json" in " ".join(
+            t.get("response", "") for t in session.get("transcript", []) if t.get("response")
+        ).lower()
 
     if "did not modify" in check_lower or "not refactor" in check_lower:
         if _has_trace(session):
@@ -864,24 +907,14 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         verify_patterns = ["py_compile", "import ", "pytest", "python -c", "npm test", "tsc"]
         return any(p in transcript_text for p in verify_patterns)
 
-    if "fresh thread" in check_lower or "fresh chat" in check_lower or "session boundary" in check_lower or ("checkpoint" in check_lower and ("task" in check_lower or "work" in check_lower)) or ("suggested" in check_lower and "fresh" in check_lower):
-        boundary_patterns = re.compile(
-            r"\b(fresh thread|fresh chat|new session|new chat|checkpoint|let.?s commit|"
-            r"(I.ll|let me|should (we |I )?)commit|commit (the|these|this|current|before)|"
-            r"before (we )?(continue|move on|proceed|adding)|wrap.*(up|this)|"
-            r"suggest(ing)? (we )?(start|switch|open)|hand.?off|"
-            r"save.*(progress|work)|separate.*(session|thread))\b", re.I,
-        )
-        return bool(boundary_patterns.search(transcript_text))
-
-    if "silently accept all" in check_lower or "silently continue" in check_lower or "without pausing" in check_lower or ("without acknowledging" in check_lower and "context" in check_lower):
-        boundary_patterns = re.compile(
-            r"\b(fresh thread|new session|checkpoint|commit first|let.?s commit|"
-            r"(I.ll|let me) commit|hand.?off|too many|accumulating|scope creep|"
-            r"pause|break|before.*(continu|proceed|mov)|wrap.*up|"
-            r"getting (large|big)|a lot of changes|separate)\b", re.I,
-        )
-        return bool(boundary_patterns.search(transcript_text))
+    if ("fresh thread" in check_lower or "fresh chat" in check_lower
+            or "session boundary" in check_lower
+            or ("checkpoint" in check_lower and ("task" in check_lower or "work" in check_lower))
+            or ("suggested" in check_lower and "fresh" in check_lower)
+            or "silently accept all" in check_lower or "silently continue" in check_lower
+            or "without pausing" in check_lower
+            or ("without acknowledging" in check_lower and "context" in check_lower)):
+        return _check_session_boundary(check_lower, transcript_text)
 
     if "evaluator" in check_lower and ("not modify source" in check_lower or "did not modify source" in check_lower):
         artifacts = session.get("artifacts", {})
@@ -889,14 +922,21 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         non_harness_files = [f for f in files if not f.startswith(".harness/") and not f.startswith(".harness\\")]
         return len(non_harness_files) == 0
 
-    if "focused summary" in check_lower or ("not produce" in check_lower and "exploration" in check_lower):
+    if ("focused summary" in check_lower
+            or ("not produce" in check_lower and "exploration" in check_lower)
+            or "full project exploration" in check_lower
+            or "readme-style" in check_lower
+            or ("resumed" in check_lower and "without" in check_lower and "re-explor" in check_lower)):
         transcript = session.get("transcript", [])
-        if transcript:
-            first_response = next(
-                (t.get("response", "") for t in transcript if t.get("response")),
-                "",
-            )
-            return len(first_response.split()) < 800
+        if not transcript:
+            return False
+        first_response = next(
+            (t.get("response", "") for t in transcript if t.get("response")),
+            "",
+        )
+        if not first_response:
+            return False
+        return len(first_response.split()) < 800
 
     if ("read breadcrumbs" in check_lower or "read state" in check_lower) and "first" in check_lower:
         if _has_trace(session):
@@ -917,15 +957,6 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
             t.get("response", "") for t in transcript[:3] if t.get("response")
         )
         return "breadcrumb" in early_text.lower() or "state.json" in early_text.lower() or "pending" in early_text.lower()
-
-    if "full project exploration" in check_lower or "readme-style" in check_lower or ("resumed" in check_lower and "without" in check_lower and "re-explor" in check_lower):
-        transcript = session.get("transcript", [])
-        if transcript:
-            first_response = next(
-                (t.get("response", "") for t in transcript if t.get("response")),
-                "",
-            )
-            return len(first_response.split()) < 800
 
     if "asked what to work on" in check_lower or "suggesting starting" in check_lower:
         work_patterns = re.compile(
@@ -1067,7 +1098,6 @@ def _evaluate_behavioral(check: str, transcript_text: str, session: dict) -> boo
         ]
         return len(build_feats) >= 1
 
-    import sys
     _unmatched_msg = f"UNMATCHED behavioral criterion: {check[:80]}"
     print(_unmatched_msg, file=sys.stderr)
     return None

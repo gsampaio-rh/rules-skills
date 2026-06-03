@@ -1,0 +1,102 @@
+{
+  "task_id": "gap-26",
+  "evaluator": "adversarial",
+  "timestamp": "2026-06-03T12:00:00Z",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "result": "PASS",
+      "evidence": "tests/eval/fixtures/behavioral_baseline.json exists with 87 entries across 28 scenarios (0 None). Fresh capture to /tmp/eval_fresh_baseline.json diffed identical. Branches 4/5 merged at session_judge.py:779-786 (single proceed/ask-permission if). Named scenarios contract_edge_cases (3 criteria), routing_simple_skip (3), adversarial_skip_override (4) all present in baseline with expected_bool values; TestBaselineRegression::test_corpus_matches_baseline passed."
+    },
+    {
+      "id": "AC2",
+      "result": "PASS",
+      "evidence": "Branches 19/21 merged at session_judge.py:925-939 (single concise-response branch, <800 words). TestConciseResponseMerge parametrizes 4 corpus criteria (focused summary, no README exploration, resumed without re-explore, focused on contract); all pass on short stubs. Baseline regression confirms identical bools for all 87 criteria."
+    },
+    {
+      "id": "AC3",
+      "result": "PASS",
+      "evidence": "Empty transcript returns False not None: TestConciseResponseMerge::test_ac3_empty_transcript_returns_false and test_no_transcript_returns_false both passed. Code path at lines 931-932 returns False when transcript empty."
+    },
+    {
+      "id": "AC4",
+      "result": "PASS",
+      "evidence": "Branch 10 defer regex at session_judge.py:826-829 uses 9 grouped alternatives: defer|out of scope|off-plan|separate task|scope creep|not part of|park (that|this)|after (we|I) (finish|complete)|not in the current. TestDeferBranchTightened: 5 positive phrases match True; 4 negative phrases (backlog, focus on feat-1, continue current, Added later) match False per EC4."
+    },
+    {
+      "id": "AC5",
+      "result": "PASS",
+      "evidence": "Path (a): breadcrumb types in {build,negotiate,decision,checkpoint} with plan_update_re matching plan|state.json|direction|trade.?off|task.*(status|added|removed|updated) at session_judge.py:861-871. Path (b): trace-based Write/StrReplace to state.json when _has_trace (lines 872-881) — negotiated equivalent per updated contract round 2. trade_offs count heuristic removed (grep trade_offs: 0). TestPlanUpdateArtifact 5/5 passed including test_protocol_replan_mid_build_positive (breadcrumb path) and test_trace_state_json_write_detection (trace path)."
+    },
+    {
+      "id": "AC6",
+      "result": "PASS",
+      "evidence": "_check_session_boundary helper at lines 701-719 with BOUNDARY_POSITIVE_PATTERNS (687-693) and BOUNDARY_ANTI_SILENCE_PATTERNS (695-698). Single routing if at 910-917 delegates to helper. Live routing verified: behavioral_session_boundary fresh-thread→True, committed-or-checkpointed→True, silently-accept-7→True; behavioral_context_health_stale_thread fresh-chat→True, silently-continue→True. TestSessionBoundaryConsolidated: 5 tests passed."
+    },
+    {
+      "id": "AC7",
+      "result": "PASS",
+      "evidence": "87/87 criteria return non-None (baseline none_count=0). TestBaselineRegression::test_corpus_matches_baseline and test_no_unmatched_in_corpus passed. Fresh capture: True=65, False=22, None=0."
+    },
+    {
+      "id": "AC8",
+      "result": "PASS",
+      "evidence": "44 total tests (8 pre-gap-26 + 36 new). 17 new parametrized cases across proceed (4), concise-response (4), defer positive/negative (9). Coverage includes proceed merge, concise merge, branch 10, branch 13 artifact, empty-transcript, boundary routing, baseline regression, branch count, sys import."
+    },
+    {
+      "id": "AC9",
+      "result": "PASS",
+      "evidence": "make validate exited 0 (0 errors, 2 warnings unrelated to gap-26)."
+    },
+    {
+      "id": "AC10",
+      "result": "PASS",
+      "evidence": "diff /tmp/eval_fresh_baseline.json vs tests/eval/fixtures/behavioral_baseline.json: IDENTICAL. Zero mismatches on 87 criteria."
+    },
+    {
+      "id": "AC11",
+      "result": "PASS",
+      "evidence": "AST top-level if count in _evaluate_behavioral: exactly 33 (pre-refactor baseline 36, reduction ≥3). TestBranchCount::test_branch_count_reduced passed."
+    },
+    {
+      "id": "AC12",
+      "result": "PASS",
+      "evidence": "import sys at module top line 24. TestSysImportCleanup::test_no_import_in_evaluate_behavioral passed — no Import/ImportFrom inside _evaluate_behavioral; fallback uses sys.stderr at line 1102."
+    }
+  ],
+  "edge_cases": [
+    {
+      "id": "EC1",
+      "result": "PASS",
+      "evidence": "TestProceedMerge parametrized case ('Implemented directly without ceremony', 'Done without ceremony.', True) passed — routes to merged proceed branch (directly+without trigger at line 781), not commit-approval branch (line 1055)."
+    },
+    {
+      "id": "EC2",
+      "result": "PASS",
+      "evidence": "TestProceedMerge::test_ec2_should_implement_does_not_trigger_proceed: 'Agent should implement the feature' → None (UNMATCHED). Proceed trigger requires 'shall i proceed', 'should i'+proceed, directly+without/no, or without asking+proceed/permission (lines 779-782). Bare 'should i' alone insufficient."
+    },
+    {
+      "id": "EC3",
+      "result": "PASS",
+      "evidence": "TestProceedMerge::test_ec3_commit_not_proceed: transcript 'Shall I commit these changes?' with commit-approval criterion → True (routes to branch at 1055, not proceed branch). Verified live: 'No shall I proceed before changes' + 'Should I commit now?' → True."
+    },
+    {
+      "id": "EC4",
+      "result": "PASS",
+      "evidence": "TestDeferBranchTightened::test_ec4_negative_phrases_do_not_match: 'feat-3 is in the backlog', 'Let us focus on feat-1' → False. Removed high-FP terms backlog/later/focus from defer regex (grep backlog|later in defer branch: 0)."
+    },
+    {
+      "id": "EC5",
+      "result": "PASS",
+      "evidence": "TestPlanUpdateArtifact::test_ec5_no_plan_signals_returns_false: build breadcrumb msg 'Implemented the handler' (no plan signals), unchanged state → False."
+    }
+  ],
+  "adversarial_findings": [
+    "Branch 13 breadcrumb types include decision and checkpoint beyond contract's {build, negotiate} — permissive superset, low risk.",
+    "scope creep appears in both defer branch regex (line 827) and BOUNDARY_ANTI_SILENCE_PATTERNS (line 696); different criterion triggers prevent cross-routing but shared term could cause ambiguous transcript matching in edge transcripts.",
+    "Proceed branch still matches criterion text containing 'should i' when paired with 'proceed' in criterion (line 780) — correctly narrowed vs bare 'should i' but 'should i commit' in criterion would still enter proceed branch if 'proceed' appeared elsewhere in criterion text.",
+    "capture_behavioral_baseline.py _generate_passing_transcript is keyword-heuristic driven; baseline stability depends on transcript generator staying in sync with branch triggers — current diff is zero but generator fragility remains a maintenance concern.",
+    "No dead/unreachable duplicate branches found for old 4/5, 19/21, or 16/17 patterns; trade_offs count heuristic fully removed."
+  ],
+  "overall": "PASS"
+}
