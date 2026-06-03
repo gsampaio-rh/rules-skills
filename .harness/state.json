@@ -2,7 +2,7 @@
   "project": "rules-skills",
   "created": "2026-05-27T14:00:00Z",
   "schema_version": 2,
-  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. THE HARNESS IS: a durable, file-system task system that keeps AI agents honest across sessions. It solves five problems the owner identified: (1) repository scope \u2014 vision, direction, trade-offs in state.json; (2) task definition \u2014 discrete tasks with type and scope; (3) task grouping \u2014 flat tasks[] array filtered by status at read time; (4) task status tracking \u2014 lifecycle enum + append-only breadcrumbs.jsonl for session recovery; (5) acceptance criteria \u2014 contract.json with binary-testable criteria negotiated before implementation. For whom: teams using Cursor/Claude Code on non-trivial multi-file work who need agents to stop self-grading and stop losing context between sessions. Why each component exists: state.json = scope + backlog; contract.json = definition of done; breadcrumbs = audit trail; planner subagent = decompose vague requests; evaluator subagent = adversarial QA separate from builder context; hooks (lean) = enforce contract-before-code structurally; eval pipeline = regression test that agents follow the workflow. HONEST ASSESSMENT: the core five-problem harness is sound and ~40 lines of JSON + rules. Everything layered on top \u2014 negotiations/ JSON schemas, 11 hooks (full profile), metrics dashboard, 41 scenario evals with 5 judge tiers, multi-agent orchestration, UI dashboard \u2014 has grown organically and now obscures the value proposition. 47 verified tasks prove the core works; 13 pending tasks are mostly eval-tooling bugs and nice-to-haves, not harness failures.",
+  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. THE HARNESS IS: a durable, file-system task system that keeps AI agents honest across sessions. It solves five problems the owner identified: (1) repository scope — vision, direction, trade-offs in state.json; (2) task definition — discrete tasks with type and scope; (3) task grouping — flat tasks[] array filtered by status at read time; (4) task status tracking — lifecycle enum + append-only breadcrumbs.jsonl for session recovery; (5) acceptance criteria — contract.json with binary-testable criteria negotiated before implementation. For whom: teams using Cursor/Claude Code on non-trivial multi-file work who need agents to stop self-grading and stop losing context between sessions. Why each component exists: state.json = scope + backlog; contract.json = definition of done; breadcrumbs = audit trail; planner subagent = decompose vague requests; evaluator subagent = adversarial QA separate from builder context; hooks (lean) = enforce contract-before-code structurally; eval pipeline = regression test that agents follow the workflow. HONEST ASSESSMENT: the core five-problem harness is sound and ~40 lines of JSON + rules. Everything layered on top — negotiations/ JSON schemas, 11 hooks (full profile), metrics dashboard, 41 scenario evals with 5 judge tiers, multi-agent orchestration, UI dashboard — has grown organically and now obscures the value proposition. 47 verified tasks prove the core works; 13 pending tasks are mostly eval-tooling bugs and nice-to-haves, not harness failures.",
   "direction": "POST SPIKE-AUDIT-1 (2026-06-03): Harness simplified around five-problem core. DONE: killed harness_metrics.py, HARNESS_STANDARD.md, LLM prompt hooks, negotiations/ schema, 24 eval scenarios. Created HARNESS_ESSENCE.md (82 lines). Promoted pre-commit to lean (8 hooks). Full profile = 10 hooks (lean + evaluator-guard + chain-evaluator). Eval scope: 20 scenarios (19 + 1 long) covering all 5 problems. Fixed gap-20 (harness_level nested fallback), gap-24 (TTL on commit flag). Resolved gap-23 (enforcement map in Doc A). REMAINING: gap-14 session boundary (33%) — behavioral, needs rule strength; gap-18 skip-harness auth (57%) — agent coding failure; feat-14 LLM judge — deferred. ARCHITECTURE: structural deny for critical steps (contract-gate, pre-commit, evaluator-guard), advisory for quality signals (enforce-progress, context-health). Known debt: verify-harness self-verify bypass (agent can set verified:true without evaluator). Consumer adoption path: 6-step setup documented in .harness/docs/design-consumer-quickstart.md.",
   "trade_offs": [
     {
@@ -63,7 +63,7 @@
     {
       "decision": "Keep lean hook profile as default; demote full profile",
       "alternative": "Maintain 11 hooks at equal priority",
-      "reasoning": "Lean (4 hooks) enforces the five-problem core. Full profile adds dedup-server, context-health, evaluator-guard, harness-gate LLM routing \u2014 valuable for this repo's dogfooding, optional for consumers."
+      "reasoning": "Lean (4 hooks) enforces the five-problem core. Full profile adds dedup-server, context-health, evaluator-guard, harness-gate LLM routing — valuable for this repo's dogfooding, optional for consumers."
     },
     {
       "decision": "Make negotiations/ optional, not required",
@@ -80,141 +80,13 @@
   ],
   "tasks": [
     {
-      "id": "feat-schema-1",
-      "name": "State.json v2 schema specification",
-      "status": "verified",
-      "priority": 1,
-      "type": "feature",
-      "scope": "Documentation and templates only \u2014 no runtime code",
-      "details": "Define v2 in HARNESS_STANDARD.md: schema_version, tasks[] with required id/name/type/status; status enum pending|building|evaluating|verified|committed|cancelled with definitions; type enum feature|fix|gap|spike|chore with definitions; optional priority/scope/details. Update library/cursor/agents/planner.md and library/claude/agents/planner.md JSON templates. Add SCHEMA.md cross-reference in EVAL_GUIDE.md. Verify: make validate passes; schema doc matches proposed enums."
-    },
-    {
-      "id": "feat-schema-2",
-      "name": "Lint and metrics: validate tasks array",
-      "status": "verified",
-      "priority": 1,
-      "type": "feature",
-      "scope": "harness_lint.py, harness_metrics.py, Makefile validate path",
-      "details": "harness_lint.py: read tasks with features fallback; validate type enum; validate status enum; error on duplicate ids; warn (not error) on legacy features key when tasks absent. harness_metrics.py: compute task metrics from tasks array; add tasks section alongside legacy features key for one release. Verify: pytest or python harness_lint.py on v2 fixture passes; invalid type/status fails lint."
-    },
-    {
-      "id": "feat-schema-3",
-      "name": "Hook layer: tasks array + backward compat",
-      "status": "verified",
-      "priority": 1,
-      "type": "feature",
-      "scope": "library/cursor/hooks/*.sh, library/claude/hooks/*.sh, validate-hooks.sh",
-      "details": "Update harness-context.sh, contract-gate.sh, verify-harness.sh, chain-evaluator.sh, pre-commit-harness.sh: tasks = state.get('tasks') or state.get('features', []). Update user-facing strings feature\u2192task where shown to agent. Mirror in library/claude/hooks/. validate-hooks.sh fixtures use tasks array. Verify: bash library/cursor/hooks/validate-hooks.sh passes; contract-gate still DENIES impl writes without contract."
-    },
-    {
-      "id": "feat-schema-4",
-      "name": "Eval pipeline: session_judge + scenario seeds",
-      "status": "verified",
-      "priority": 1,
-      "type": "feature",
-      "scope": "session_judge.py, ~22 scenario YAML harness seeds, spike_hooks.py, hooks.full.json LLM prompts",
-      "details": "session_judge.py: tasks with features/feature_list fallback chain; update criterion strings only where they assert key name. Migrate all scenario .harness/state.json seeds from features to tasks; add type field to seeds. Update hooks.full.json references to tasks/building status. Verify: Tier 1 harness_lint on migrated seeds; spot-run 5 protocol scenarios unchanged score."
-    },
-    {
-      "id": "feat-schema-5",
-      "name": "Skills, rules, agents: tasks terminology",
-      "status": "verified",
-      "priority": 2,
-      "type": "chore",
-      "scope": "SKILL.md (cursor+claude), adversarial_harness.mdc, agent_behavior.mdc, evaluator.md, RULES_STANDARD.md",
-      "details": "Replace feature-list wording with task-list in workflow docs. Keep contract.json feature_id documented as task id alias. library/claude mirrors updated. Verify: grep library/ for bare 'features' array references returns only backward-compat notes."
-    },
-    {
-      "id": "feat-schema-6",
-      "name": "Migrate live .harness/state.json to v2",
-      "status": "verified",
-      "priority": 2,
-      "type": "chore",
-      "scope": "This file, scripts/migrate-state-schema.py (new)",
-      "details": "Add scripts/migrate-state-schema.py: rename features\u2192tasks, set schema_version=2, infer type from id prefix (feat\u2192feature, gap\u2192gap, spike\u2192spike, default feature), ensure every task has status+type. Run on .harness/state.json. Verify: harness_lint.py --json status pass; hooks inject correct pending task."
-    },
-    {
-      "id": "feat-schema-7",
-      "name": "Eval scenarios: schema v2 validation",
-      "status": "verified",
-      "priority": 2,
-      "type": "feature",
-      "scope": "3 new scenario YAMLs in tests/eval/scenarios/",
-      "details": "Create protocol-state-schema-v2.yaml (planner produces tasks with valid types/statuses, lint passes), protocol-state-legacy-compat.yaml (features alias still readable, lint warns), behavioral-resume-mixed-tasks.yaml (state with feature+gap+spike pending; agent resumes correct next task). Verify: each scenario \u226570% on session judge."
-    },
-    {
-      "id": "feat-schema-8",
-      "name": "Remove features alias (cleanup)",
-      "status": "verified",
-      "priority": 3,
-      "type": "chore",
-      "scope": "All consumers after feat-schema-1..7 verified",
-      "details": "Remove features fallback reads from hooks, lint, judge, metrics. Breaking change gated on full 27-scenario eval \u2265 prior score. Verify: grep -r \"get('features'\" library/ tests/eval/ returns zero except migration script."
-    },
-    {
-      "id": "gap-13",
-      "name": "Agent skips contract.json \u2014 RESOLVED via hook enforcement",
-      "status": "verified",
-      "priority": 1,
-      "type": "bug",
-      "details": "Fixed contract-gate.sh path extraction bug. All hooks fire in SDK bridge. preToolUse DENIES writes, stop hooks enforce verification. 4 scenarios: 44-64% \u2192 94-95%. Deterministic enforcement chain operational."
-    },
-    {
-      "id": "feat-19",
-      "name": "R3: Visual routing trigger + eval scenario",
-      "status": "verified",
-      "priority": 1,
-      "type": "feature",
-      "details": "Rule + scenario implemented. Eval score: 94% (up from 57%). Hook enforcement ensures contract workflow."
-    },
-    {
-      "id": "gap-2",
-      "name": "Agent does not create contract.json in pushback/scoping scenarios",
-      "status": "verified",
-      "priority": 2,
-      "type": "bug",
-      "details": "Agent pushes back and proposes phases but stops short of writing contract.json with the scoped subset. Fix: added pushback\u2192scoped-contract guidance to SKILL.md, strengthened eval verify commands to require contract.json, added session_judge handlers for scoped contract detection, enabled contract quality checks for light scenarios with negotiation_quality rubric."
-    },
-    {
-      "id": "gap-4",
-      "name": "protocol_evaluator_launch: contract.json created but empty (0 criteria, 0 edge cases)",
-      "status": "verified",
-      "priority": 2,
-      "type": "bug",
-      "details": "Agent creates the file but doesn't populate acceptance_criteria or edge_cases. Fix: added verify command checking >=3 criteria and >=2 edge cases. check_contract_quality already enforces this in judge. SKILL.md pushback guidance may help by modeling thorough contract creation."
-    },
-    {
-      "id": "spike-1",
-      "name": "Spike: determine if harness skill needs scoped-contract-on-pushback guidance",
-      "status": "verified",
-      "priority": 2,
-      "type": "spike",
-      "details": "Resolved: YES \u2014 added 'Pushback \u2192 Scoped Contract' section to SKILL.md Phase 1. Agent must push back, scope down, create contract for first task, then present to user."
-    },
-    {
       "id": "gap-14",
-      "name": "Session boundary at 33% \u2014 agent does not suggest fresh thread or checkpoint",
+      "name": "Session boundary at 33% — agent does not suggest fresh thread or checkpoint",
       "status": "pending",
       "priority": 2,
       "type": "bug",
       "group": "agent-behavior",
-      "details": "AUDIT: REAL but NOT harness-core. behavioral_session_boundary 33% (was 70%). Agent behavior gap, not missing infrastructure. Fix path: strengthen planning_discipline.mdc + agent_behavior opener (not feat-14 LLM judge, not new hooks). Deprioritized P1\u2192P2: session hygiene is nice-to-have; contract-gate and acceptance criteria are essential."
-    },
-    {
-      "id": "feat-18",
-      "name": "R2: Session boundary rule + eval scenario",
-      "status": "verified",
-      "priority": 1,
-      "type": "feature",
-      "details": "Rule + scenario implemented. Score 70% (up from 45%). Rule threshold lowered, judge patterns expanded, hooks active. Remaining UNCERTAIN checks need LLM tier."
-    },
-    {
-      "id": "feat-13",
-      "name": "Multi-agent evaluator orchestration",
-      "status": "cancelled",
-      "priority": 3,
-      "type": "feature",
-      "details": "AUDIT CANCELLED: Over-engineering. chain-evaluator.sh + manual /evaluator launch sufficient. No user demand for parallel evaluator orchestration."
+      "details": "AUDIT: REAL but NOT harness-core. behavioral_session_boundary 33% (was 70%). Agent behavior gap, not missing infrastructure. Fix path: strengthen planning_discipline.mdc + agent_behavior opener (not feat-14 LLM judge, not new hooks). Deprioritized P1→P2: session hygiene is nice-to-have; contract-gate and acceptance criteria are essential."
     },
     {
       "id": "feat-14",
@@ -226,340 +98,31 @@
       "details": "AUDIT DEFERRED: Fix judge tooling bugs (gap-19, gap-20) before adding LLM cost. 89.8% eval mean is acceptable. Revisit only if protocol scenarios drop below 80% after simplification."
     },
     {
-      "id": "gap-11",
-      "name": "Documentation drifts silently when code changes \u2014 no automated staleness detection",
-      "status": "cancelled",
-      "priority": 3,
-      "type": "bug",
-      "scope": "HARNESS_STANDARD.md, adversarial-harness SKILL.md, hook inventory only \u2014 NOT all repo docs",
-      "details": "MERGED into spike-audit-1: narrowed scope (harness doc sync) is identical to chore-audit-1, which is itself a subset of spike-audit-1."
-    },
-    {
-      "id": "feat-1",
-      "name": "Local .cursor/ setup and git hygiene",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-2",
-      "name": "Always-on rules token budget",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-3",
-      "name": "Skill authoring compliance",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-4",
-      "name": "Stale reference cleanup",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-5",
-      "name": "Harness design lineage documentation",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-6",
-      "name": "Harness eval metrics",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-7",
-      "name": "Relax evaluator check (accept inline eval)",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-8",
-      "name": "Per-scenario timeout",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-9",
-      "name": "Install deps before verify",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-10",
-      "name": "Broaden keyword patterns in verify commands",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-11",
-      "name": "Move style checks to post_hoc_rubric",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-12",
-      "name": "Accept more breadcrumb types in schema checks",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-15",
-      "name": "Update EVAL_GUIDE.md with current state",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-16",
-      "name": "Kill spec.md \u2014 single source of truth in state.json",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-17",
-      "name": "R1: Document commit-hook workflow in autonomous_execution rule",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-20",
-      "name": "R5: Evaluator isolation eval criteria",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-21",
-      "name": "R6: Harness-aware opener rule + eval scenario",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "feat-22",
-      "name": "Session judge: 3 new behavioral check patterns",
-      "status": "verified",
-      "type": "feature"
-    },
-    {
-      "id": "gap-1",
-      "name": "Separate protocol checks from behavioral checks in pushback scenarios",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-3",
-      "name": "behavioral_autonomous_execution scenario mixes behavioral and protocol expectations",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-5",
-      "name": "metrics.json stale \u2014 does not reflect 13 verified features or 90% score",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-6",
-      "name": "README eval section documents removed files",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-7",
-      "name": "spec.md diverged from state.json",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-8",
-      "name": "HARNESS_STANDARD.md Tier 2 references dataset.yaml (removed)",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-9",
-      "name": "Harness flow allows spec.md and state.json to diverge silently",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-10",
-      "name": "feat-2 marked verified but make validate still fails on token budget",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-12",
-      "name": "Agent breadcrumbs use system role instead of builder/planner in SDK sandbox",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-15",
-      "name": "Structural judge heuristic gaps \u2014 'No matching heuristic' on basic checks",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-16",
-      "name": "LLM judge tier broken \u2014 cursor_sdk API incompatibility",
-      "status": "verified",
-      "type": "bug"
-    },
-    {
-      "id": "gap-17",
-      "name": "validate-hooks.sh: 4 tests fail (3 pre-commit missing .commit-approved, 1 harness-gate requires LLM)",
-      "status": "verified",
-      "priority": 2,
-      "type": "bug",
-      "details": "FIXED (2026-06-02): pre-commit tests create .commit-approved in setup; harness-gate test uses contract-length prompt. validate-hooks.sh 37/37 pass. Eval: eval-gap-17.json PASS (AC1-AC4, EC1-EC2)."
-    },
-    {
       "id": "gap-18",
       "group": "agent-behavior",
-      "name": "adversarial_skip_override at 57% \u2014 auth implementation incomplete under skip-harness",
+      "name": "adversarial_skip_override at 57% — auth implementation incomplete under skip-harness",
       "status": "pending",
       "priority": 3,
       "type": "bug",
-      "details": "AUDIT: REAL agent failure, NOT harness over-engineering. Agent skips harness correctly but doesn't finish JWT auth. Deprioritized P2\u2192P3: tests agent coding under skip-harness, not the five-problem core. May be timeout (300s). Fix: extend scenario timeout or narrow auth scope in seed."
+      "details": "AUDIT: REAL agent failure, NOT harness over-engineering. Agent skips harness correctly but doesn't finish JWT auth. Deprioritized P2→P3: tests agent coding under skip-harness, not the five-problem core. May be timeout (300s). Fix: extend scenario timeout or narrow auth scope in seed."
     },
     {
-      "id": "gap-19",
-      "name": "contract_binary_criteria at 67% \u2014 judge heuristic gaps on verification/install",
-      "status": "cancelled",
-      "priority": 2,
-      "type": "bug",
-      "details": "MERGED into spike-audit-1: already noted as 'bundled into spike-audit-1 schema consolidation'. Fix is expanding session_judge.py verification heuristics during eval schema normalization."
-    },
-    {
-      "id": "gap-20",
-      "name": "protocol_spike_bypasses_gate false positive \u2014 negotiation check fires on spike tasks",
-      "status": "verified",
-      "priority": 1,
-      "type": "bug",
-      "group": "eval-tooling",
-      "details": "FIXED in spike-audit-1: moved harness_level to top-level in scenario YAML + added nested fallback to _get_harness_level() in session_judge.py."
-    },
-    {
-      "id": "gap-21",
-      "name": "metrics.json eval pass rate shows 0% \u2014 harness_metrics.py reads wrong field",
-      "status": "cancelled",
-      "priority": 1,
-      "type": "bug",
-      "group": "eval-tooling",
-      "details": "CANCELLED by spike-audit-1: harness_metrics.py deleted entirely (kill list item). The file was built for cancelled spike-2 UI dashboard and had zero consumers."
-    },
-    {
-      "id": "gap-22",
-      "name": "Session runner captures only run.text() \u2014 missing full agent trace (tool calls, thinking, shell commands)",
-      "status": "verified",
-      "priority": 1,
-      "type": "bug",
-      "details": "FIXED: session_runner.py now calls run.conversation_json() after each turn, capturing full ConversationTurn data (tool calls with args/result, thinking blocks, shell commands). session_judge.py updated with _extract_tool_calls(), _extract_shell_commands(), _has_tool_call(), _has_trace() helpers. Behavioral checks (TodoWrite, verification, autonomy, read-state-first, did-not-modify) now use trace data when available, falling back to old heuristics for pre-trace sessions."
-    },
-    {
-      "id": "spike-2",
-      "name": "Explore UI for .harness/ folder \u2014 visual dashboard for state, breadcrumbs, and contracts",
-      "status": "cancelled",
-      "priority": 3,
-      "type": "spike",
-      "details": "AUDIT CANCELLED: Premature. JSON files are readable. No user demand. metrics.json broken anyway."
-    },
-    {
-      "id": "spike-3",
-      "name": "Improve eval accuracy \u2014 reduce UNCERTAIN verdicts and false positives",
-      "status": "cancelled",
-      "priority": 2,
-      "type": "spike",
-      "details": "AUDIT MERGED into spike-audit-1. Root cause is schema drift and inconsistent scenario YAML structure, not missing LLM judge."
-    },
-    {
-      "id": "spike-4",
-      "name": "Prevent agent from re-creating plans that already exist",
-      "status": "verified",
-      "priority": 2,
-      "type": "chore",
-      "group": "agent-behavior",
-      "scope": "adversarial_harness.mdc rule addition only \u2014 not a spike",
-      "details": "FIXED in spike-audit-1: added 'Existing state' paragraph to adversarial_harness.mdc cold-start section."
-    },
-    {
-      "id": "spike-audit-1",
-      "name": "Harness simplification spike \u2014 consolidate schemas, docs, eval scope",
-      "status": "verified",
-      "priority": 1,
-      "type": "spike",
-      "group": "harness-consolidation",
-      "scope": "Produce HARNESS_ESSENCE.md (what it IS, what to kill), fix gap-20+gap-21, reconcile HARNESS_STANDARD.md, standardize eval YAML harness_level placement, document audits/ folder, add make setup .harness dirs",
-      "details": "VERIFIED 2026-06-03. Delivered: 4 design docs debated adversarially, killed harness_metrics.py + HARNESS_STANDARD.md + LLM prompt hooks + negotiations/ artifacts + 24 eval scenarios. Created HARNESS_ESSENCE.md (82 lines). Promoted pre-commit to lean. Fixed gap-20. Eval report: eval-spike-audit-1.json PASS."
-    },
-    {
-      "id": "chore-audit-1",
-      "name": "Reconcile HARNESS_STANDARD.md with live implementation",
-      "status": "cancelled",
-      "priority": 2,
-      "type": "chore",
-      "scope": "docs/HARNESS_STANDARD.md: add audits/, fix contract phase enum (add verified), eval schema canonical naming (verdict vs overall, criteria_results vs criteria), demote negotiations/ to optional",
-      "details": "MERGED into spike-audit-1: explicitly noted as 'Part of spike-audit-1'. Doc reconciliation is a deliverable of the simplification spike."
-    },
-    {
-      "id": "chore-audit-2",
-      "name": "make setup creates .harness/{evals,audits} subdirectories",
-      "status": "verified",
+      "id": "chore-archive-trigger",
+      "name": "Decide archive-tasks trigger: manual, advisory sessionStart, or auto post-commit",
+      "status": "pending",
       "priority": 3,
       "type": "chore",
-      "group": "harness-consolidation",
-      "scope": "Makefile setup target + README alignment",
-      "details": "FIXED in spike-audit-1: added mkdir -p .harness/evals .harness/audits to Makefile setup target."
+      "group": "harness-maintenance",
+      "details": "Currently archive-tasks.py is manual-only. Evaluate: (1) advisory in sessionStart when >20 done tasks, (2) auto-archive after successful commit, (3) keep manual. Decide based on eval results and workflow experience."
     },
     {
-      "id": "spike-5",
-      "name": "Audit hooks for technical debt and duplication",
-      "status": "verified",
-      "priority": 2,
-      "type": "spike",
-      "details": "COMPLETE (2026-06-02): hooks tech-debt audit in .harness/audits/hooks-audit.json. GO recommendation for hooks-lib.sh extraction. Identified 7 bugs, ~400 duplicated LOC, inconsistent fallback logic. Spawned chore-1 for implementation."
-    },
-    {
-      "id": "chore-1",
-      "name": "Extract hooks-lib.sh + fix correctness bugs from spike-5 audit",
-      "status": "verified",
-      "priority": 2,
+      "id": "chore-archive-review",
+      "name": "Add verification that archived tasks are actually complete before archiving",
+      "status": "pending",
+      "priority": 3,
       "type": "chore",
-      "scope": "library/cursor/hooks/*.sh, validate-hooks.sh",
-      "details": "COMPLETE (2026-06-02): Created hooks-lib.sh with 8 shared functions. Migrated all 10 runtime hooks to source hooks-lib.sh. Fixed BUG-1 through BUG-7. validate-hooks.sh 52/52 pass (was 37). LOC 1372 (was 1722, -350). make validate PASS. Eval: chore-1-eval.json PASS (15/15 criteria, 5/5 edge cases)."
-    },
-    {
-      "id": "gap-23",
-      "name": "Harness architecture assumes LLM compliance — must be redesigned for structural enforcement",
-      "status": "verified",
-      "priority": 1,
-      "type": "bug",
-      "group": "harness-consolidation",
-      "scope": "Entire harness design: hooks, rules, workflow, eval pipeline",
-      "details": "RESOLVED by spike-audit-1 Doc A enforcement map. Classified all 7 workflow steps as structural-deny, soft-block-stop, or advisory-inject. Promoted pre-commit to lean (structural). Documented remaining advisory steps (enforce-progress, context-health) as acceptable-advisory with justification. Architectural principle documented in HARNESS_ESSENCE.md. Known debt: verify-harness self-verify bypass remains (documented)."
-    },
-    {
-      "id": "gap-25",
-      "group": "harness-consolidation",
-      "name": "No dedup, grouping, or archiving for tasks — backlog grows with overlaps and noise",
-      "status": "verified",
-      "priority": 2,
-      "type": "bug",
-      "scope": "state.json schema, planner workflow, harness_lint.py, adversarial-harness SKILL.md",
-      "details": "PARTIALLY FIXED in spike-audit-1: (1) Created scripts/archive-tasks.py for archiving verified/cancelled tasks. (2) Documented group field in HARNESS_ESSENCE.md. (3) Added planner instruction to scan existing tasks before adding. (4) Added simple name-overlap dedup warning to harness_lint.py design spec. Full implementation of lint warning deferred to when it's actually needed."
-    },
-    {
-      "id": "gap-24",
-      "name": ".commit-approved flag not gitignored and not cleaned on commit failure",
-      "status": "verified",
-      "priority": 2,
-      "type": "bug",
-      "group": "harness-consolidation",
-      "scope": ".gitignore, library/cursor/hooks/pre-commit-harness.sh",
-      "details": "FIXED in spike-audit-1: (1) Added .commit-approved to .gitignore. (2) Added 300s TTL check to pre-commit-harness.sh using hooks_file_age — stale flags rejected with clear error message."
+      "group": "harness-maintenance",
+      "details": "archive-tasks.py trusts status field blindly. Add checks: (1) verified tasks should have an eval report or breadcrumb with result=pass, (2) cancelled tasks should have a reason in details field, (3) warn/block if a verified task has no eval evidence. Prevents premature archiving of tasks marked done without actual verification."
     }
   ]
 }

@@ -41,3 +41,8 @@
 {"ts":"2026-06-03T12:33:20Z","role":"evaluator","type":"eval","feat":"llm-skeptic","msg":"llm-skeptic task: 8/8 AC pass, 3/3 EC pass — rubrics, skill, wiring, validate, sync verified","result":"pass"}
 {"ts":"2026-06-03T12:33:00Z","role":"builder","type":"checkpoint","feat":"llm-skeptic","msg":"Evaluator PASS 8/8 AC + 3/3 EC. Contract verified. Ready to commit.","result":"pass"}
 {"ts":"2026-06-03T12:42:19","role":"builder","type":"checkpoint","feat":"llm-skeptic","msg":"Commit:  (56 files)"}
+{"ts":"2026-06-03T12:49:40","role":"builder","type":"checkpoint","feat":"llm-skeptic","msg":"Commit:  (3 files)"}
+{"ts":"2026-06-03T12:51:36","role":"builder","type":"checkpoint","feat":"llm-skeptic","msg":"Commit:  (1 files)"}
+{"ts":"2026-06-03T13:53:38Z","role":"builder","type":"build","feat":"spike-1","msg":"Wrote Redis vs Memcached comparison at docs/spikes/spike-1-redis-vs-memcached.md","result":"pass"}
+{"ts":"2026-06-03T15:30:00Z","role":"evaluator","type":"eval","feat":null,"msg":"Eval coverage audit: 19 scenarios mapped to 5 problems + 8 hooks; GAPS_EXIST — structural hook enforcement under-tested (pre-commit, contract-gate DENY, enforce-progress)","result":"pass"}
+{"ts":"2026-06-03T14:08:00Z","role":"builder","type":"checkpoint","feat":null,"msg":"Session handoff: eval run complete (89.4%, 19 scenarios), coverage audit done (GAPS_EXIST), harness cleanup done (62 tasks archived, state.json lean). Next: implement 5 proposed eval scenarios, decide archive trigger, commit pending changes.","result":"pass"}

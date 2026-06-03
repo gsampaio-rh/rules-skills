@@ -31,7 +31,7 @@ Other actions requiring explicit approval:
 
 ## Pre-commit Hooks
 
-If a pre-commit hook requires an approval flag (e.g. `.commit-approved`), create it in a **separate** Shell call before `git commit`. Never combine them.
+Commit gate flag: `.cursor/hooks/.commit-approved`. Create in a **separate** Shell call before `git commit`. Never combine flag creation and commit in one command.
 
 ## Error Recovery
 
