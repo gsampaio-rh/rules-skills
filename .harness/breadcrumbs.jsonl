@@ -25,3 +25,4 @@
 {"ts":"2026-06-03T12:00:00Z","role":"planner","type":"plan","feat":"spike-audit-1","msg":"Harness audit state.json: defined 5-problem core, triaged 13 pending (3 cancelled, 2 P1 bugs, spike-audit-1 simplification)","result":"pass"}
 {"ts":"2026-06-03T10:20:59Z","role":"builder","type":"build","feat":null,"msg":"Registered gap-23 (advisory vs structural enforcement) and gap-24 (.commit-approved hygiene) from user audit observations","result":"pass"}
 {"ts":"2026-06-03T10:23:42Z","role":"builder","type":"decision","feat":"gap-23","msg":"Elevated gap-23 from hook-level bug to architectural design principle: harness must assume LLM non-compliance, enforce structurally not advisorily","result":"pass"}
+{"ts":"2026-06-03T11:19:31Z","role":"builder","type":"decision","feat":"gap-25","msg":"Merged 3 duplicate tasks into spike-audit-1 (chore-audit-1, gap-11, gap-19). Registered gap-25: no dedup/grouping check when adding tasks.","result":"pass"}
