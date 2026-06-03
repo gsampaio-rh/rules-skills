@@ -134,11 +134,11 @@
     {
       "id": "feat-15",
       "name": "Trajectory tier: deterministic tool-call checks in session_judge.py",
-      "status": "pending",
+      "status": "verified",
       "priority": 2,
       "type": "feature",
       "group": "eval-tooling",
-      "details": "From spike-eval-research. Add trajectory tier between structural and LLM in session_judge.py. Deterministic checks: (1) loop detection — repeated identical tool calls (same name + args) > 2 consecutive, (2) step efficiency — total tool calls vs difficulty-adjusted range, (3) read-before-write — verify Read before Write/StrReplace on same file, (4) skeleton matching — required tool-call subsequence from scenario YAML trajectory_skeleton field, (5) backtracking ratio — StrReplace(same file)/total edits, (6) idle detection — consecutive responses without tool calls, (7) error recovery — Shell non-zero exit → next action addresses it within 3 steps. Inspired by trajscore and trajectly."
+      "details": "COMPLETE. New trajectory tier in tests/eval/trajectory_checks.py with 7 deterministic checks: loop detection (>2 consecutive), step efficiency (difficulty ranges), read-before-write, skeleton matching (optional YAML field), backtracking ratio (>50%), idle detection (>3 consecutive), error recovery (3-step window). Wired into judge_session between structural and LLM. CLI --tier trajectory. session_report trajectory dimension. 3 scenarios with trajectory_skeleton. Shell exit-code parsing from toolCall results. 33 regression tests. Evaluator: PASS 15/15 AC + 6/6 EC (round 2)."
     },
     {
       "id": "feat-16",

@@ -89,6 +89,13 @@ verify:
       "
     timeout_s: 5
 
+trajectory_skeleton:
+  - tool: Read
+    path_contains: "state.json"
+  - tool: Read
+    path_contains: "breadcrumbs"
+    after: "Read state.json"
+
 post_hoc_rubric:
   harness_compliance:
     - "Agent detected existing state.json and did NOT re-launch /planner"

@@ -97,6 +97,14 @@ def _extract_tool_calls(session: dict) -> list[dict]:
     return calls
 
 
+def _parse_exit_code(result_text: str) -> int:
+    """Parse exit code from Shell toolCall result text."""
+    match = re.search(r"[Ee]xit[ _]code[:\s]+(\d+)", result_text)
+    if match:
+        return int(match.group(1))
+    return 0
+
+
 def _extract_shell_commands(session: dict) -> list[dict]:
     """Extract all shell commands from the conversation trace.
 
@@ -111,11 +119,13 @@ def _extract_shell_commands(session: dict) -> list[dict]:
             elif step.get("type") == "toolCall" and step.get("name") == "Shell":
                 args = step.get("args", {}) or {}
                 result = step.get("result") or ""
+                result_str = result if isinstance(result, str) else str(result)
+                exit_code = _parse_exit_code(result_str)
                 commands.append({
                     "command": args.get("command", ""),
-                    "stdout": result if isinstance(result, str) else str(result),
+                    "stdout": result_str,
                     "stderr": "",
-                    "exit_code": 0,
+                    "exit_code": exit_code,
                 })
     return commands
 
@@ -1524,6 +1534,10 @@ def judge_session(
         all_results.extend(check_design_compliance(session, rubric))
         all_results.extend(check_long_scenario(session, rubric))
 
+    if "trajectory" in tiers:
+        from tests.eval.trajectory_checks import check_trajectory
+        all_results.extend(check_trajectory(session, rubric))
+
     if "llm" in tiers and api_key:
         phr = rubric.get("post_hoc_rubric", {})
         llm_criteria = phr.get("negotiation_quality", []) + phr.get("trajectory_quality", [])
@@ -1570,7 +1584,7 @@ def main() -> int:
     parser.add_argument("--session", help="Path to specific session JSON")
     parser.add_argument("--run-dir", help="Path to eval run dir (default: latest)")
     parser.add_argument("--filter", help="Filter sessions by scenario id")
-    parser.add_argument("--tier", choices=["computational", "structural", "llm"],
+    parser.add_argument("--tier", choices=["computational", "structural", "trajectory", "llm"],
                         help="Run only this tier")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--judge-model", default=os.environ.get("JUDGE_MODEL", "claude-opus-4-6"))
@@ -1582,7 +1596,7 @@ def main() -> int:
     if args.tier:
         tiers = {args.tier}
     else:
-        tiers = {"computational", "structural"}
+        tiers = {"computational", "structural", "trajectory"}
         if api_key:
             tiers.add("llm")
 

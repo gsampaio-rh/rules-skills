@@ -1,0 +1,108 @@
+{
+  "task_id": "feat-15",
+  "round": 2,
+  "verdict": "PASS",
+  "ac_results": {
+    "AC1": {
+      "verdict": "PASS",
+      "evidence": "judge_session(..., tiers={'trajectory'}) extends results via check_trajectory (session_judge.py:1537-1539); tier:'trajectory' on each result. test_ac1_tier_in_results passed (33/33 suite)."
+    },
+    "AC2": {
+      "verdict": "PASS",
+      "evidence": "argparse --tier choices include 'trajectory' (session_judge.py:1587-1588); --tier sets tiers={args.tier} (1596-1597). test_ac2_trajectory_in_tiers passed."
+    },
+    "AC3": {
+      "verdict": "PASS",
+      "evidence": "check_trajectory returns [] when not _has_trace (trajectory_checks.py:345-346). test_ac3_no_trace_returns_empty and test_ac3_score_unchanged_without_trace passed."
+    },
+    "AC4": {
+      "verdict": "PASS",
+      "evidence": "check_loop fails when max_streak > 2 (trajectory_checks.py:110-114); single-pass streak walk (no dead loop). test_ac4_loop_3_consecutive_fails / test_ac4_loop_2_consecutive_passes passed."
+    },
+    "AC5": {
+      "verdict": "PASS",
+      "evidence": "DIFFICULTY_RANGES easy(5,25)/medium(10,50)/hard(20,100); default medium (122-123). test_ac5_easy_30_calls_fails, test_ac5_easy_15_calls_passes, test_ac5_missing_difficulty_defaults_medium passed."
+    },
+    "AC6": {
+      "verdict": "PASS",
+      "evidence": "WRITE_TOOLS Write/StrReplace/EditNotebook; READ_TOOLS Read (43-44, 150-153). test_ac6_* passed."
+    },
+    "AC7": {
+      "verdict": "PASS",
+      "evidence": "check_skeleton None when no skeleton (165-167); subsequence + after (183-189). Three scenarios with trajectory_skeleton YAML. test_ac7_* and test_ec3_skeleton_out_of_order_fails passed."
+    },
+    "AC8": {
+      "verdict": "PASS",
+      "evidence": "Fail threshold ratio > 0.5 (trajectory_checks.py:250). Live: 2 same-file StrReplace → 50% PASS; 3/4 edits → 50% PASS (test_ac8_exact_50_percent_passes); 3/5 → 60% FAIL (test_ac8_high_backtracking_fails). test_ac8_no_edits_passes for total_edits==0."
+    },
+    "AC9": {
+      "verdict": "PASS",
+      "evidence": "check_idle fails when max_idle > 3 (276-280). test_ac9_4_idle_fails / test_ac9_3_idle_passes passed."
+    },
+    "AC10": {
+      "verdict": "PASS",
+      "evidence": "shellConversationTurn exit_code + Shell toolCall Exit code regex (291-297); 3-step recovery window; repeated Shell command not recovery (320-324). test_ac10_* and test_ec2_shell_toolcall_exit_code passed."
+    },
+    "AC11": {
+      "verdict": "PASS",
+      "evidence": "classify_dimension tier=='trajectory' → 'trajectory' (session_report.py:55-56); DIMENSIONS includes trajectory (28); print_table iterates DIMENSIONS. test_ac11_* passed."
+    },
+    "AC12": {
+      "verdict": "PASS",
+      "evidence": "28 scenario YAMLs load (0 errors). make validate: PASSED (0 errors, 2 warnings)."
+    },
+    "AC13": {
+      "verdict": "PASS",
+      "evidence": "Seven CRITERION_* constants (trajectory_checks.py:35-41) match contract. test_ac13_criterion_strings and test_ac13_skeleton_criterion_when_present passed."
+    },
+    "AC14": {
+      "verdict": "PASS",
+      "evidence": "_result() emits only PASS/FAIL (47-53). test_ac14_only_pass_fail passed."
+    },
+    "AC15": {
+      "verdict": "PASS",
+      "evidence": "main() default tiers {computational, structural, trajectory} + llm when CURSOR_API_KEY (1598-1601). test_ac15_default_tiers_include_trajectory passed."
+    }
+  },
+  "ec_results": {
+    "EC1": {
+      "verdict": "PASS",
+      "evidence": "total_edits==0 → PASS (244-245). test_ac8_no_edits_passes."
+    },
+    "EC2": {
+      "verdict": "PASS",
+      "evidence": "Shell toolCall non-zero exit from result text via regex (293-297). test_ec2_shell_toolcall_exit_code passed."
+    },
+    "EC3": {
+      "verdict": "PASS",
+      "evidence": "after: requires prior matched label (183-185). test_ec3_skeleton_out_of_order_fails passed."
+    },
+    "EC4": {
+      "verdict": "PASS",
+      "evidence": "judge_session runs trajectory (1537-1539) independently of llm tier (1541-1547); three scenarios retain trajectory_quality for LLM path when api_key present."
+    },
+    "EC5": {
+      "verdict": "PASS",
+      "evidence": "_args_hash json.dumps(sort_keys=True) (60-62). Live probe: reordered keys produce identical hash."
+    },
+    "EC6": {
+      "verdict": "PASS",
+      "evidence": "check_trajectory returns [] when _extract_tool_calls empty (347-348), even if _has_trace true for assistant-only conversation. test_ec6_assistant_only_conversation_returns_empty passed; live len=0."
+    }
+  },
+  "issues": [],
+  "recommendations": [
+    "session_judge.py module docstring usage examples still omit --tier trajectory (cosmetic; AC2 satisfied via argparse).",
+    "AC2/AC15 tests exercise judge_session API, not argparse main() subprocess — acceptable per contract verification_method."
+  ],
+  "verification": {
+    "import": "python -c 'import tests.eval.trajectory_checks' — OK",
+    "pytest": "python tests/eval/test_session_judge_trajectory.py — 33 passed, 0 failed",
+    "make_validate": "PASSED (0 errors, 2 warnings)"
+  },
+  "round_1_remediation": [
+    "AC8: ratio >= 0.5 → ratio > 0.5; added test_ac8_exact_50_percent_passes",
+    "EC6: guard not _extract_tool_calls(session) before checks; added test_ec6_assistant_only_conversation_returns_empty",
+    "check_loop: removed dead first loop"
+  ]
+}

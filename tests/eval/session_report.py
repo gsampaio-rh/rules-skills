@@ -25,7 +25,7 @@ def _resolve_run_dir(run_dir: str | None = None) -> Path:
         return EVAL_RESULTS_DIR / "none"
     return runs[-1]
 
-DIMENSIONS = ["harness", "contract", "artifact", "behavioral", "negotiation"]
+DIMENSIONS = ["harness", "contract", "artifact", "behavioral", "trajectory", "negotiation"]
 
 
 def load_judgments(run_dir: Path, filter_model: str = "") -> list[dict]:
@@ -52,6 +52,8 @@ def classify_dimension(result: dict) -> str:
     criterion = result.get("criterion", "").lower()
     tier = result.get("tier", "")
 
+    if tier == "trajectory":
+        return "trajectory"
     if tier == "llm" or "negotiation" in criterion:
         return "negotiation"
     if any(kw in criterion for kw in ("harness", "breadcrumb", "state.json", "evaluator")):
