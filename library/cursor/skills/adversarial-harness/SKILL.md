@@ -66,9 +66,9 @@ The goal: the user sees a concrete proposal they can approve, not just a questio
 
 Before writing code, builder and evaluator negotiate what "done" means.
 
-1. **Builder proposes:** Write contract to `.harness/contract.json` with `"phase": "negotiating"`. Log proposal details to `.harness/negotiations/{task_id}-round-1-builder.json`.
-2. **Evaluator reviews:** Launch `/evaluator` in negotiation mode — pushes back on weak criteria. Evaluator writes challenge to `.harness/negotiations/{task_id}-round-1-evaluator.json`.
-3. **Iterate:** Max 3 rounds. Both sides log as breadcrumbs and to `negotiations/`.
+1. **Builder proposes:** Write contract to `.harness/contract.json` with `"phase": "negotiating"`. Log as breadcrumb (`type: negotiate`).
+2. **Evaluator reviews:** Launch `/evaluator` in negotiation mode — pushes back on weak criteria. Evaluator logs challenge as breadcrumb.
+3. **Iterate:** Max 3 rounds. Both sides log as breadcrumbs.
 4. **Agreement:** Evaluator marks `"phase": "negotiated"`
 
 ### Contract format
@@ -92,7 +92,7 @@ Before writing code, builder and evaluator negotiate what "done" means.
 
 ### Rubrics field
 
-Contracts can reference domain rubrics (`architecture`, `code-quality`, `organization`, `design-ui`) for additional evaluation. In `strict` mode, high-severity rubric failures block verification. In `warn` mode, they're reported but don't block. Rubric definitions: `.cursor/references/rubrics/{domain}.json`.
+Contracts can reference domain rubrics (`architecture`, `code-quality`, `organization`, `design-ui`, `llm-skeptic`, `cost-efficiency`) for additional evaluation. In `strict` mode, high-severity rubric failures block verification. In `warn` mode, they're reported but don't block. Rubric definitions: `.cursor/references/rubrics/{domain}.json`.
 
 ### Phase field
 
@@ -147,8 +147,6 @@ Scrap-and-restart is expected, not failure — models should discard work that i
 | `.harness/state.json` | Single source of truth — vision, direction, trade-offs, tasks | Planner (init), Builder (updates) |
 | `.harness/contract.json` | Active contract | Builder (proposes), Evaluator (approves) |
 | `.harness/evals/eval-{id}.json` | Eval reports | Evaluator |
-| `.harness/negotiations/{id}-round-{n}-{role}.json` | Negotiation round logs | Builder (proposals), Evaluator (challenges) |
-| `.harness/negotiations/{id}-deferred.json` | Fixed/deferred items after eval | Builder |
 | `.harness/docs/` | Strategic design docs (prose) | Builder |
 | `.harness/breadcrumbs.jsonl` | Append-only trace | All agents |
 
@@ -178,7 +176,6 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 - `.harness/state.json` — vision, direction, trade-offs, task tracking (all agents)
 - `.harness/contract.json` — active contract (builder + evaluator)
 - `.harness/evals/eval-{id}.json` — evaluation reports (evaluator)
-- `.harness/negotiations/` — timestamped negotiation round logs (builder + evaluator)
 - `.harness/docs/` — strategic design documents (builder)
 - `.harness/breadcrumbs.jsonl` — append-only trace (all agents)
 

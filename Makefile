@@ -15,7 +15,7 @@ MODEL    ?= composer-2.5
 .PHONY: help validate setup sync-local
 .PHONY: eval eval-fast eval-session eval-session-dry eval-session-judge eval-session-report
 .PHONY: eval-session-long eval-session-long-dry eval-session-long-judge
-.PHONY: harness-metrics clean
+.PHONY: clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -24,6 +24,7 @@ help: ## Show this help
 # ─── Local Setup ─────────────────────────────────────────────
 
 setup: sync-local ## Initial setup for fresh clone (populates .cursor/ from library/cursor/)
+	@mkdir -p .harness/evals .harness/audits
 
 sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents, references)
 	@echo "Syncing library/cursor/ → .cursor/ ..."
@@ -84,14 +85,6 @@ migrate-harness: ## Migrate .harness/ files from v1 (features) to v2 (tasks) sch
 
 migrate-harness-dry: ## Preview migration without writing files
 	$(PYTHON) scripts/migrate-state-schema.py --dry-run
-
-# ─── Harness Metrics ─────────────────────────────────────────
-
-harness-metrics: ## Show harness effectiveness metrics dashboard
-	$(PYTHON) tests/eval/harness_metrics.py
-
-harness-metrics-json: ## Harness metrics as JSON
-	$(PYTHON) tests/eval/harness_metrics.py --json
 
 # ─── Utilities ────────────────────────────────────────────────
 

@@ -12,12 +12,6 @@
         "command": ".cursor/hooks/harness-gate.sh",
         "matcher": "UserPromptSubmit",
         "timeout": 5
-      },
-      {
-        "type": "prompt",
-        "prompt": "Classify whether this user prompt requires the adversarial harness workflow. Return PASS (allow without routing) if ANY of these are true: (1) The harness is already active — .harness/state.json or .harness/contract.json exist, (2) The prompt is a glue message under 25 characters (ok, next, yes, continue, etc.), (3) The user said 'skip harness' or 'just do it', (4) The request is SIMPLE — single-file fix, rename, config change, question, documentation edit, debugging, or reviewing code. Return FAIL (inject routing) ONLY if the request is NON-TRIVIAL: touches 3+ files, involves new user-facing features, requires architectural decisions, or builds a new service/module. When returning FAIL, include a followup_message: 'HARNESS ROUTING: This request describes non-trivial work. Launch the /planner subagent to decompose it into a spec and task list before implementing. If you disagree, explain why this is simple enough to implement directly.' Be conservative — when in doubt, return PASS. Input: $ARGUMENTS",
-        "matcher": "UserPromptSubmit",
-        "timeout": 8
       }
     ],
     "preToolUse": [
@@ -59,12 +53,6 @@
         "command": ".cursor/hooks/context-health.sh",
         "timeout": 5,
         "loop_limit": 1
-      },
-      {
-        "type": "prompt",
-        "prompt": "Check if the agent followed the adversarial harness workflow. Read these files if they exist: .harness/state.json, .harness/contract.json, .harness/breadcrumbs.jsonl. Note: state.json may use 'tasks' or 'features' key (both are valid). Then evaluate:\n\n1. If .harness/state.json does NOT exist → PASS (no harness active, simple task)\n2. If state.json exists with tasks in 'building' status:\n   a. Does .harness/contract.json exist? If not → FAIL: 'Contract negotiation was skipped. Propose a contract and launch the evaluator before finishing.'\n   b. Were breadcrumbs written during this session (check last few entries in breadcrumbs.jsonl for recent timestamps)? If not → FAIL: 'No breadcrumbs written. Append progress to .harness/breadcrumbs.jsonl.'\n   c. If implementation code was written, was the evaluator launched? (Check for eval reports in .harness/evals/ or breadcrumb entries with type=eval). If not → FAIL: 'Evaluator was not launched. Launch the evaluator subagent to verify the implementation against the contract.'\n3. If the user explicitly said 'skip harness' in this conversation → PASS\n\nReturn PASS if compliant or no harness is active. Return FAIL with a specific followup_message explaining what must be done. Input: $ARGUMENTS",
-        "timeout": 10,
-        "loop_limit": 3
       }
     ],
     "subagentStop": [

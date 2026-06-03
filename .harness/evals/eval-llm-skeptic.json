@@ -1,0 +1,67 @@
+{
+  "task_id": "llm-skeptic",
+  "timestamp": "2026-06-03T12:33:20Z",
+  "evaluator": "adversarial",
+  "criteria_results": [
+    {
+      "id": "AC1",
+      "result": "pass",
+      "evidence": "library/cursor/references/rubrics/llm-skeptic.json exists with 12 criteria. Category counts: justification=2, alternatives=4, boundaries=3, fallback=3. Declared categories match criteria usage."
+    },
+    {
+      "id": "AC2",
+      "result": "pass",
+      "evidence": "library/cursor/references/rubrics/cost-efficiency.json exists with 10 criteria. Category counts: token-economy=4, latency=3, scaling=2, alternatives=1. Declared categories match criteria usage."
+    },
+    {
+      "id": "AC3",
+      "result": "pass",
+      "evidence": "Both rubrics have top-level keys domain, name, version, when_applicable, categories, criteria. Each criterion has id, category, criterion, how_to_test, severity, evidence_type — same key set as code-quality.json reference. All criterion categories are members of declared categories arrays."
+    },
+    {
+      "id": "AC4",
+      "result": "pass",
+      "evidence": "library/cursor/skills/llm-skeptic/SKILL.md has YAML frontmatter with name=llm-skeptic, description, disable-model-invocation=false. Documents Mode 1: Design Challenge (lines 17-24) and Mode 2: Rubric Audit (lines 26-33)."
+    },
+    {
+      "id": "AC5",
+      "result": "pass",
+      "evidence": "evaluator.md Available Rubrics section (lines 202-203) lists llm-skeptic.json and cost-efficiency.json with descriptive bullets. Report format domain union (line 218) includes both slugs."
+    },
+    {
+      "id": "AC6",
+      "result": "pass",
+      "evidence": "adversarial-harness/SKILL.md line 95 Rubrics field lists architecture, code-quality, organization, design-ui, llm-skeptic, cost-efficiency with path pattern .cursor/references/rubrics/{domain}.json."
+    },
+    {
+      "id": "AC7",
+      "result": "pass",
+      "evidence": "make validate exit 0: Results 0 errors 2 warnings PASSED. library/cursor/skills/llm-skeptic/SKILL.md marked ✅."
+    },
+    {
+      "id": "AC8",
+      "result": "pass",
+      "evidence": "make sync-local exit 0 (Profile: lean). Verified .cursor/references/rubrics/llm-skeptic.json, .cursor/references/rubrics/cost-efficiency.json, and .cursor/skills/llm-skeptic/SKILL.md exist after sync."
+    }
+  ],
+  "edge_case_results": [
+    {
+      "id": "EC1",
+      "result": "pass",
+      "evidence": "llm-skeptic: 12 unique IDs (no duplicates). cost-efficiency: 10 unique IDs (no duplicates). Verified programmatically."
+    },
+    {
+      "id": "EC2",
+      "result": "pass",
+      "evidence": "All severity values in both rubrics are subset of {high, medium, low}. llm-skeptic uses high/medium/low; cost-efficiency uses high/medium/low including evidence_type metric on latency-acceptable."
+    },
+    {
+      "id": "EC3",
+      "result": "pass",
+      "evidence": "YAML between --- delimiters parses via PyYAML: name, description, disable-model-invocation present; disable-model-invocation coerces to false boolean."
+    }
+  ],
+  "overall_verdict": "pass",
+  "issues": [],
+  "recommendation": "proceed"
+}

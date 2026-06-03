@@ -15,18 +15,18 @@ alwaysApply: true
 | Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
 | Non-trivial (3+ files, user-facing, architectural) | **Launch `/planner` FIRST.** |
 
-**Cold start:** No `.harness/state.json`? Launch `/planner` first — do not code.
+**Cold start:** No `.harness/state.json`? Launch `/planner` — do not code.
+**Existing state:** state.json exists? Resume next pending task, don't re-launch planner.
 
-**Non-trivial indicators (any ONE):**
-- 3+ files, user-facing, architectural, vague/ambiguous, or visual/UI work
+**Non-trivial (any ONE):** 3+ files, user-facing, architectural, vague/ambiguous, visual/UI
 
 User says "skip harness" to opt out.
 
 ## Three Roles
 
-1. **`/planner`** — Produces `state.json` (vision, direction, tasks). No contracts, no code.
+1. **`/planner`** — Produces `state.json` (vision, direction, tasks). No code.
 2. **You (builder)** — Proposes contracts, negotiates with evaluator, implements one task at a time.
-3. **`/evaluator`** — Negotiates contracts AND tests the live app. Never modifies source code.
+3. **`/evaluator`** — Negotiates contracts AND tests the live app. Never modifies source.
 
 ## Flow
 
@@ -45,5 +45,4 @@ Non-trivial prompt → /planner → state.json → user confirms
 2. Launch evaluator for negotiation → then implement
 
 Self-check: "Building task + no contract? → stop, write contract."
-
-Full workflow: read the `adversarial-harness` skill.
+Full workflow: read `adversarial-harness` skill.

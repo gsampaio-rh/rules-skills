@@ -25,6 +25,11 @@
         "command": ".cursor/hooks/dedup-server.sh",
         "matcher": "npm|yarn|pnpm|vite|next|flask|uvicorn|gunicorn|cargo run|go run|python.*http",
         "timeout": 5
+      },
+      {
+        "command": ".cursor/hooks/pre-commit-harness.sh",
+        "matcher": "git commit",
+        "timeout": 5
       }
     ],
     "stop": [

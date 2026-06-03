@@ -1,33 +1,27 @@
 {
-  "task_id": "chore-1",
-  "feature": "Extract hooks-lib.sh + fix correctness bugs from spike-5 audit",
-  "phase": "verified",
-  "verified": true,
+  "task_id": "llm-skeptic",
+  "feature": "LLM Skeptic + Cost-Efficiency rubrics and skill",
+  "problem": "No mechanism exists to challenge unnecessary LLM usage in designs or audit cost-efficiency of LLM-heavy code paths. Teams default to LLM for tasks regex/heuristics handle, with no structured review process.",
+  "proposed_solution": "Create two rubrics (llm-skeptic 12 criteria, cost-efficiency 10 criteria) following existing rubric schema. Create llm-skeptic skill with Design Challenge and Rubric Audit modes. Wire both into evaluator.md and adversarial-harness SKILL.md.",
   "acceptance_criteria": [
-    "hooks-lib.sh exists with 8 functions: hooks_init, hooks_log, hooks_extract_path, hooks_read_state, hooks_file_age, hooks_skip_detected, hooks_git_total_count, hooks_git_impl_count",
-    "All 10 runtime hooks source hooks-lib.sh",
-    "hooks_extract_path reads from $HOOK_INPUT not stdin",
-    "hooks_read_state returns raw fields; callers apply own GATE/SKIP logic",
-    "Two git count functions: hooks_git_total_count (all files) and hooks_git_impl_count (impl-only filter)",
-    "BUG-1 fixed: harness-context.sh handles contract-without-state (no NameError)",
-    "BUG-2 fixed: contract-gate.sh has single path extraction call (no duplicate 17-line blocks)",
-    "BUG-3 fixed: verify-harness.sh EVALS_DIR removed",
-    "BUG-4 fixed: verify-harness.sh duplicate BREADCRUMBS removed",
-    "BUG-5 fixed: hooks-profile.sh messages match actual JSON configs",
-    "BUG-6 fixed: evaluator-guard.sh extracts toolInput.filePath (unified with contract-gate)",
-    "BUG-7 fixed: verify-harness.sh malformed contract produces {} (no HARNESS GATE false positive)",
-    "validate-hooks.sh passes with >37 tests",
-    "make validate passes",
-    "LOC reduction ~200 from baseline 1722 (runtime hooks only, excludes validate-hooks.sh)"
+    "AC1: library/cursor/references/rubrics/llm-skeptic.json exists with exactly 12 criteria across 4 categories (justification, alternatives, boundaries, fallback)",
+    "AC2: library/cursor/references/rubrics/cost-efficiency.json exists with exactly 10 criteria across 4 categories (token-economy, latency, scaling, alternatives)",
+    "AC3: Both rubric JSONs follow the same schema as existing rubrics (domain, name, version, when_applicable, categories, criteria[] with id/category/criterion/how_to_test/severity/evidence_type)",
+    "AC4: library/cursor/skills/llm-skeptic/SKILL.md exists with valid frontmatter (name, description, disable-model-invocation) and documents Mode 1 (Design Challenge) and Mode 2 (Rubric Audit)",
+    "AC5: evaluator.md lists both llm-skeptic and cost-efficiency in Available Rubrics section with descriptions",
+    "AC6: adversarial-harness SKILL.md Rubrics field documentation includes llm-skeptic and cost-efficiency slugs",
+    "AC7: make validate passes (skill follows SKILLS_STANDARD)",
+    "AC8: make sync-local succeeds and .cursor/ contains all new files"
   ],
   "edge_cases": [
-    "hooks_extract_path with empty/malformed JSON returns empty string",
-    "hooks_read_state with no tasks returns zero counts and empty IDs",
-    "hooks_skip_detected with missing breadcrumbs file returns 1 (not found)",
-    "Malformed contract.json does not trigger HARNESS GATE in verify-harness",
-    "Contract exists without state.json: harness-context emits context (not empty {})"
+    "EC1: Rubric criterion IDs are unique within each file (no duplicates)",
+    "EC2: Severity values are only high/medium/low (valid enum)",
+    "EC3: Skill SKILL.md frontmatter parses correctly (YAML between --- delimiters)"
   ],
-  "verification_method": "bash library/cursor/hooks/validate-hooks.sh (full pass); make validate; LOC check via wc -l; BUG reproductions from audit",
+  "verification_method": "Evaluator checks: (1) read both rubric JSONs and validate schema + counts, (2) read skill SKILL.md for frontmatter and modes, (3) grep evaluator.md for both slugs, (4) grep adversarial-harness SKILL.md for both slugs, (5) confirm make validate output, (6) confirm .cursor/ sync contains new files",
+  "rubrics": ["code-quality", "organization"],
+  "rubric_mode": "warn",
   "negotiation_rounds": 0,
-  "negotiation_skip_reason": "chore type with evaluator-approved plan (v2); 11 challenges addressed in 2 adversarial review rounds"
+  "phase": "evaluating",
+  "verified": true
 }

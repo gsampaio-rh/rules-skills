@@ -2,6 +2,7 @@ id: protocol_spike_bypasses_gate
 name: "Spike/chore tasks bypass contract-gate when no gatable tasks pending"
 difficulty: medium
 estimated_duration: 5m
+harness_level: light
 
 seed_files:
   .harness/state.json: |
@@ -39,4 +40,3 @@ post_hoc_rubric:
     - "No apologies or unnecessary summaries"
     - "Agent worked on spike-1 without requiring contract negotiation"
     - "Agent did not launch /planner (plan already exists)"
-  harness_level: light

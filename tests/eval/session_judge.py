@@ -148,8 +148,13 @@ def _get_harness_level(rubric: dict) -> str:
 
     'light' skips contract/evaluator/builder checks — use for scenarios
     that test behavioral traits (pushback, autonomy) rather than protocol.
+    Checks top-level first, falls back to post_hoc_rubric for legacy compat.
     """
-    return rubric.get("harness_level", "full")
+    level = rubric.get("harness_level")
+    if not level:
+        phr = rubric.get("post_hoc_rubric", {})
+        level = phr.get("harness_level")
+    return level or "full"
 
 
 def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:

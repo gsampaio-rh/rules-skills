@@ -1,0 +1,105 @@
+{
+  "domain": "llm-skeptic",
+  "name": "GenAI/LLM Usage Skeptic",
+  "version": "1.0",
+  "when_applicable": "Any project that uses LLM/GenAI APIs (OpenAI, Anthropic, Google, local models) for classification, generation, extraction, or decision-making",
+  "categories": ["justification", "alternatives", "boundaries", "fallback"],
+  "criteria": [
+    {
+      "id": "justify-llm-call",
+      "category": "justification",
+      "criterion": "Every LLM invocation has a documented reason why deterministic logic won't work",
+      "how_to_test": "For each LLM API call, check for a comment or design doc explaining why regex, rules, or lookup tables are insufficient",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "justify-model-size",
+      "category": "justification",
+      "criterion": "Model size is proportional to task complexity — don't use frontier models for tasks a smaller model or fine-tune handles",
+      "how_to_test": "Check model selection logic: classification, extraction, and routing tasks should use smaller/cheaper models unless quality evidence demands otherwise",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "alternative-explored",
+      "category": "alternatives",
+      "criterion": "At least one non-LLM alternative was considered and rejected with evidence",
+      "how_to_test": "Look for ADRs, comments, or design docs showing that deterministic approaches were evaluated before choosing LLM",
+      "severity": "high",
+      "evidence_type": "artifact"
+    },
+    {
+      "id": "regex-heuristic-first",
+      "category": "alternatives",
+      "criterion": "Pattern matching, rules, or lookup tables are used before resorting to LLM for predictable patterns",
+      "how_to_test": "Check if common patterns (email validation, date parsing, keyword matching) use deterministic code rather than LLM calls",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "structured-output",
+      "category": "alternatives",
+      "criterion": "When output is structured (JSON, enum, boolean), constrained decoding or schema validation is used over free-form generation",
+      "how_to_test": "Check LLM calls that produce structured data: are they using response_format, function calling, or post-generation validation?",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "deterministic-path",
+      "category": "alternatives",
+      "criterion": "Deterministic code paths exist for predictable inputs (cache hits, known patterns, lookup matches)",
+      "how_to_test": "Verify that the system short-circuits to deterministic results when input matches known patterns before calling LLM",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "llm-as-fallback",
+      "category": "boundaries",
+      "criterion": "LLM is the fallback path, not the default path, when simpler logic covers >80% of cases",
+      "how_to_test": "Check call flow: does the system try deterministic approaches first and only fall through to LLM for unmatched cases?",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "scope-minimized",
+      "category": "boundaries",
+      "criterion": "LLM prompt scope is minimized — don't send entire files when relevant lines suffice",
+      "how_to_test": "Review prompt construction: is context trimmed to relevant sections, or are entire documents/files sent as input?",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "no-llm-for-crud",
+      "category": "boundaries",
+      "criterion": "No LLM used for CRUD operations, string formatting, math, or deterministic transformations",
+      "how_to_test": "Check that LLM is never called for tasks with algorithmic solutions: arithmetic, templating, data reshaping, SQL generation from fixed schemas",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "caching-opportunity",
+      "category": "fallback",
+      "criterion": "Repeated identical or semantically similar prompts are cached or batched",
+      "how_to_test": "Check for caching layer (exact match or embedding-based) before LLM calls that may repeat with same/similar inputs",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "graceful-degradation",
+      "category": "fallback",
+      "criterion": "System works in degraded mode when LLM is unavailable or rate-limited",
+      "how_to_test": "Verify fallback behavior: timeouts, circuit breakers, default responses, or graceful error messages when LLM fails",
+      "severity": "low",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "cost-awareness",
+      "category": "fallback",
+      "criterion": "Token and cost estimates are documented for LLM-heavy code paths",
+      "how_to_test": "Check for cost annotations, budget tracking, or documentation estimating per-call and aggregate token costs",
+      "severity": "low",
+      "evidence_type": "artifact"
+    }
+  ]
+}

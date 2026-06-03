@@ -5,3 +5,6 @@ tests/eval_results/
 
 # Local IDE config (populated by make setup from library/cursor/)
 .cursor/
+
+# Commit approval flag (defense-in-depth; also covered by .cursor/ ignore)
+.commit-approved

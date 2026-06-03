@@ -41,6 +41,19 @@ echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: git commit detected" >> "$HOOK
 # --- 0. Commit gate: require user approval ---
 
 if [ -f "$COMMIT_GATE" ]; then
+  # Check TTL: reject stale flags (>300s) to prevent auto-approval after crashes
+  FLAG_AGE=$(hooks_file_age "$COMMIT_GATE")
+  if [ "$FLAG_AGE" -gt 300 ]; then
+    rm -f "$COMMIT_GATE" 2>/dev/null
+    hooks_log "pre-commit" "DENIED — stale commit-approved flag (${FLAG_AGE}s > 300s TTL)"
+    cat <<EOF
+{
+  "permission": "deny",
+  "agent_message": "COMMIT BLOCKED: The .commit-approved flag is stale (${FLAG_AGE}s old, max 300s). This likely means a previous commit attempt failed or the session was interrupted. Please ask the user for approval again, then create a fresh .cursor/hooks/.commit-approved file and retry."
+}
+EOF
+    exit 0
+  fi
   # Agent already got user approval and set the flag — allow this attempt
   rm -f "$COMMIT_GATE" 2>/dev/null
   echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: commit-approved flag found, allowing" >> "$HOOK_LOG" 2>/dev/null
@@ -53,18 +66,14 @@ else
     STAGED_PREVIEW=$(git status --porcelain 2>/dev/null | head -10)
   fi
 
-  ESCAPED_PREVIEW=$(echo "$STAGED_PREVIEW" | python3 -c "
+  ESCAPED_MSG=$(echo "$STAGED_PREVIEW" | python3 -c "
 import sys, json
-text = sys.stdin.read().strip()
-print(json.dumps(text))
+files = sys.stdin.read().strip()
+msg = 'COMMIT BLOCKED: You must get explicit user approval before committing. Show the user what will be committed and ask for their go-ahead. After they approve, write the flag file .cursor/hooks/.commit-approved (any content) and retry the commit command.\n\nFiles to be committed:\n' + files
+print(json.dumps(msg))
 " 2>/dev/null)
 
-  cat <<EOF
-{
-  "permission": "deny",
-  "agent_message": "COMMIT BLOCKED: You must get explicit user approval before committing. Show the user what will be committed and ask for their go-ahead. After they approve, write the flag file .cursor/hooks/.commit-approved (any content) and retry the commit command.\n\nFiles to be committed:\n$(echo "$STAGED_PREVIEW" | head -10)"
-}
-EOF
+  printf '{"permission":"deny","agent_message":%s}\n' "$ESCAPED_MSG"
   exit 0
 fi
 

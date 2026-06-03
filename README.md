@@ -19,7 +19,7 @@ rules-skills/
 │   └── (populated by make setup from library/cursor/)
 ├── docs/                        # Authoring standards and guides
 │   ├── EVAL_GUIDE.md
-│   ├── HARNESS_STANDARD.md
+│   ├── HARNESS_ESSENCE.md
 │   ├── RULES_STANDARD.md
 │   └── SKILLS_STANDARD.md
 ├── library/
@@ -191,4 +191,4 @@ Each standard is a self-contained reference: authoring guidelines, design ration
 
 - [`RULES_STANDARD.md`](docs/RULES_STANDARD.md) — how to write `.mdc` rules
 - [`SKILLS_STANDARD.md`](docs/SKILLS_STANDARD.md) — how to write `SKILL.md` skills
-- [`HARNESS_STANDARD.md`](docs/HARNESS_STANDARD.md) — harness workflow, state schemas, enforcement hooks
+- [`HARNESS_ESSENCE.md`](docs/HARNESS_ESSENCE.md) — five-problem model, core files, enforcement architecture

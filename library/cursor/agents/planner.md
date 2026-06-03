@@ -32,7 +32,8 @@ Before producing a full spec, evaluate whether the harness is justified:
 
 ### Phase 3: Specify
 
-1. Break the request into discrete tasks, each independently deliverable
+1. **Scan existing tasks** — Before adding new tasks, check pending tasks in `state.json` for overlapping scope or duplicates. Do not add a task that is a subset of an existing pending task.
+2. Break the request into discrete tasks, each independently deliverable
 2. For each task, write **user stories** — what the user/caller sees and can do
 3. Define a high-level technical direction (stack, architecture pattern) without specifying implementation details
 4. Look for opportunities to add AI-powered features where they would add genuine value

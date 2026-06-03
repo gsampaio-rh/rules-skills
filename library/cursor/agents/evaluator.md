@@ -15,7 +15,6 @@ You are an adversarial QA critic. Your job is to BREAK the implementation, not c
 You may ONLY write to these paths:
 - `.harness/contract.json` (negotiation updates)
 - `.harness/evals/*` (evaluation reports)
-- `.harness/negotiations/*` (negotiation round logs)
 - `.harness/breadcrumbs.jsonl` (trace log)
 
 Writing to ANY other path will be **automatically denied** by the evaluator-guard hook. Do not attempt it. If you find issues that require code changes:
@@ -41,10 +40,10 @@ When called BEFORE building starts, you review the builder's proposed contract a
 
 ### How to negotiate
 
-1. Read the builder's proposed contract at `.harness/contract.json` and their proposal at `.harness/negotiations/{task_id}-round-{n}-builder.json`
-2. Write your challenge to `.harness/negotiations/{task_id}-round-{n}-evaluator.json` with per-decision verdicts (APPROVE/CHALLENGE) and counter-proposals
-3. Log a summary breadcrumb in `.harness/breadcrumbs.jsonl`
-4. For each criterion, mark it as ACCEPTED, STRENGTHENED (with your revised wording), or REJECTED (with reason)
+1. Read the builder's proposed contract at `.harness/contract.json`
+2. Log your challenge as a breadcrumb in `.harness/breadcrumbs.jsonl` with `type: negotiate`
+3. For each criterion, mark it as ACCEPTED, STRENGTHENED (with your revised wording), or REJECTED (with reason)
+4. Update `contract.json` phase to `negotiated` when agreement is reached
 5. Add any missing edge cases or criteria
 6. If revisions are needed, update `contract.json` with strengthened criteria
 7. Iterate until satisfied — max 3 rounds, then escalate to user
@@ -200,6 +199,8 @@ Load from `.cursor/references/rubrics/`:
 - `code-quality.json` — SOLID, complexity, naming, DRY, coupling, sizing, error handling
 - `organization.json` — file structure, module boundaries, cohesion, dependency flow
 - `design-ui.json` — accessibility, design tokens, visual hierarchy, responsiveness, interaction
+- `llm-skeptic.json` — GenAI/LLM usage justification (alternatives explored, boundaries, fallback paths)
+- `cost-efficiency.json` — LLM cost vs efficiency (token budget, model sizing, latency, caching, cost-per-action)
 
 ### Process
 
@@ -214,7 +215,7 @@ Load from `.cursor/references/rubrics/`:
 
 ```json
 {
-  "domain": "architecture|code-quality|organization|design-ui",
+  "domain": "architecture|code-quality|organization|design-ui|llm-skeptic|cost-efficiency",
   "timestamp": "ISO-8601",
   "scope": ["src/"],
   "overall_score": "A|B|C|D|F",

@@ -1,0 +1,89 @@
+{
+  "domain": "cost-efficiency",
+  "name": "LLM Cost vs Efficiency Analysis",
+  "version": "1.0",
+  "when_applicable": "Any system making LLM API calls in production — especially user-facing or high-volume paths",
+  "categories": ["token-economy", "latency", "scaling", "alternatives"],
+  "criteria": [
+    {
+      "id": "token-budget",
+      "category": "token-economy",
+      "criterion": "Token usage per operation is estimated and bounded (input + output tokens per call documented)",
+      "how_to_test": "Check for max_tokens settings, prompt length estimates, or cost-per-call documentation near LLM invocations",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "prompt-conciseness",
+      "category": "token-economy",
+      "criterion": "Prompts are as concise as possible without quality loss — no filler, no redundant instructions, no unnecessary examples",
+      "how_to_test": "Review prompt templates: look for repeated instructions, verbose system messages, or examples that could be removed without accuracy impact",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "response-bounded",
+      "category": "token-economy",
+      "criterion": "Response size is constrained via max_tokens, stop sequences, or structured output schemas",
+      "how_to_test": "Check LLM call parameters: are max_tokens set? Are stop sequences defined? Is response_format/function_calling used to bound output?",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "model-right-sized",
+      "category": "token-economy",
+      "criterion": "Cheaper or faster model is used when the task doesn't require frontier capabilities",
+      "how_to_test": "Check model selection: simple classification/extraction should use mini/haiku/flash tier, not opus/gpt-4o unless quality testing proves necessary",
+      "severity": "high",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "latency-acceptable",
+      "category": "latency",
+      "criterion": "User-facing LLM calls complete within acceptable latency budget (P95 < 3s for interactive, < 30s for background)",
+      "how_to_test": "Check for timeout configuration, streaming for long responses, and latency monitoring on LLM-dependent user flows",
+      "severity": "high",
+      "evidence_type": "metric"
+    },
+    {
+      "id": "parallel-not-serial",
+      "category": "latency",
+      "criterion": "Independent LLM calls are parallelized, not executed serially",
+      "how_to_test": "Check for sequential await chains where calls don't depend on each other — should use Promise.all, asyncio.gather, or equivalent",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "batch-where-possible",
+      "category": "latency",
+      "criterion": "Batch APIs or message batching is used when real-time response isn't needed",
+      "how_to_test": "For non-interactive workloads (indexing, classification pipelines), check if batch API endpoints are used over individual calls",
+      "severity": "low",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "cache-before-call",
+      "category": "scaling",
+      "criterion": "Caching layer (exact match or semantic) exists to reduce repeated LLM calls",
+      "how_to_test": "Look for cache checks before LLM invocations: Redis, in-memory, or embedding-similarity cache for repeated/similar queries",
+      "severity": "medium",
+      "evidence_type": "code_analysis"
+    },
+    {
+      "id": "cost-per-user-action",
+      "category": "scaling",
+      "criterion": "Cost per user action is estimated and tracked — no unbounded spending per request",
+      "how_to_test": "Check for cost tracking, per-request budget limits, or documentation estimating $/1K users or $/request",
+      "severity": "high",
+      "evidence_type": "artifact"
+    },
+    {
+      "id": "cheaper-alternative-rejected",
+      "category": "alternatives",
+      "criterion": "If a cheaper approach exists and was rejected, the quality delta is documented with evidence",
+      "how_to_test": "For expensive model choices, check for benchmarks or A/B test results showing the quality improvement justifies the cost increase",
+      "severity": "medium",
+      "evidence_type": "artifact"
+    }
+  ]
+}
