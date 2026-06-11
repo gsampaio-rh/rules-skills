@@ -1,0 +1,71 @@
+{
+  "task_id": "spike-research-agents-p2",
+  "evaluator_round": 2,
+  "result": "PASS",
+  "criteria_results": [
+    {
+      "id": "AC1",
+      "result": "PASS",
+      "evidence": "File exists at .harness/docs/research/phase-2-data-collection.md. Lines 10–17 contain '## §9 Compliance Check' with explicit BC1/BC2/BC4/BC5 status lines (each marked ✓ with supporting notes)."
+    },
+    {
+      "id": "AC2",
+      "result": "PASS",
+      "evidence": "§1.2 cites arXiv:2512.18925 (accepted MSR 2026), sample of 401 repositories, and avg 4.68 .mdc files per repo (SD=6.89). Table also includes 93.27% .cursor/ directory usage and avg 462.67 lines per file."
+    },
+    {
+      "id": "AC3",
+      "result": "PASS",
+      "evidence": "§2.1 defines four tiers (Tier 0–3) with estimated prevalence (~85–90%, ~8–12%, ~2–3%, <0.5%) and an 'Evidence basis' column citing N1/N3 absolute counts, MSR 2026 [N2] 401-repo sample, and cursor-handbook visibility — not stereotypes."
+    },
+    {
+      "id": "AC4",
+      "result": "PASS",
+      "evidence": "§3.1–3.6 each contain 4-dimension ACAM tables with Evidence columns; §6 summary matrix lists 6 comparables (Aider, SWE-agent, Claude Code, Devin, cursor-handbook, Windsurf). Required minimums (Aider, Claude Code, Devin, +1) all present with section-level source citations ([T1,T2], [D1–D4], [V9,B5–B7], etc.)."
+    },
+    {
+      "id": "AC5",
+      "result": "PASS",
+      "evidence": "§3.4 classifies Devin as Advanced on all four dimensions (Configuration, Workflows, Multi-agent, Interaction) with 'Sources: Devin docs … [D1, D2, D3, D4]'. §6 matrix row confirms 'Devin | Advanced | Advanced | Advanced | Advanced'."
+    },
+    {
+      "id": "AC6",
+      "result": "PASS",
+      "evidence": "§4 documents four challenging sources (S1–S4). S2 explicitly names rules-skills artifacts: '8 alwaysApply rules', 'adversarial_harness.mdc (alwaysApply)', '230-line rule'. S4 repeats '8 alwaysApply rules (including 230-line adversarial_harness.mdc)'. Both exceed the ≥2-source minimum with artifact-specific critique."
+    },
+    {
+      "id": "AC7",
+      "result": "PASS",
+      "evidence": "bibliography.md header states 'Phase 2 added 13 sources: N1-N5, S1-S4, D1-D4'. All 13 entries present under dedicated Phase 2 sections (lines 231–317), each with a real URL and an 'ACAM mapping' bullet."
+    },
+    {
+      "id": "AC8",
+      "result": "PASS",
+      "evidence": "§7 'Revised Positioning After Phase 2' contrasts Phase 1 opinion ('Normie: Zero rules, copy-pasted .cursorrules') with Phase 2 evidence ('~85–90% of users have zero or one config file'). §7.1 explicitly reframes the Intermediate label: 'rules-skills is NOT Intermediate relative to the actual user population' and 'Intermediate is relative to theoretically possible Advanced'."
+    },
+    {
+      "id": "AC9",
+      "result": "PASS",
+      "evidence": "§7.3 titled 'AGENTS.md Gap' names a concrete gap ('rules-skills has no AGENTS.md'). §4.2/S4 challenge Phase 1 assumptions on always-on rule count ('8 alwaysApply rules', '230-line adversarial_harness.mdc' as anti-pattern). Both required gap types appear as named findings, not vague hand-waving."
+    }
+  ],
+  "edge_case_results": [
+    {
+      "id": "EC1",
+      "result": "PASS",
+      "evidence": "Spot-checked 5 Phase 2 URLs via curl: N1 (repobility.com) 200, N2 (arxiv.org/html/2512.18925v2) 200, S1 (vadimall.com) 200, D2 (docs.devin.ai) 200, S2 (medium.com) 403. All five are specific non-placeholder URLs; 4/5 return HTTP 200. S2 Medium 403 is consistent with bot-blocking on a real article URL, not a fabricated link."
+    },
+    {
+      "id": "EC2",
+      "result": "PASS",
+      "evidence": "§2.1 Tier 2 Evidence basis (line 83): 'MSR 2026 [N2]: 401 repos, avg **4.68 .mdc files/repo**, avg 7,064 stars — heavy selection bias toward high-star repos. Real prevalence among average Cursor users is lower.' Contains 4.68, [N2], and explicit high-star selection-bias acknowledgment."
+    },
+    {
+      "id": "EC3",
+      "result": "PASS",
+      "evidence": "§6 matrix Notes column now cites sources on 9/10 rows ([N2,N3], [C1,N3], [N2,B1], [T1,T2], [V9,B5], [N4], [C3], [A1,A2], [D1,D2,D3]) — exceeds ≥5 threshold. §9 has 4 questions with inline [N#]/[S#] citations: Q1 [N2,B1]+[S2], Q2 [S2,S4], Q3 [S1], Q5 [N5] — exceeds ≥3 threshold."
+    }
+  ],
+  "summary": "Round 2 re-verification: EC2 and EC3 fixes are complete. Tier 2 in §2.1 now grounds normie baseline in MSR [N2] with 4.68 avg files and selection-bias caveat. §6 matrix and §9 open questions carry inline source keys. Overall 9/9 AC, 3/3 EC — Phase 2 verified PASS.",
+  "fix_items": []
+}

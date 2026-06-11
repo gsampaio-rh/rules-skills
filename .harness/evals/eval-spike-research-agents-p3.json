@@ -1,0 +1,49 @@
+{
+  "task_id": "spike-research-agents-p3",
+  "eval_date": "2026-06-11",
+  "rounds": 3,
+  "final_result": "PASS",
+  "ac_score": "9/9",
+  "ec_score": "3/3",
+  "round_history": [
+    {
+      "round": 1,
+      "result": "FAIL",
+      "ac_score": "6/9",
+      "ec_score": "3/3",
+      "failures": [
+        "AC3: §2.3 Advanced revised table used pattern-level names, not observable-artifact column format consistent with §2.1/§2.2",
+        "AC5: Sizing/token-budget claim cited only 1 file path (docs/RULES_STANDARD.md); Evidence B was arithmetic, not a repo path",
+        "AC7: Severity ratings used compound levels (Medium-High, Low-Medium); §4.3 body contained hedging ('makes violation unlikely')"
+      ]
+    },
+    {
+      "round": 2,
+      "result": "FAIL",
+      "ac_score": "8/9",
+      "ec_score": "3/3",
+      "failures": [
+        "AC7: Severity enums corrected but §4.3 severity line retained 'well within the conservative side of any reasonable estimate' — residual hedging"
+      ]
+    },
+    {
+      "round": 3,
+      "result": "PASS",
+      "ac_score": "9/9",
+      "ec_score": "3/3",
+      "notes": "AC7 severity line rewritten to factual statement: 'The constraint is designated as measured by tests/validate.py. The implementation uses a word × 1.3 heuristic, not a tokenizer. The budget compliance status is unknown.'"
+    }
+  ],
+  "key_findings": [
+    "BC3 external vocabulary validation: Phase 1 'ablation testing' criterion removed (no practitioner source prescribes it by name); 'cross-tool portability (AGENTS.md)' criterion added (strong external support from N5, D2, E2)",
+    "S2 (LLPP) per-rule verdict: 5/8 alwaysApply rules are constitutional invariants (CONFORMS); adversarial_harness.mdc is borderline (partially conforms via skill structure); planning_discipline.mdc and progress_tracking.mdc are procedural policies (VIOLATES)",
+    "S3 (simpler agents) verdict: empirically open — behavioral eval scores (33% session boundary) provide weak evidence some guardrails remain necessary, but feat-16 ablation required to confirm or refute",
+    "Factual correction from Phase 2: adversarial_harness.mdc is 48 lines (not 230 lines); the 191-line figure applies to the SKILL.md",
+    "New gap identified: adversarial_harness.mdc has both alwaysApply: true AND globs: set — contradicts RULES_STANDARD which defines these as mutually exclusive configurations",
+    "Provisional score: INTERMEDIATE (unqualified). Binding constraint for Advanced: no quantified effectiveness data (feat-16 pending)"
+  ],
+  "deliverables_verified": [
+    ".harness/docs/research/phase-3-configuration.md",
+    ".harness/docs/research/bibliography.md (E1, E2, E3 added)"
+  ]
+}

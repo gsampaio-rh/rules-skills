@@ -1,26 +1,28 @@
 {
-  "task_id": "feat-15",
-  "feature": "Sandbox isolation for eval session runner",
-  "problem": "CursorClient.launch_bridge() inherits os.environ, so any server the agent starts inside the sandbox exposes CURSOR_API_KEY and other secrets via environment variables to localhost",
-  "proposed_solution": "Two-layer defense: (1) strip sensitive env vars from os.environ before launch_bridge, restore after in finally block; (2) enable SDK SandboxOptions for filesystem/shell/network isolation",
+  "task_id": "spike-research-agents-p7",
+  "feature": "Phase 7 of spike-research-agents: Synthesis — ACAM matrix, rules-skills scorecard, red-team pass, publication deliverables (acam-worksheet.md, spike-research-agents.md, blog outline, scorecard.json)",
+  "problem": "Phases 1-6 produced four independently-verified dimension analyses (Configuration, Workflows, Multi-agent, Interaction) all scoring Intermediate. Phase 7 must synthesize these into a self-contained research output that: (1) makes the Intermediate+top-1% duality legible via a two-axis scorecard, not a flat verdict; (2) attempts a genuine Basic case on ≥1 dimension and either sustains or rebuts it; (3) produces three publication-ready deliverables each independently usable.",
+  "proposed_solution": "Three deliverables: (A) acam-worksheet.md — standalone 4×3 scoring tool ≤60 lines; (B) spike-research-agents.md — master synthesis 1,500-3,000 words including two-axis scorecard, red-team pass, and blog series outline; (C) rules-skills-scorecard.json — machine-readable scores with evidence[] and gaps[] per dimension.",
   "acceptance_criteria": [
-    "AC1: SENSITIVE_ENV_VARS list includes CURSOR_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, AWS_SECRET_ACCESS_KEY, GITHUB_TOKEN, GH_TOKEN",
-    "AC2: _strip_sensitive_env() removes all SENSITIVE_ENV_VARS from os.environ and returns stashed values",
-    "AC3: _restore_sensitive_env() restores stashed values in a finally block — always runs even on exception",
-    "AC4: SandboxOptions(enabled=True) is passed to LocalAgentOptions by default",
-    "AC5: --no-sandbox CLI flag disables sandbox with warning in help text",
-    "AC6: api_key is still passed explicitly to agents.create() — not relying on env inheritance",
-    "AC7: dry-run output shows sandbox status",
-    "AC8: File compiles cleanly (py_compile) and passes make validate"
+    "AC1: acam-worksheet.md exists at .harness/docs/research/acam-worksheet.md with ≤60 lines; contains a 4×3 grid (4 dimensions × 3 levels) with at least one observable question per cell; includes scoring instructions that do not reference any phase doc",
+    "AC2: spike-research-agents.md exists at .harness/docs/research/spike-research-agents.md between 1,500 and 3,000 words; contains no phase-doc-dependent content — the full ACAM score and top findings for each dimension must be stated inline",
+    "AC3: spike-research-agents.md contains a two-axis table or section showing BOTH the ACAM level AND the population tier for each of the four dimensions — neither axis is omitted, and neither is presented as canceling the other",
+    "AC4: spike-research-agents.md contains a red-team section that attempts a genuine Basic case on the Workflows dimension (33% session boundary + zero skill_activation eval coverage as the argument) and gives an explicit verdict — either the case holds (downgrade to Basic) or it fails (with the specific rebuttal evidence). A section that only concludes 'Intermediate is justified' without engaging the Basic argument fails AC4",
+    "AC5: spike-research-agents.md contains a 'What to steal first' section with ≥3 ranked recommendations for a practitioner at Tier 0-1 who wants to move up without building the full harness — each recommendation must be specific (name the file or pattern, not a category)",
+    "AC6: spike-research-agents.md contains a blog series outline with 4 posts — each post has a one-sentence thesis and ≥3 evidence points drawn from the bibliography",
+    "AC7: rules-skills-scorecard.json exists at .harness/docs/research/rules-skills-scorecard.json; contains entries for all 4 dimensions each with: level (string), population_tier (string), evidence (array of ≥2 file paths), gaps (array of ≥2 strings with severity)",
+    "AC8: The BC3 revisions from all four dimension phases are reflected in the ACAM matrix in acam-worksheet.md — specifically: 'acceptance-criteria-gated implementation' for Workflows Advanced, 'trust boundary enforcement' for Multi-agent Advanced, 'structured context delivery' for Interaction Advanced",
+    "AC9: spike-research-agents.md §BC-compliance states that BC1 (external sources cited by label), BC3 (ACAM criteria externally validated), and BC6 (no hedging in scores or gap sections) are each pass or fail — scores and gaps in spike-research-agents.md must match the phase doc verdicts"
   ],
   "edge_cases": [
-    "EC1: If a SENSITIVE_ENV_VAR is not set in the parent env, _strip_sensitive_env should not fail",
-    "EC2: If the bridge crashes between strip and restore, the finally block must still restore vars"
+    "EC1: The red-team section must name the specific evidence that defeats the Basic argument for Workflows — 'the contract gate and traced execution exist' is not sufficient; the rebuttal must explain why a 33% behavioral score does not override the structural evidence, or concede that it does",
+    "EC2: acam-worksheet.md must be independently scorable: apply it to a fictional repo with no rules, no hooks, no harness — the scoring instructions must produce 'Basic' on all four dimensions without ambiguity",
+    "EC3: The 'What to steal first' recommendations must not all come from the same dimension — at least 3 distinct dimensions must be represented across the ≥3 recommendations"
   ],
-  "verification_method": "Read session_runner.py, verify all ACs by code inspection. Run py_compile and make validate. Check that stash/restore wraps the entire bridge lifecycle with finally.",
-  "rubrics": ["code-quality", "security"],
-  "rubric_mode": "strict",
+  "verification_method": "Evaluator reads all three deliverables. For AC1, counts lines in acam-worksheet.md. For AC2, counts words in spike-research-agents.md. For AC3, finds the two-axis table. For AC4, reads the red-team section and checks for explicit Basic argument + verdict. For EC1, checks that the rebuttal names specific evidence, not just a category. For EC2, mentally applies acam-worksheet.md to a repo with zero infrastructure — all four dimensions must clearly score Basic.",
+  "rubrics": [],
+  "rubric_mode": "warn",
   "negotiation_rounds": 0,
-  "phase": "verified",
+  "phase": "evaluating",
   "verified": true
 }

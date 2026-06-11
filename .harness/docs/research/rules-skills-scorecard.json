@@ -1,0 +1,110 @@
+{
+  "repo": "rules-skills",
+  "assessed": "2026-06-11",
+  "acam_version": "1.0",
+  "population_n": 3200,
+  "dimensions": {
+    "configuration": {
+      "level": "Intermediate",
+      "population_tier": "Tier 3 (~top 0.5%)",
+      "evidence": [
+        "library/cursor/rules/ — 8 alwaysApply + 3 agent-requested rules with explicit loading scope per rule",
+        "docs/RULES_STANDARD.md — per-rule rationale, loading conditions, sizing constraints documented",
+        "library/cursor/rules/adversarial_harness.mdc — alwaysApply with globs (RULES_STANDARD violation, documented gap)",
+        ".cursor/rules/ — 6 alwaysApply rules covering code standards, critical thinking, planning, progress, verification, agent behavior"
+      ],
+      "gaps": [
+        "High — No per-rule effectiveness data: feat-16 (rule ablation) pending; no ablation scores for any of the 8 alwaysApply rules",
+        "Medium — adversarial_harness.mdc has alwaysApply:true + globs simultaneously — RULES_STANDARD violation",
+        "Low — Cross-tool portability: AGENTS.md format not implemented; RULES_STANDARD mentions it as a target but no file exists"
+      ],
+      "bc3_revisions": [
+        "Removed 'ablation testing' as standalone Advanced criterion; replaced with 'quantified per-rule effectiveness data'",
+        "Added 'cross-tool portability (AGENTS.md)' as new Advanced criterion (externally validated: B4, D4)"
+      ]
+    },
+    "workflows": {
+      "level": "Intermediate",
+      "population_tier": "Tier 3 (~top 0.5%)",
+      "evidence": [
+        "library/cursor/hooks/contract-gate.sh — preToolUse deny hook blocking source writes without contract.json",
+        "library/cursor/hooks/verify-harness.sh — stop hook forcing evaluator launch when contract open and unverified",
+        ".harness/breadcrumbs.jsonl — append-only traced execution log; read by harness-context.sh at session start",
+        "library/cursor/rules/verification.mdc — alwaysApply rule mandating verify step after every code change",
+        "tests/eval/scenarios/ — 27 eval scenarios; session_runner + session_judge pipeline"
+      ],
+      "gaps": [
+        "High — Zero skill_activation eval coverage: 14 SKILL.md descriptions unvalidated for routing accuracy; chore-skill-scenarios pending",
+        "High — 33% behavioral session boundary score: planning_discipline.mdc fires correctly 1 in 3 sessions; root cause: underspecified 'distinct tasks' trigger + no injected session count",
+        "High — No automated eval regression suite: session_runner.py runs manually; no CI integration",
+        "Medium — verify-harness.sh trusts verified:true field without checking for evaluator PASS breadcrumb — self-certification bypassable"
+      ],
+      "bc3_revisions": [
+        "Renamed 'contract-first development' → 'acceptance-criteria-gated implementation' (externally validated: V1, V2)",
+        "Added 'traced execution with append-only audit log' as explicit Advanced criterion (validated: F1 ReAct)"
+      ],
+      "red_team": {
+        "basic_case_attempted": true,
+        "dimension": "Workflows",
+        "argument": "33% behavioral session boundary + zero skill_activation coverage = unverified workflow",
+        "verdict": "FAILS — behavioral rules (planning_discipline.mdc) and structural gates (contract-gate.sh, verify-harness.sh) are separate. Intermediate criteria are structural. The 33% failure is a behavioral rule gap with an Interaction-layer root cause, not a structural failure. Score holds at Intermediate.",
+        "rebuttal_evidence": [
+          "contract-gate.sh — OS-level deny; fires regardless of agent inference",
+          "verify-harness.sh — stop-event enforce; session cannot end with open unverified contract without hook firing",
+          "breadcrumbs.jsonl — append-only; traced execution is structural, not behavioral"
+        ]
+      }
+    },
+    "multi_agent": {
+      "level": "Intermediate",
+      "population_tier": "Tier 3 (~top 0.5%)",
+      "evidence": [
+        "library/cursor/agents/planner.md — named subagent with role-specific system prompt (task decomposition, state.json output, no implementation)",
+        "library/cursor/agents/evaluator.md — named subagent with adversarial QA role, explicit write restriction",
+        "library/cursor/hooks/evaluator-guard.sh — preToolUse deny blocking evaluator writes outside .harness/; trust boundary enforcement",
+        "library/cursor/hooks/chain-evaluator.sh — subagentStop hook for phase-gated transitions between harness phases"
+      ],
+      "gaps": [
+        "High — Manual agent orchestration: /planner and /evaluator launched manually; feat-13 (programmatic orchestration) cancelled; no auto-routing",
+        "Medium — Context isolation is prompt-level only: evaluator-guard.sh restricts writes but not reads; evaluator sees full builder history",
+        "Medium — harness-gate.sh advises but cannot structurally force planner invocation",
+        "Low — negotiations/ directory unused: per-round challenge content not machine-readable; negotiation_rounds counter only"
+      ],
+      "bc3_revisions": [
+        "Removed 'parallel evaluation' from Advanced criteria (not independently validated)",
+        "Added 'trust boundary enforcement' as Advanced criterion (validated: G3 Weng, V2 Anthropic)"
+      ]
+    },
+    "interaction": {
+      "level": "Intermediate",
+      "population_tier": "Tier 3 (~top 0.5%)",
+      "evidence": [
+        "library/cursor/hooks/harness-context.sh — sessionStart hook injecting current task + recent breadcrumbs before first user turn",
+        "library/cursor/rules/critical_thinking.mdc — alwaysApply meta-prompt: identify real goal, spot assumptions, check feasibility",
+        "library/cursor/rules/prompt_coaching.mdc — agent-requested rule detecting vague inputs and requesting clarification",
+        "library/cursor/rules/planning_discipline.mdc — alwaysApply thread hygiene: session boundary awareness + handoff breadcrumb"
+      ],
+      "gaps": [
+        "High — No measured interaction patterns: no LangSmith-equivalent metrics; no prompt clarity or turns-to-completion data across sessions",
+        "High — 33% session boundary root cause: planning_discipline.mdc trigger ('distinct tasks') is underspecified by Anthropic system prompt quality criteria [E1]; no context data injected to measure what the rule instructs",
+        "Medium — No prompt versioning: rules iterate without changelog or per-change hypothesis; git history only",
+        "Medium — No prompt A/B testing: feat-16 tests rule presence/absence, not content variants; no session_runner.py prompt variant flag",
+        "Low — No user interaction analytics: no real-session telemetry; eval pipeline runs synthetic sessions only"
+      ],
+      "bc3_revisions": [
+        "Renamed 'context engineering (compaction, isolation, tool schemas)' → 'structured context delivery (sessionStart injection + context isolation)' (validated: H1 Karpathy, V6 Cursor)",
+        "Added 'context injection tooling' as distinct Advanced criterion separate from general context engineering"
+      ]
+    }
+  },
+  "summary": {
+    "overall_acam": "Intermediate (all 4 dimensions)",
+    "overall_population": "Tier 3 (~top 0.5% of public repos)",
+    "binding_advanced_constraint": "Absence of quantitative effectiveness data across all four dimensions. No per-rule ablation scores, no skill activation eval, no eval CI integration, no measured interaction patterns.",
+    "highest_priority_gaps": [
+      "feat-16 (rule ablation) — unlocks Configuration Advanced + provides data for 33% diagnosis",
+      "chore-skill-scenarios — closes zero skill_activation coverage gap",
+      "CI integration of session_runner.py — converts manual eval to regression suite"
+    ]
+  }
+}

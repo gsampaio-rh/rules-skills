@@ -1,0 +1,73 @@
+{
+  "task_id": "spike-research-agents-p1",
+  "evaluator": "adversarial",
+  "round": 2,
+  "timestamp": "2026-06-11T18:15:00Z",
+  "overall": "PASS",
+  "round_1_issues": {
+    "references_13_vs_18": "FIXED — inventory now says 18; `find library/cursor/references -type f | wc -l` = 18",
+    "behavioral_44_vs_31": "ROUND_1_ERROR — Round 1 used `grep -c 'def test_'` (=31). Pytest `--collect-only` correctly reports 44 (13 parametrized expansions). Builder was correct.",
+    "total_129_vs_116": "ROUND_1_ERROR — Follows from behavioral miscount. Verified: 52 (validate-hooks.sh) + 44 (pytest behavioral) + 33 (pytest trajectory) = 129",
+    "bibliography_t2_acam": "FIXED — [T2] now has ACAM mapping line",
+    "workflows_advanced": "FIXED — Workflows scored Intermediate; one-liner cites 'built it' vs 'proved it works' gap"
+  },
+  "criteria": {
+    "AC1": {
+      "status": "PASS",
+      "evidence": "phase-1-methodology.md exists with all required sections: §1 Research Question, §2 Scope, §3 Terminology, §4 ACAM Framework, §5 Data Collection Plan, §6 Repo Inventory, §7 Preliminary Self-Assessment."
+    },
+    "AC2": {
+      "status": "PASS",
+      "evidence": "§3.1 defines Normie/Practitioner/Advanced via observable signals table (config files, verification loops, hooks, eval suites) — explicitly rejects self-identification and stereotypes."
+    },
+    "AC3": {
+      "status": "PASS",
+      "evidence": "§4.2 ACAM matrix is exactly 4 dimensions × 3 levels (Basic/Intermediate/Advanced) with observable artifact criteria in every cell."
+    },
+    "AC4": {
+      "status": "PASS",
+      "evidence": "Filesystem verification: rules=16, skills=14, hooks=12, references=18, scenarios yaml=27 + long dir, subagents=2, claude rules=23. Behavioral tests=44 (`pytest --collect-only`), trajectory=33, hook tests=52 (validate-hooks.sh). Total 129 = 52+44+33. Round 1 behavioral undercount (grep vs pytest) retracted."
+    },
+    "AC5": {
+      "status": "PASS",
+      "evidence": "§5.1 lists 6 concrete GitHub code-search queries; §5.2 names 5 comparable setups (Aider, SWE-agent, Claude Code, awesome-cursorrules, cursor-handbook) with rationale; §5.3 lists Reddit, Cursor forum/Discord, and blog sources."
+    },
+    "AC6": {
+      "status": "PASS",
+      "evidence": "33 annotated sources (≥30 threshold). Each of 33 entries has URL, relevance, key takeaway, and ACAM mapping (33/33 including [T2]). Header '35+' is aspirational target for Phase 7, not a count claim."
+    },
+    "AC7": {
+      "status": "PASS",
+      "evidence": "All four dimensions scored Intermediate. Workflows no longer Advanced — gaps cite skill_activation coverage, verify-harness trust, session boundary 33%, no ablation data. §7 one-liner explicitly states infrastructure vs measurement gap."
+    },
+    "AC8": {
+      "status": "PASS",
+      "evidence": "§3.2 documents 6→4 consolidation with overlap rationale: rules=sub-layer of config; skills=workflows within agent loop; context engineering subsumes prompt engineering; table gives specific examples per dimension."
+    },
+    "AC9": {
+      "status": "PASS",
+      "evidence": "§4.1 Design Principles explicitly states '3 levels, not 5' with CMMI hair-splitting anti-pattern reasoning."
+    }
+  },
+  "edge_cases": {
+    "EC1": {
+      "status": "PASS",
+      "evidence": "Spot-checked 5 URLs: [T2] github.com/Aider-AI/aider/.../aider_conf.md → 200; [V1] anthropic.com/research/building-effective-agents → 307→200; [A5] arxiv.org/pdf/2603.09619 → 200; [C1] github.com/PatrickJS/awesome-cursorrules → 200 (Round 1); [B1] openbooklet.com → 200 (Round 1). All real."
+    },
+    "EC2": {
+      "status": "PASS",
+      "evidence": "All contract spot-check counts match filesystem. Behavioral count verified via pytest collection (44), not grep (31). Hook tests counted via validate-hooks.sh summary (52 passed)."
+    },
+    "EC3": {
+      "status": "PASS",
+      "evidence": "§4.1 states cumulative levels. Matrix cells describe progressive capabilities without contradiction."
+    }
+  },
+  "notes": [
+    "Round 1 evaluator error: `grep -c 'def test_'` counts 31 function definitions; pytest collects 44 due to @pytest.mark.parametrize on 4 test functions (13 extra cases). Inventory should cite pytest collect as canonical for pytest suites.",
+    "Breadcrumbs count (113 in §6.4) is stale vs current 118 lines — append-only log; not in AC4 spot-check list. Non-blocking."
+  ],
+  "summary": "Round 2 PASS. All five Round 1 blockers resolved or retracted. Builder was correct on behavioral (44) and total test (129) counts; Round 1 used wrong verification method. References fixed to 18, [T2] ACAM mapping added, Workflows honestly scored Intermediate.",
+  "issues": [],
+  "recommendation": "accept"
+}
