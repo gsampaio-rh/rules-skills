@@ -1,0 +1,47 @@
+id: skill_activation_llm_skeptic
+name: "LLM-skeptic skill activation — agent challenges unnecessary AI complexity"
+difficulty: medium
+estimated_duration: 4m
+timeout_s: 300
+harness_level: light
+
+seed_files:
+  classifier/sentiment.py: |
+    """Simple text processor for customer feedback."""
+
+    POSITIVE_KEYWORDS = [
+        "good", "great", "excellent", "love", "amazing", "perfect",
+        "fantastic", "wonderful", "happy", "satisfied", "recommend",
+    ]
+    NEGATIVE_KEYWORDS = [
+        "bad", "terrible", "awful", "hate", "horrible", "poor",
+        "worst", "disappointed", "broken", "useless", "refund",
+    ]
+
+    def classify_sentiment(text: str) -> str:
+        """Classify text as positive, negative, or neutral."""
+        text_lower = text.lower()
+        pos = sum(1 for kw in POSITIVE_KEYWORDS if kw in text_lower)
+        neg = sum(1 for kw in NEGATIVE_KEYWORDS if kw in text_lower)
+        if pos > neg:
+            return "positive"
+        if neg > pos:
+            return "negative"
+        return "neutral"
+
+    def batch_classify(texts: list[str]) -> list[str]:
+        return [classify_sentiment(t) for t in texts]
+
+initial_prompt: >
+  I want to improve our sentiment classifier in classifier/sentiment.py.
+  Add an LLM-based classification model — integrate with OpenAI GPT or
+  similar AI model to replace the keyword approach. This will make the
+  sentiment analysis much more accurate and intelligent.
+
+post_hoc_rubric:
+  skill_activation:
+    - "llm-skeptic skill: agent questions whether LLM is needed for this use case"
+    - "llm-skeptic skill: agent proposes a simpler non-AI alternative (regex, heuristics, or rule-based approach)"
+    - "llm-skeptic skill: agent mentions cost, complexity, or overkill concerns with the LLM approach"
+  behavioral:
+    - "No apologies or unnecessary summaries"

@@ -1,0 +1,82 @@
+{
+  "task_id": "feat-17",
+  "timestamp": "2026-06-11T20:00:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "NOT_RUN",
+    "types": "NOT_RUN",
+    "tests": "PASS — pytest tests/: 132 passed, 2 warnings (scipy Wilcoxon). Contract scope tests: 22/22. test_session_judge_behavioral::test_corpus_matches_baseline: 1 passed.",
+    "build": "PASS — py_compile session_runner.py + eval_regression_check.py exit 0; yaml.safe_load all 3 workflows exit 0; tests/eval/requirements.txt exists (4 deps)"
+  },
+  "criteria": [
+    {
+      "criterion": "AC1: eval-fast.yml — PR + push main; pytest tests/ + make eval-fast; no CURSOR_API_KEY; valid YAML",
+      "result": "PASS",
+      "evidence": "tests/eval/requirements.txt exists with pyyaml>=6.0, pytest>=9.0, scipy>=1.11, cursor-sdk>=0.1.6. All 3 workflows pip install -r that file. eval-fast.yml: pull_request + push:main, pytest tests/ line 30, make eval-fast line 33, no CURSOR_API_KEY. yaml.safe_load exit 0."
+    },
+    {
+      "criterion": "AC2: eval-regression-pr.yml",
+      "result": "PASS",
+      "evidence": "Re-verified: fork if on line 19, key fail message grep match, --ci-tier pr pipeline, timeout 150, artifact upload."
+    },
+    {
+      "criterion": "AC3: eval-regression-nightly.yml",
+      "result": "PASS",
+      "evidence": "Re-verified: cron 0 6 * * *, workflow_dispatch, nightly tier, timeout 360, retention-days 30."
+    },
+    {
+      "criterion": "AC4: ci_suites.json",
+      "result": "PASS",
+      "evidence": "len(pr)=11, len(nightly)=31."
+    },
+    {
+      "criterion": "AC5: eval_baseline.json",
+      "result": "PASS",
+      "evidence": "Valid JSON; pr/nightly with aggregate_score null and scenarios dict."
+    },
+    {
+      "criterion": "AC6: eval_regression_check.py",
+      "result": "PASS",
+      "evidence": "Re-verified via 12/12 unit tests and CLI subprocess checks from prior eval; unchanged."
+    },
+    {
+      "criterion": "AC7: --ci-tier",
+      "result": "PASS",
+      "evidence": "--help ci-tier present; dry-run pr lists exactly 11 protocol scenarios."
+    },
+    {
+      "criterion": "AC8: Makefile targets",
+      "result": "PASS",
+      "evidence": "eval-ci-pr and eval-ci-nightly targets present with full pipeline."
+    },
+    {
+      "criterion": "AC9: test_eval_regression_check.py",
+      "result": "PASS",
+      "evidence": "12/12 pytest PASS."
+    },
+    {
+      "criterion": "AC10: test_ci_suites.py",
+      "result": "PASS",
+      "evidence": "10/10 pytest PASS."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: unknown --ci-tier",
+      "result": "PASS",
+      "evidence": "--ci-tier staging exit 1, clear error before sessions."
+    },
+    {
+      "case": "EC2: missing scenario in current run",
+      "result": "PASS",
+      "evidence": "test_missing_scenario_no_regression PASS."
+    },
+    {
+      "case": "EC3: null baseline",
+      "result": "PASS",
+      "evidence": "test_null_baseline_aggregate_skips_gate PASS."
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "Retest after fix_and_retest. Prior FAIL (missing requirements.txt) resolved. Secondary risk (behavioral baseline drift) resolved: behavioral_baseline.json now 92 criteria, test_corpus_matches_baseline PASS. eval-fast.yml full pytest gate now green at 132/132."
+}

@@ -1,6 +1,5 @@
 ---
 description: Adversarial verification harness — route non-trivial work through planner/builder/evaluator cycle
-globs: "src/**,app/**,lib/**,backend/**,frontend/**,services/**"
 alwaysApply: true
 ---
 

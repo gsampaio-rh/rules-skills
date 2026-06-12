@@ -1,0 +1,55 @@
+id: skill_activation_code_review
+name: "Code review skill activation — structured severity output"
+difficulty: medium
+estimated_duration: 4m
+timeout_s: 300
+harness_level: light
+
+seed_files:
+  app/auth.py: |
+    import hashlib
+    import sqlite3
+
+    DB = sqlite3.connect("users.db")
+
+    def login(username, password):
+        # Hash password with MD5
+        hashed = hashlib.md5(password.encode()).hexdigest()
+        cursor = DB.cursor()
+        query = "SELECT * FROM users WHERE username = '" + username + "' AND password = '" + hashed + "'"
+        cursor.execute(query)
+        user = cursor.fetchone()
+        if user:
+            return True
+        return False
+
+    def get_user_data(user_id):
+        cursor = DB.cursor()
+        cursor.execute("SELECT * FROM users WHERE id = " + str(user_id))
+        return cursor.fetchall()
+
+    def register(username, password, email):
+        cursor = DB.cursor()
+        hashed = hashlib.md5(password.encode()).hexdigest()
+        cursor.execute("INSERT INTO users VALUES ('" + username + "', '" + hashed + "', '" + email + "')")
+        DB.commit()
+
+    def delete_user(user_id, requesting_user_role):
+        # TODO: check permissions properly later
+        cursor = DB.cursor()
+        cursor.execute("DELETE FROM users WHERE id = " + str(user_id))
+        DB.commit()
+        return True
+
+initial_prompt: >
+  Please do a code review of app/auth.py. I need a thorough review
+  of the code quality and security before we deploy this.
+
+post_hoc_rubric:
+  skill_activation:
+    - "code-review skill: output includes a severity table with CRITICAL/HIGH/MEDIUM/LOW categories"
+    - "code-review skill: each finding includes file location and a concrete fix suggestion"
+    - "code-review skill: SQL injection vulnerability identified with CRITICAL or HIGH severity"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent ran verification commands autonomously"

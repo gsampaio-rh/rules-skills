@@ -1,0 +1,85 @@
+name: Eval Regression (PR tier)
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "tests/eval/**"
+      - "library/cursor/**"
+      - ".cursor/**"
+      - "Makefile"
+
+jobs:
+  eval-regression-pr:
+    name: Session eval — PR tier (11 protocol scenarios)
+    runs-on: ubuntu-latest
+    # Skip fork PRs: they do not have access to repository secrets.
+    # Upstream PRs without CURSOR_API_KEY configured will fail in the key-check step below.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r tests/eval/requirements.txt
+
+      - name: Sync library → .cursor
+        run: make sync-local
+
+      - name: Check CURSOR_API_KEY is configured
+        run: |
+          if [ -z "$CURSOR_API_KEY" ]; then
+            echo "Error: Configure CURSOR_API_KEY repository secret to enable session eval on this repo."
+            exit 1
+          fi
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+
+      - name: Run protocol scenarios (PR tier)
+        run: |
+          python tests/eval/session_runner.py \
+            --ci-tier pr \
+            --model composer-2.5 \
+            --run-dir tests/eval_results/ci-pr-${{ github.run_id }}
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+
+      - name: Judge sessions
+        run: |
+          python tests/eval/session_judge.py \
+            --run-dir tests/eval_results/ci-pr-${{ github.run_id }} \
+            --tier structural
+
+      - name: Generate report
+        run: |
+          python tests/eval/session_report.py \
+            --run-dir tests/eval_results/ci-pr-${{ github.run_id }} \
+            --save
+
+      - name: Regression check
+        run: |
+          python tests/eval/eval_regression_check.py \
+            --run-dir tests/eval_results/ci-pr-${{ github.run_id }} \
+            --baseline tests/eval/fixtures/eval_baseline.json \
+            --tier pr \
+            --write-diff tests/eval_results/ci-pr-${{ github.run_id }}/regression.json
+
+      - name: Upload eval artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-pr-${{ github.run_id }}
+          path: |
+            tests/eval_results/ci-pr-${{ github.run_id }}/summary.json
+            tests/eval_results/ci-pr-${{ github.run_id }}/regression.json
+            tests/eval_results/ci-pr-${{ github.run_id }}/judgments/**
+          retention-days: 14

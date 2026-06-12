@@ -35,10 +35,17 @@ class CaptureWorkspace:
     On exit: deletes everything.
     """
 
-    def __init__(self, *, prefix: str = "eval-sandbox-", seed_files: dict[str, str] | None = None):
+    def __init__(
+        self,
+        *,
+        prefix: str = "eval-sandbox-",
+        seed_files: dict[str, str] | None = None,
+        excluded_rules: set[str] | None = None,
+    ):
         self._tmpdir: tempfile.TemporaryDirectory | None = None
         self._prefix = prefix
         self._seed_files = seed_files or {}
+        self._excluded_rules: set[str] = excluded_rules or set()
         self.path: Path = Path()
         self._capture_meta: dict = {}
         self._base_sha: str = ""
@@ -80,7 +87,11 @@ class CaptureWorkspace:
             self._tmpdir.cleanup()
 
     def _setup_cursor_config(self):
-        """Copy library/cursor/ into .cursor/ so rules/skills/hooks/agents are active."""
+        """Copy library/cursor/ into .cursor/ so rules/skills/hooks/agents are active.
+
+        Rules listed in self._excluded_rules (by basename, e.g. 'adversarial_harness.mdc')
+        are skipped, enabling ablation runs without the target rule.
+        """
         library_cursor = REPO_ROOT / "library" / "cursor"
         dst_cursor = self.path / ".cursor"
 
@@ -89,14 +100,25 @@ class CaptureWorkspace:
 
         dst_cursor.mkdir(exist_ok=True)
 
-        for item in ("rules", "skills", "agents", "references", "hooks"):
+        for item in ("skills", "agents", "references", "hooks"):
             src = library_cursor / item
             if src.exists():
                 shutil.copytree(src, dst_cursor / item, dirs_exist_ok=True)
 
+        self._copy_rules(library_cursor / "rules", dst_cursor / "rules")
+
         hooks_src = library_cursor / "hooks.lean.json"
         if hooks_src.exists():
             shutil.copy2(hooks_src, dst_cursor / "hooks.json")
+
+    def _copy_rules(self, src_dir: Path, dst_dir: Path) -> None:
+        """Copy rule files, skipping any whose basename is in excluded_rules."""
+        if not src_dir.exists():
+            return
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for rule_file in src_dir.iterdir():
+            if rule_file.is_file() and rule_file.name not in self._excluded_rules:
+                shutil.copy2(rule_file, dst_dir / rule_file.name)
 
     def _write_seed_files(self):
         """Write scenario seed files into the workspace."""

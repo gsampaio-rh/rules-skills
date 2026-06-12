@@ -1,0 +1,15 @@
+# CODEOWNERS — files requiring maintainer review
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Regression baseline — requires maintainer approval + baseline-refresh label
+# See docs/EVAL_GUIDE.md §Baseline refresh policy for update procedure
+tests/eval/fixtures/eval_baseline.json @gsampaio
+
+# CI suite definitions — changing PR/nightly scenario lists affects CI gate scope
+tests/eval/fixtures/ci_suites.json @gsampaio
+
+# Hook enforcement scripts — structural deny hooks protect the five-problem core
+library/cursor/hooks/contract-gate.sh @gsampaio
+library/cursor/hooks/verify-harness.sh @gsampaio
+library/cursor/hooks/pre-commit-harness.sh @gsampaio
+library/cursor/hooks/evaluator-guard.sh @gsampaio

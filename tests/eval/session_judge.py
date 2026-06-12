@@ -1142,6 +1142,26 @@ def check_skill_activation(session: dict, rubric: dict) -> list[dict]:
             passed = len(found) >= 2
             evidence = f"Security terms: {found}" if found else "Security issues not highlighted"
 
+        elif "code-quality-audit" in check_lower or "code quality audit" in check_lower:
+            quality_indicators = [
+                "solid", "srp", "ocp", "dip", "lsp", "isp",
+                "complexity", "function size", "class size", "coupling",
+                "dry", "cohesion", "single responsibility", "violation",
+            ]
+            found = [ind for ind in quality_indicators if ind in full_text.lower()]
+            passed = len(found) >= 2
+            evidence = f"Quality indicators found: {found}" if found else "No SOLID/complexity analysis detected"
+
+        elif "llm-skeptic" in check_lower or "llm skeptic" in check_lower:
+            skeptic_signals = [
+                "simpler", "alternative", "regex", "heuristic", "rule-based", "rule based",
+                "keyword", "deterministic", "cost", "complexity", "unnecessary", "overkill",
+                "without llm", "do you need", "before adding", "simpler approach",
+            ]
+            found = [sig for sig in skeptic_signals if sig in full_text.lower()]
+            passed = len(found) >= 2
+            evidence = f"LLM-skeptic signals found: {found}" if found else "No skepticism toward LLM requirement detected"
+
         results.append({
             "criterion": check_text,
             "result": "PASS" if passed else "FAIL",
@@ -1473,6 +1493,73 @@ Return a JSON array of results matching the criteria order.
 """
 
 
+# Confidence threshold: responses below this → UNCERTAIN (insufficient evidence)
+LLM_CONFIDENCE_THRESHOLD = 3
+
+
+def _smart_truncate_transcript(transcript: list[dict], max_chars: int = 8000) -> str:
+    """Extract key turns instead of naive head-truncation.
+
+    Extracts: first turn + tool calls with errors + harness interactions + last turn.
+    Total budget: max_chars characters. Falls back to head-truncation when budget exhausted.
+    """
+    if not transcript:
+        return "(empty transcript)"
+
+    harness_keywords = {
+        "breadcrumbs", "state.json", "contract.json", "harness", "evaluator",
+        "planner", "building", "verified", "session_start",
+    }
+
+    segments: list[str] = []
+
+    # First turn (user + first assistant response)
+    first = transcript[0]
+    segments.append(f"[FIRST TURN]\n{json.dumps(first, ensure_ascii=False)}")
+
+    # Middle turns: tool calls with errors + harness interactions
+    for turn in transcript[1:-1]:
+        turn_str = json.dumps(turn, ensure_ascii=False)
+        is_error = any(
+            kw in turn_str.lower()
+            for kw in ("error", "exception", "traceback", "exit_code: 1", "exit 1")
+        )
+        is_harness = any(kw in turn_str.lower() for kw in harness_keywords)
+        if is_error or is_harness:
+            segments.append(f"[KEY TURN]\n{turn_str}")
+
+    # Last turn (final assistant output)
+    if len(transcript) > 1:
+        last = transcript[-1]
+        segments.append(f"[LAST TURN]\n{json.dumps(last, ensure_ascii=False)}")
+
+    result = "\n\n".join(segments)
+    if len(result) > max_chars:
+        result = result[:max_chars] + "\n...(truncated)"
+    return result
+
+
+# Per-dimension rubric prompts with context and verdicts
+_DIMENSION_PROMPTS: dict[str, str] = {
+    "negotiation_quality": (
+        "You are judging CONTRACT NEGOTIATION QUALITY. "
+        "Look for: binary-testable acceptance criteria, adversarial pushback, "
+        "at least 2 edge cases, verification method specified, max 3 negotiation rounds. "
+        "PASS anchor: criteria are specific and testable, evaluator challenged vague criteria. "
+        "FAIL anchor: criteria are vague ('it works'), no edge cases, evaluator rubber-stamps. "
+        "UNKNOWN: transcript does not contain enough contract negotiation evidence to judge."
+    ),
+    "trajectory_quality": (
+        "You are judging TASK EXECUTION TRAJECTORY. "
+        "Look for: systematic exploration before implementation, breadcrumb trail, "
+        "verification after each change, no skipped steps, no unnecessary refactoring. "
+        "PASS anchor: agent reads relevant files, proposes approach, implements, verifies. "
+        "FAIL anchor: agent implements without reading context, no verification, skips steps. "
+        "UNKNOWN: transcript is too short or incomplete to assess execution quality."
+    ),
+}
+
+
 def judge_with_llm(
     session: dict,
     rubric: dict,
@@ -1480,33 +1567,56 @@ def judge_with_llm(
     api_key: str,
     model: str,
 ) -> list[dict]:
-    """Use LLM to judge subjective criteria."""
+    """Use LLM to judge subjective criteria with smart truncation and UNKNOWN verdict.
+
+    Improvements over previous version:
+    - Smart truncation: extracts first turn + error/harness turns + last turn
+    - UNKNOWN verdict for insufficient evidence
+    - Confidence thresholding: confidence < LLM_CONFIDENCE_THRESHOLD → UNCERTAIN
+    - Per-dimension rubric context in prompt
+    """
     try:
-        from cursor_sdk import Agent, LocalAgentOptions
+        from cursor_sdk import Agent
     except ImportError:
         return [
             {"criterion": c, "result": "SKIP", "evidence": "cursor_sdk not available", "tier": "llm"}
             for c in criteria
         ]
 
-    transcript_text = json.dumps(session.get("transcript", []), indent=2)
+    transcript = session.get("transcript", [])
+    transcript_text = _smart_truncate_transcript(transcript)
     artifacts_summary = json.dumps(
         {k: v for k, v in session.get("artifacts", {}).items() if k != "files"},
         indent=2,
-    )
+    )[:4000]
 
-    prompt = f"""Judge this session against these criteria:
+    # Detect dimension for per-dimension prompt context
+    phr = rubric.get("post_hoc_rubric", {})
+    neg_criteria_set = set(phr.get("negotiation_quality", []))
+    dimension_context = ""
+    for criterion in criteria:
+        if criterion in neg_criteria_set:
+            dimension_context = _DIMENSION_PROMPTS.get("negotiation_quality", "")
+            break
+        dimension_context = _DIMENSION_PROMPTS.get("trajectory_quality", "")
 
+    prompt = f"""You are an evaluation judge for AI coding agent sessions.
+{dimension_context}
+
+Judge this session against these criteria:
 {json.dumps(criteria, indent=2)}
 
-## Transcript
-{transcript_text[:8000]}
+## Session Transcript (key turns)
+{transcript_text}
 
 ## Artifacts
-{artifacts_summary[:4000]}
+{artifacts_summary}
 
-Return ONLY a JSON array with one object per criterion:
-[{{"criterion": "...", "result": "PASS|FAIL", "evidence": "...", "confidence": 1-5}}]
+For each criterion, return your verdict with confidence (1=very unsure, 5=certain).
+Use UNKNOWN when there is insufficient evidence in the transcript to make a judgment.
+
+Return ONLY a JSON array, one object per criterion, in the same order:
+[{{"criterion": "...", "result": "PASS|FAIL|UNKNOWN", "evidence": "specific quote or observation", "confidence": 1-5}}]
 """
 
     try:
@@ -1518,9 +1628,18 @@ Return ONLY a JSON array with one object per criterion:
         match = re.search(r"\[.*\]", response, re.DOTALL)
         if match:
             parsed = json.loads(match.group())
+            results = []
             for item in parsed:
                 item["tier"] = "llm"
-            return parsed
+                confidence = int(item.get("confidence", 3))
+                # Low confidence → UNCERTAIN regardless of PASS/FAIL verdict
+                if confidence < LLM_CONFIDENCE_THRESHOLD and item.get("result") != "UNKNOWN":
+                    item["result"] = "UNCERTAIN"
+                    item["evidence"] = (
+                        f"[Low confidence {confidence}/5] " + item.get("evidence", "")
+                    )
+                results.append(item)
+            return results
     except Exception as e:
         return [
             {"criterion": c, "result": "ERROR", "evidence": str(e), "tier": "llm"}

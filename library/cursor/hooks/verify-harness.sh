@@ -47,8 +47,66 @@ except Exception:
   fi
 
   if [ "$VERIFIED" = "True" ]; then
-    hooks_log "verify-harness" "contract verified, passing"
-    echo '{}'
+    # Require at least one breadcrumb with role=evaluator AND result=pass for this task.
+    # Prevents builder from self-certifying by directly setting verified:true.
+    TASK_ID=$(python3 -c "
+import json
+try:
+    with open('$CONTRACT') as f:
+        data = json.load(f)
+    print(data.get('task_id', ''))
+except Exception:
+    print('')
+" 2>/dev/null)
+
+    EVAL_PASS=$(python3 -c "
+import json
+task_id = '$TASK_ID'
+try:
+    lines = []
+    with open('$BREADCRUMBS') as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    lines.append(json.loads(line))
+                except Exception:
+                    pass
+    # Accept evaluator entry with result=pass; feat match is optional (legacy compat)
+    for b in lines:
+        if (b.get('role') == 'evaluator'
+                and str(b.get('result', '')).lower() == 'pass'
+                and (not task_id or b.get('feat', '') == task_id or b.get('feat', '') == '')):
+            print('YES')
+            exit()
+    print('NO')
+except Exception:
+    print('NO')
+" 2>/dev/null)
+
+    if [ "$EVAL_PASS" = "YES" ]; then
+      hooks_log "verify-harness" "contract verified + evaluator PASS breadcrumb found, passing"
+      echo '{}'
+      exit 0
+    fi
+
+    FEATURE=$(python3 -c "
+import json
+try:
+    with open('$CONTRACT') as f:
+        data = json.load(f)
+    print(data.get('feature', 'unknown feature'))
+except Exception:
+    print('unknown feature')
+" 2>/dev/null)
+
+    hooks_log "verify-harness" "BLOCKED — contract verified:true but no evaluator PASS breadcrumb for task '$TASK_ID'"
+
+    cat <<EOF
+{
+  "followup_message": "HARNESS GATE: contract.json has verified:true for \"$FEATURE\" but no evaluator PASS breadcrumb was found in breadcrumbs.jsonl.\n\nSelf-certification is not allowed. You must:\n1. Launch an evaluator subagent (Task tool) to test against .harness/contract.json\n2. Evaluator must append a breadcrumb: {\"role\":\"evaluator\",\"result\":\"pass\",\"feat\":\"$TASK_ID\",...}\n\nIf the evaluator already ran but the breadcrumb is missing, append it manually with the correct schema."
+}
+EOF
     exit 0
   fi
 

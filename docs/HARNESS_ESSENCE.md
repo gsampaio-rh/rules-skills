@@ -32,7 +32,7 @@ A file-based task system that keeps AI agents honest across sessions.
 
 **Design principle:** Critical steps must be structurally impossible to skip (deny hooks), not merely advised. Advisory hooks are acceptable for non-critical quality signals.
 
-**Known gap-23 debt:** `verify-harness.sh` checks `contract.json` `verified: true` without verifying evaluator actually ran. Agent can self-set the field. Breadcrumbs provide audit evidence but not enforcement.
+**Self-certification bypass (fixed):** `verify-harness.sh` requires a breadcrumb with `role=evaluator, result=pass` (or builder `build+pass` for simple 1-2 file tasks that legitimately bypass the full harness) before honoring `verified: true`. See `fix-verify-harness` in the archive.
 
 **Platform limitation:** `contract-gate` only gates the `Write` tool. `StrReplace` and shell redirects are ungated (Cursor platform constraint).
 
@@ -62,16 +62,35 @@ Optional `group` field enables filtering and dedup detection across related task
   "acceptance_criteria": ["Binary, testable assertions"],
   "edge_cases": ["Boundary conditions"],
   "verification_method": "What evaluator runs",
-  "phase": "negotiating|negotiated|building|evaluating",
+  "phase": "negotiating|negotiated|building|evaluating|verified",
   "verified": false
 }
 ```
+
+`phase` values: `negotiating` (evaluator reviewing), `negotiated` (approved, not started), `building` (impl in progress — chain-evaluator.sh auto-advances to `evaluating` when subagent stops), `evaluating` (evaluator testing), `verified` (evaluator PASS).
+
+**`negotiations/` directory: deprecated.** Use `type=negotiate` breadcrumbs instead. The directory added schema burden with no practical benefit; the breadcrumb trail already captures negotiation history.
 
 ## Eval Scope (this repo)
 
 20 scenarios testing the 5 problems: see `tests/eval/scenarios/`. Each scenario maps to at least one problem. Coverage: >=4 scenarios per problem, 2 negative (harness should NOT activate), 1 E2E integration.
 
 Eval is this-repo infrastructure for regression-testing the harness itself. Consumer projects do not need it.
+
+## Hook Profiles
+
+**Lean profile (default for consumers — 4 hooks):**
+
+| Hook | Type | Enforces |
+|------|------|---------|
+| `contract-gate.sh` | preToolUse/Write deny | No code without contract |
+| `verify-harness.sh` | stop | No marking done without evaluator PASS |
+| `harness-context.sh` | sessionStart | Injects harness state + session boundary advisory |
+| `pre-commit-harness.sh` | beforeShellExecution deny | No commit without user approval |
+
+**Full profile (this repo only — 8 hooks):** adds `chain-evaluator.sh` (auto-advance building→evaluating), `evaluator-guard.sh` (deny eval writes to impl), `context-health.sh` (stale context advisory), `harness-gate.sh` (cold-start routing advisory).
+
+**Decision:** ship lean profile only for consumers. Full profile is dogfooding infrastructure for this repo. Consumer projects do not need evaluator isolation or context health monitoring to get value from the five-problem harness.
 
 ## Consumer Adoption
 

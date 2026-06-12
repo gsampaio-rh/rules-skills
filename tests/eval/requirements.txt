@@ -1,0 +1,7 @@
+# Eval pipeline dependencies
+# Install: pip install -r tests/eval/requirements.txt
+
+pyyaml>=6.0
+pytest>=9.0
+scipy>=1.11
+cursor-sdk>=0.1.6

@@ -15,6 +15,7 @@ MODEL    ?= composer-2.5
 .PHONY: help validate setup sync-local
 .PHONY: eval eval-fast eval-session eval-session-dry eval-session-judge eval-session-report
 .PHONY: eval-session-long eval-session-long-dry eval-session-long-judge
+.PHONY: eval-ci-pr eval-ci-nightly eval-regression-check
 .PHONY: clean
 
 help: ## Show this help
@@ -86,6 +87,32 @@ eval-session-long-dry: ## Tier 3: show long scenario plan
 
 eval-session-long-judge: ## Tier 3: judge completed long sessions
 	$(PYTHON) tests/eval/session_judge.py --tier structural
+
+eval-ci-pr: ## CI: run PR tier (11 protocol scenarios) + judge + regression check
+	$(PYTHON) tests/eval/session_runner.py --ci-tier pr --model $(MODEL)
+	$(PYTHON) tests/eval/session_judge.py --tier structural
+	$(PYTHON) tests/eval/session_report.py --save
+	$(PYTHON) tests/eval/eval_regression_check.py \
+		--run-dir tests/eval_results/$$(ls -t tests/eval_results/ | head -1) \
+		--baseline tests/eval/fixtures/eval_baseline.json \
+		--tier pr \
+		--write-diff tests/eval_results/$$(ls -t tests/eval_results/ | head -1)/regression.json
+
+eval-ci-nightly: ## CI: run nightly tier (31 scenarios) + judge + regression check
+	$(PYTHON) tests/eval/session_runner.py --ci-tier nightly --model $(MODEL)
+	$(PYTHON) tests/eval/session_judge.py --tier structural
+	$(PYTHON) tests/eval/session_report.py --save
+	$(PYTHON) tests/eval/eval_regression_check.py \
+		--run-dir tests/eval_results/$$(ls -t tests/eval_results/ | head -1) \
+		--baseline tests/eval/fixtures/eval_baseline.json \
+		--tier nightly \
+		--write-diff tests/eval_results/$$(ls -t tests/eval_results/ | head -1)/regression.json
+
+eval-regression-check: ## Run regression check against latest run dir
+	$(PYTHON) tests/eval/eval_regression_check.py \
+		--run-dir tests/eval_results/$$(ls -t tests/eval_results/ | head -1) \
+		--baseline tests/eval/fixtures/eval_baseline.json \
+		--tier pr
 
 # ─── Schema Migration ───────────────────────────────────────
 

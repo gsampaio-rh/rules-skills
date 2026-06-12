@@ -1,0 +1,11 @@
+{
+  "_comment": "Baseline scores for regression gating. Seeded with null until first green CI run. Maintainer runs: python tests/eval/eval_regression_check.py --update-baseline --run-dir <green_run_dir> --tier pr. aggregate_score null means tier is unseeded; regression check exits 0 with warning instead of failing.",
+  "pr": {
+    "aggregate_score": null,
+    "scenarios": {}
+  },
+  "nightly": {
+    "aggregate_score": null,
+    "scenarios": {}
+  }
+}

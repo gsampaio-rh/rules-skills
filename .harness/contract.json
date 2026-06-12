@@ -1,28 +1,27 @@
 {
-  "task_id": "spike-research-agents-p7",
-  "feature": "Phase 7 of spike-research-agents: Synthesis — ACAM matrix, rules-skills scorecard, red-team pass, publication deliverables (acam-worksheet.md, spike-research-agents.md, blog outline, scorecard.json)",
-  "problem": "Phases 1-6 produced four independently-verified dimension analyses (Configuration, Workflows, Multi-agent, Interaction) all scoring Intermediate. Phase 7 must synthesize these into a self-contained research output that: (1) makes the Intermediate+top-1% duality legible via a two-axis scorecard, not a flat verdict; (2) attempts a genuine Basic case on ≥1 dimension and either sustains or rebuts it; (3) produces three publication-ready deliverables each independently usable.",
-  "proposed_solution": "Three deliverables: (A) acam-worksheet.md — standalone 4×3 scoring tool ≤60 lines; (B) spike-research-agents.md — master synthesis 1,500-3,000 words including two-axis scorecard, red-team pass, and blog series outline; (C) rules-skills-scorecard.json — machine-readable scores with evidence[] and gaps[] per dimension.",
+  "task_id": "feat-13b",
+  "feature": "Programmatic state-transition orchestration in chain-evaluator.sh",
+  "problem": "chain-evaluator.sh injects advisory followup_messages but leaves state management to the builder. When phase=building, builder must manually: (1) set phase to evaluating, (2) create evaluator-active flag, (3) launch /evaluator. Missing step 1 or 2 silently breaks the trust boundary. ACAM gap: Intermediate has advisory routing; Advanced requires automated state transitions.",
+  "proposed_solution": "chain-evaluator.sh auto-advances state when phase=building: (1) writes phase=evaluating to contract.json in-place, (2) creates .evaluator-active flag, (3) returns imperative followup_message with exact /evaluator invocation syntax. For phase=evaluating+unverified, returns a static EVAL FAIL message with max-2-retry reminder. Honest scope: final /evaluator invocation remains manual (Cursor hook API limitation).",
   "acceptance_criteria": [
-    "AC1: acam-worksheet.md exists at .harness/docs/research/acam-worksheet.md with ≤60 lines; contains a 4×3 grid (4 dimensions × 3 levels) with at least one observable question per cell; includes scoring instructions that do not reference any phase doc",
-    "AC2: spike-research-agents.md exists at .harness/docs/research/spike-research-agents.md between 1,500 and 3,000 words; contains no phase-doc-dependent content — the full ACAM score and top findings for each dimension must be stated inline",
-    "AC3: spike-research-agents.md contains a two-axis table or section showing BOTH the ACAM level AND the population tier for each of the four dimensions — neither axis is omitted, and neither is presented as canceling the other",
-    "AC4: spike-research-agents.md contains a red-team section that attempts a genuine Basic case on the Workflows dimension (33% session boundary + zero skill_activation eval coverage as the argument) and gives an explicit verdict — either the case holds (downgrade to Basic) or it fails (with the specific rebuttal evidence). A section that only concludes 'Intermediate is justified' without engaging the Basic argument fails AC4",
-    "AC5: spike-research-agents.md contains a 'What to steal first' section with ≥3 ranked recommendations for a practitioner at Tier 0-1 who wants to move up without building the full harness — each recommendation must be specific (name the file or pattern, not a category)",
-    "AC6: spike-research-agents.md contains a blog series outline with 4 posts — each post has a one-sentence thesis and ≥3 evidence points drawn from the bibliography",
-    "AC7: rules-skills-scorecard.json exists at .harness/docs/research/rules-skills-scorecard.json; contains entries for all 4 dimensions each with: level (string), population_tier (string), evidence (array of ≥2 file paths), gaps (array of ≥2 strings with severity)",
-    "AC8: The BC3 revisions from all four dimension phases are reflected in the ACAM matrix in acam-worksheet.md — specifically: 'acceptance-criteria-gated implementation' for Workflows Advanced, 'trust boundary enforcement' for Multi-agent Advanced, 'structured context delivery' for Interaction Advanced",
-    "AC9: spike-research-agents.md §BC-compliance states that BC1 (external sources cited by label), BC3 (ACAM criteria externally validated), and BC6 (no hedging in scores or gap sections) are each pass or fail — scores and gaps in spike-research-agents.md must match the phase doc verdicts"
+    "AC1: When phase=building, chain-evaluator.sh writes phase=evaluating to contract.json in-place, creates .cursor/hooks/.evaluator-active, and returns stdout JSON with followup_message containing both 'Launch /evaluator now' and 'Phase auto-advanced to evaluating'",
+    "AC2: When phase=building transition fires, chain-evaluator.sh appends a breadcrumb to .harness/breadcrumbs.jsonl: {role:system, type:dispatch, feat:<contract task_id or empty>, msg:'chain-evaluator: auto-advanced to evaluating, evaluator-active flag set', result:pass}",
+    "AC3: When phase=evaluating and verified=false, followup_message contains 'EVAL FAIL — fix and retry' and static max-retry reminder (e.g. 'max 2 retests per harness rule'); no breadcrumb scan required",
+    "AC4: When phase=negotiating or negotiated, followup_message updated to imperative: 'Contract negotiation complete. Set phase to building in .harness/contract.json and start implementation now.'",
+    "AC5: When contract.json cannot be patched (write error) or .cursor/hooks/ directory cannot be created, chain-evaluator.sh logs the error and returns followup_message: 'MANUAL: set phase=evaluating in contract.json, touch .cursor/hooks/.evaluator-active, then launch /evaluator'",
+    "AC6: bash -n library/cursor/hooks/chain-evaluator.sh exits 0",
+    "AC7: pytest unit tests in a temp chdir fixture: (a) phase=building → exit 0, contract.json phase=evaluating, .evaluator-active created, breadcrumb appended, stdout JSON contains 'Launch /evaluator now' and 'Phase auto-advanced to evaluating'; (b) phase=building with contract.json read-only → exit 0, stdout contains MANUAL fallback message; (c) phase=evaluating unverified → exit 0, stdout contains 'EVAL FAIL' and static max-retry reminder; (d) phase=evaluating verified → exit 0, stdout is '{}'"
   ],
   "edge_cases": [
-    "EC1: The red-team section must name the specific evidence that defeats the Basic argument for Workflows — 'the contract gate and traced execution exist' is not sufficient; the rebuttal must explain why a 33% behavioral score does not override the structural evidence, or concede that it does",
-    "EC2: acam-worksheet.md must be independently scorable: apply it to a fictional repo with no rules, no hooks, no harness — the scoring instructions must produce 'Basic' on all four dimensions without ambiguity",
-    "EC3: The 'What to steal first' recommendations must not all come from the same dimension — at least 3 distinct dimensions must be represented across the ≥3 recommendations"
+    "EC1: contract.json has no task_id field — breadcrumb feat is empty string, not crash",
+    "EC2: .cursor/hooks/ directory does not exist — attempt mkdir; on failure use AC5 MANUAL fallback",
+    "EC3: breadcrumbs.jsonl does not exist — create with the new dispatch entry; no crash on append",
+    "EC4: phase=building fires but .evaluator-active already exists (double-fire) — idempotent: phase written again, flag recreated, no error"
   ],
-  "verification_method": "Evaluator reads all three deliverables. For AC1, counts lines in acam-worksheet.md. For AC2, counts words in spike-research-agents.md. For AC3, finds the two-axis table. For AC4, reads the red-team section and checks for explicit Basic argument + verdict. For EC1, checks that the rebuttal names specific evidence, not just a category. For EC2, mentally applies acam-worksheet.md to a repo with zero infrastructure — all four dimensions must clearly score Basic.",
+  "verification_method": "1) bash -n library/cursor/hooks/chain-evaluator.sh → exit 0. 2) pytest tests/eval/test_chain_evaluator_dispatch.py -v → all AC7 cases pass (runtime stdout JSON + file side effects in chdir fixture). 3) Manual spot-check EC1 (no task_id) and EC4 (double-fire) via pytest parametrization or dedicated test cases in same file.",
   "rubrics": [],
   "rubric_mode": "warn",
-  "negotiation_rounds": 0,
-  "phase": "evaluating",
+  "negotiation_rounds": 2,
+  "phase": "verified",
   "verified": true
 }

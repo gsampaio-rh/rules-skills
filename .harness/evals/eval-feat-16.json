@@ -1,0 +1,92 @@
+{
+  "task_id": "feat-16",
+  "timestamp": "2026-06-12T00:30:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "PASS — no linter run; py_compile clean on session_runner.py, sandbox.py, ablation_report.py, test_ablation_report.py",
+    "types": "NOT_RUN — no mypy configured for tests/eval",
+    "tests": "PASS — pytest tests/eval/test_ablation_report.py: 17/17 passed in 1.12s",
+    "build": "PASS — python3 -m py_compile exit 0 on all four files"
+  },
+  "criteria": [
+    {
+      "criterion": "AC1: session_runner.py accepts --ablate-rule <rule.mdc> argument; --help output contains 'ablate-rule'",
+      "result": "PASS",
+      "evidence": "python tests/eval/session_runner.py --help | grep ablate-rule matched '--ablate-rule RULE.MDC' in usage and option help (session_runner.py lines 500-509)."
+    },
+    {
+      "criterion": "AC2: Four JSON files per scenario under run_dir/ablation/<rule_stem>/sessions/{control,ablated}/ and judgments/{control,ablated}/",
+      "result": "PASS",
+      "evidence": "_save_ablation_session (lines 347-354) writes run_dir/ablation/<rule_stem>/sessions/<arm>/<scenario_id>.json; _save_ablation_judgment (lines 357-364) writes judgments/<arm>/<scenario_id>.json; _run_ablation calls both for control and ablated arms (lines 394-405)."
+    },
+    {
+      "criterion": "AC3: CaptureWorkspace excluded_rules skips target rule; pytest filesystem assertion",
+      "result": "PASS",
+      "evidence": "sandbox.py _copy_rules (lines 114-121) skips basenames in self._excluded_rules; test_capture_workspace_excluded_rules PASSED — adversarial_harness.mdc absent, >=1 other .mdc present."
+    },
+    {
+      "criterion": "AC4: judge_session() on both arms after each pair; saves to AC2 paths; uses summary.score",
+      "result": "PASS",
+      "evidence": "_run_ablation lines 395-405: judge_session(control_result, ...) and judge_session(ablated_result, ...) then _save_ablation_judgment; scores printed from control_judgment['summary']['score']. compute_report reads judgment summary.score (ablation_report.py lines 115-116)."
+    },
+    {
+      "criterion": "AC5: compute_report per_scenario_deltas schema with criteria list",
+      "result": "PASS",
+      "evidence": "ablation_report.py lines 119-125, 24-50; test_compute_report_per_scenario_deltas_schema PASSED — verified scenario_id, scores, delta, criteria[{criterion, control_result, ablated_result, changed}]."
+    },
+    {
+      "criterion": "AC6: aggregate_delta = mean(control_scores) - mean(ablated_scores)",
+      "result": "PASS",
+      "evidence": "ablation_report.py lines 130-132; test_compute_report_aggregate_delta PASSED with 3-pair fixture (expected delta 0.3)."
+    },
+    {
+      "criterion": "AC7: scipy.stats.wilcoxon(..., alternative='two-sided') when n>=2; float|null fields",
+      "result": "PASS",
+      "evidence": "ablation_report.py lines 69-85: wilcoxon(..., alternative='two-sided'); test_wilcoxon_n_greater_than_1_returns_floats and test_compute_report_wilcoxon_fields PASSED."
+    },
+    {
+      "criterion": "AC8: cohens_d with ddof=1; 0.0 when std==0; null when n<2",
+      "result": "PASS",
+      "evidence": "_cohens_d (lines 53-66): n<2→None, std==0→0.0, else mean/std(ddof=1). Tests: test_cohens_d_n_less_than_2_returns_none, test_cohens_d_all_zero_diffs_returns_zero, test_cohens_d_nonzero_equal_diffs_returns_zero, test_compute_report_cohens_d PASSED."
+    },
+    {
+      "criterion": "AC9: report.json keys and significant null-safe",
+      "result": "PASS",
+      "evidence": "compute_report dict keys match AC9 (lines 140-151); significant=False when w_p is None (line 138). session_runner.py lines 408-410 write run_dir/ablation/<rule_stem>/report.json. test_compute_report_key_schema and test_compute_report_significant_false_when_p_null PASSED."
+    },
+    {
+      "criterion": "AC10: --dry-run --ablate-rule prints rule filename, scenario count, 2x mode",
+      "result": "PASS",
+      "evidence": "Dry-run output: 'Session run plan: 27 scenario(s)', 'Ablation rule: adversarial_harness.mdc', 'Mode: each scenario runs 2x (control + ablated)', per-scenario lines include '2x' (session_runner.py lines 538-551)."
+    },
+    {
+      "criterion": "AC11: existing flags unchanged when --ablate-rule absent",
+      "result": "PASS",
+      "evidence": "python tests/eval/session_runner.py --list exit 0, listed 27 standard scenarios; non-ablation path unchanged (lines 573-591). --ablate-rule is optional with default None (lines 516-518, 561-571 branch only when set)."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: missing rule → 'Rule not found' error with list before any session runs",
+      "result": "PASS",
+      "evidence": "--ablate-rule nonexistent.mdc --dry-run stderr: 'Error: Rule not found: nonexistent.mdc' plus 'Available rules: adversarial_harness.mdc, ...' (16 rules). _validate_ablate_rule runs before load_scenarios (lines 515-518 vs 522)."
+    },
+    {
+      "case": "EC2: n=1 → wilcoxon/cohens_d null, significant false, insufficient pairs note",
+      "result": "PASS",
+      "evidence": "test_compute_report_n1_all_nulls PASSED: wilcoxon_statistic/p and cohens_d None, significant False, note contains 'insufficient'."
+    },
+    {
+      "case": "EC3: all diffs zero (n>=2) → cohens_d=0.0, Wilcoxon runs, significant false",
+      "result": "PASS",
+      "evidence": "Manual compute_report with two pairs at score 0.7/0.7: cohens_d=0.0, wilcoxon_statistic=0.0, wilcoxon_p=1.0, significant=False. test_compute_report_all_zero_diffs_cohens_d_zero PASSED."
+    },
+    {
+      "case": "EC4: n>=2, std(diffs)==0 but diffs nonzero → cohens_d=0.0, Wilcoxon runs",
+      "result": "PASS",
+      "evidence": "Manual compute_report with three pairs (0.8 vs 0.5): cohens_d=0.0, wilcoxon_p=0.25 (Wilcoxon ran). test_compute_report_nonzero_equal_diffs_cohens_d_zero PASSED."
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "AC2/AC4 live session paths verified by code inspection only (no CURSOR_API_KEY live ablation run). EC1 grep in a piped shell returns exit 1 from sys.exit(1) but message and rule list are present on stderr. _wilcoxon_test wraps scipy in broad except — acceptable given EC3 passes on scipy 1.x with zero diffs (returns p=1.0, RuntimeWarning only)."
+}

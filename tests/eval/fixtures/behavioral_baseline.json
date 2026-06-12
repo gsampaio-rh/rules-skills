@@ -420,6 +420,31 @@
     "expected_bool": true
   },
   {
+    "scenario_id": "skill_activation_code_quality_audit",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "skill_activation_code_quality_audit",
+    "criterion": "Agent ran verification commands autonomously",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "skill_activation_code_review",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "skill_activation_code_review",
+    "criterion": "Agent ran verification commands autonomously",
+    "expected_bool": true
+  },
+  {
+    "scenario_id": "skill_activation_llm_skeptic",
+    "criterion": "No apologies or unnecessary summaries",
+    "expected_bool": true
+  },
+  {
     "scenario_id": "long_full_harness_cycle",
     "criterion": "Agent ran verification commands autonomously",
     "expected_bool": true

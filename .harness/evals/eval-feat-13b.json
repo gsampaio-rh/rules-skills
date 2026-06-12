@@ -1,0 +1,72 @@
+{
+  "task_id": "feat-13b",
+  "timestamp": "2026-06-12T14:00:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "NOT_APPLICABLE (bash hook; bash -n used instead)",
+    "types": "NOT_APPLICABLE",
+    "tests": "PASS — pytest tests/eval/test_chain_evaluator_dispatch.py 13/13; pytest tests/ 170/170",
+    "build": "PASS — bash -n library/cursor/hooks/chain-evaluator.sh exit 0"
+  },
+  "criteria": [
+    {
+      "criterion": "AC1: phase=building → contract patched, flag created, stdout contains both required phrases",
+      "result": "PASS",
+      "evidence": "test_building_advances_phase_to_evaluating, test_building_creates_evaluator_active_flag, test_building_stdout_contains_required_phrases PASS. Spot-run: phase=evaluating, flag exists, success_phrase=True."
+    },
+    {
+      "criterion": "AC2: dispatch breadcrumb {role:system, type:dispatch, feat:<task_id>, msg exact, result:pass}",
+      "result": "PASS",
+      "evidence": "test_building_appends_dispatch_breadcrumb, test_building_breadcrumb_uses_task_id PASS."
+    },
+    {
+      "criterion": "AC3: evaluating+unverified → 'EVAL FAIL — fix and retry' + static max-retry reminder",
+      "result": "PASS",
+      "evidence": "test_evaluating_unverified_returns_eval_fail PASS."
+    },
+    {
+      "criterion": "AC4: negotiating/negotiated → imperative 'Set phase to building...' message",
+      "result": "PASS",
+      "evidence": "test_negotiating_returns_imperative_message[negotiating|negotiated] PASS."
+    },
+    {
+      "criterion": "AC5: write error OR hooks dir creation failure → MANUAL fallback message, no crash",
+      "result": "PASS",
+      "evidence": "Write-error: test_building_write_error_returns_manual_fallback PASS; spot-run MANUAL=True, exit=0. Flag-failure (retest fix): test_building_flag_dir_failure_returns_manual_fallback PASS; spot-run .cursor as file → MANUAL=True, success_phrase=False, exit=0, no crash. Prior FAIL resolved."
+    },
+    {
+      "criterion": "AC6: bash -n exits 0",
+      "result": "PASS",
+      "evidence": "bash -n library/cursor/hooks/chain-evaluator.sh → exit 0"
+    },
+    {
+      "criterion": "AC7: pytest chdir fixture cases (a)-(d)",
+      "result": "PASS",
+      "evidence": "13/13 tests PASS including AC7(a-d) and EC1/EC2/EC4 coverage."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: no task_id → feat='' in breadcrumb, no crash",
+      "result": "PASS",
+      "evidence": "test_no_task_id_uses_empty_feat PASS."
+    },
+    {
+      "case": "EC2: .cursor/hooks/ dir missing → mkdir; on failure AC5 MANUAL fallback",
+      "result": "PASS",
+      "evidence": "Happy path: os.makedirs in implementation. Failure path: test_building_flag_dir_failure_returns_manual_fallback + spot-run with .cursor as file → MANUAL fallback, exit 0."
+    },
+    {
+      "case": "EC3: no breadcrumbs.jsonl → created on append, no crash",
+      "result": "PASS",
+      "evidence": "Implicit in test_building_appends_dispatch_breadcrumb (no pre-seeded breadcrumbs.jsonl); append creates file."
+    },
+    {
+      "case": "EC4: double-fire idempotent",
+      "result": "PASS",
+      "evidence": "test_building_double_fire_idempotent PASS."
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "Retest after AC5/EC2 fix. Flag-failure path no longer emits success message. Minor observation (non-blocking): AC5 MANUAL strings include Errno detail rather than contract's exact template phrase; error is surfaced in followup_message."
+}

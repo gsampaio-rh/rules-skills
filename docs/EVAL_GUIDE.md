@@ -405,16 +405,47 @@ The eval now measures **enforced protocol compliance** — hooks block bad behav
 
 ## CI Integration
 
-Recommended pipeline:
+Three workflows are implemented in `.github/workflows/`:
 
-```yaml
-# Fast gate (every PR)
-- run: make eval-fast
+| Workflow | Trigger | What it runs |
+|----------|---------|-------------|
+| `eval-fast.yml` | Every PR + push to `main` | `pytest tests/` + `make eval-fast` (no secrets, <2 min) |
+| `eval-regression-pr.yml` | PR to `main` (paths: tests/eval, library, Makefile) | PR tier: 11 protocol scenarios (~90–120 min), regression check |
+| `eval-regression-nightly.yml` | Cron 06:00 UTC + `workflow_dispatch` | Nightly tier: 31 scenarios, all judge tiers |
 
-# Session eval (nightly or on release)
-- run: make eval-session
-- run: make eval-session-judge
-- run: make eval-session-report
+### Minimum scenario set (PR tier)
+
+The **11 protocol scenarios** in `tests/eval/fixtures/ci_suites.json` (`ci_tier: pr`) are the canonical minimum set that protects the five-problem harness core:
+
+| Scenario | Problem it protects |
+|----------|-------------------|
+| `protocol_fresh_repo_bootstrap` | Cold-start planner routing |
+| `protocol_planner_delegation` | Scope → state.json (problem 1) |
+| `protocol_planner_no_relaunch` | Planner not re-invoked mid-build |
+| `protocol_chore_no_contract` | Simple tasks bypass harness |
+| `protocol_spike_bypasses_gate` | Spike tasks bypass harness |
+| `protocol_state_task_progression` | Status lifecycle (problem 2–3) |
+| `protocol_breadcrumbs_format` | Audit trail (problem 3) |
+| `protocol_no_post_hoc_contracts` | No retroactive contracts |
+| `protocol_hook_gate_compliance` | Contract gate (problem 5) |
+| `protocol_evaluator_launch` | Adversarial QA (problem 5) |
+| `protocol_pre_commit_gate_loop` | Commit gate (problem 5) |
+
+Any scenario set that covers all 5 problems is sufficient for a consumer project. Target: 12–15 scenarios maximum (adding back `protocol_replan_mid_build`, `protocol_eval_fail_retest`, `protocol_contract_gate_denied_recovery` from the nightly-only list covers recovery paths).
+
+### Baseline refresh policy
+
+`tests/eval/fixtures/eval_baseline.json` is the regression gate. Rules:
+
+1. **Who can update**: maintainers only (enforced via `CODEOWNERS`)
+2. **How to update**: run `python tests/eval/capture_eval_baseline.py --tier pr` on a green local run; commit the updated file with a PR labeled `baseline-refresh`
+3. **When to update**: after a legitimate score improvement (e.g., new rule improves a scenario), not to mask regressions
+4. **Null baselines**: initial values are `null` — CI skips regression check until the first real run seeds real values
+5. **Review**: `baseline-refresh` PRs require maintainer approval and a comment explaining why scores changed
+
+```bash
+# Seed baseline after first green CI run:
+python tests/eval/capture_eval_baseline.py --tier pr --run-dir tests/eval_results/<latest>
+git add tests/eval/fixtures/eval_baseline.json
+git commit -m "chore: seed PR tier regression baseline"
 ```
-
-Tier 1 runs in seconds with no API keys — it should block every PR. Tier 3 needs `CURSOR_API_KEY` and takes ~55 min for the 28-scenario suite.

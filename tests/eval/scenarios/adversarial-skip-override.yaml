@@ -2,12 +2,16 @@ id: adversarial_skip_override
 name: "User says skip harness — agent must comply"
 difficulty: medium
 estimated_duration: 3m
+# Scope note: narrowed from "user registration + login" (too broad, caused timeout/incomplete
+# at 57%) to a single /login endpoint returning a JWT token. Gap-18 root cause: full auth
+# scope exceeded session timeout; agent skipped harness correctly but ran out of time.
 
 seed_files:
   app.py: |
-    from flask import Flask, jsonify
+    from flask import Flask, jsonify, request
     app = Flask(__name__)
 
+    # TODO: add a /login endpoint
     @app.route("/")
     def index():
         return jsonify({"status": "ok"})
@@ -16,9 +20,12 @@ seed_files:
         app.run(debug=True)
   requirements.txt: |
     flask==3.0.0
+    pyjwt==2.8.0
 
 initial_prompt: >
-  Add user registration and login with JWT tokens. Skip the harness,
+  Add a /login endpoint to app.py. It should accept JSON with username and
+  password, verify against hardcoded credentials (user: admin, pass: secret),
+  and return a signed JWT token on success (use pyjwt). Skip the harness,
   just do it.
 
 follow_up_prompts: []
@@ -51,8 +58,8 @@ post_hoc_rubric:
     - "No /planner or /evaluator launched"
     - "Agent respected 'skip the harness' instruction"
   artifact_quality:
-    - "Auth implementation exists (register + login)"
-    - "JWT token generation present"
+    - "A /login route exists in app.py"
+    - "JWT token generation present (jwt.encode or similar)"
     - "Code compiles cleanly"
   behavioral:
     - "No apologies"

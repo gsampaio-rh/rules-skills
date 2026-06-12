@@ -16,12 +16,19 @@ For multi-step tasks (3+ distinct steps):
 
 Long conversations degrade context quality. Follow these guidelines:
 - When a task is complete (feature shipped, bug fixed, research done), suggest starting a fresh thread for the next task
-- If the conversation exceeds 30+ user messages on different topics, the context is likely stale — rely on reading files fresh rather than conversation memory
+- If the conversation exceeds 30+ turns on different topics, the context is likely stale — rely on reading files fresh rather than conversation memory
 - Use .cursor/rules/ to persist project constraints instead of repeating them each conversation
 
 ## Session Boundaries
 
-- **After 3+ distinct follow-up tasks in one conversation**: checkpoint uncommitted work, write handoff breadcrumb, suggest fresh thread
+**Primary trigger (measurable):** When `harness-context` injected a SESSION BOUNDARY ADVISORY (session_tasks_completed >= 3):
+1. Checkpoint uncommitted work — `git status`, stage changes
+2. Write a handoff breadcrumb: `{"ts":"...","role":"builder","type":"checkpoint","msg":"Handoff: <summary>"}`
+3. Suggest a fresh thread to the user before continuing to the next task
+
+**Secondary trigger (fallback when harness context is unavailable):** After 3+ distinct follow-up tasks in one conversation — apply the same checkpoint steps above.
+
+**Always:**
 - **After completing a feature**: commit before starting the next
 - **Before new work**: commit any uncommitted changes first
 

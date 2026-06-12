@@ -82,6 +82,53 @@ if os.path.isfile(breadcrumbs_path):
     try:
         with open(breadcrumbs_path) as f:
             lines = f.readlines()
+
+        # Session task count: count unique feat IDs with type=build AND result=pass
+        # in the window STRICTLY BETWEEN the last two session_start markers.
+        # Algo: (1) scan all lines, (2) collect indices of session_start entries,
+        # (3) if fewer than 2 markers → N=0 (not enough history yet),
+        # (4) else extract lines[marker[-2]+1 : marker[-1]] as the prior-session window,
+        # (5) count unique non-null feat IDs in that window with build+pass.
+        parsed = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed.append(json.loads(line))
+            except Exception:
+                parsed.append(None)
+
+        marker_indices = [
+            i for i, e in enumerate(parsed)
+            if e is not None and e.get('type') == 'session_start'
+        ]
+
+        session_task_count = 0
+        if len(marker_indices) >= 2:
+            lo = marker_indices[-2] + 1
+            hi = marker_indices[-1]
+            window = [e for e in parsed[lo:hi] if e is not None]
+            feat_ids = set()
+            for e in window:
+                feat = e.get('feat')
+                if (feat
+                        and e.get('role') == 'builder'
+                        and e.get('type') == 'build'
+                        and str(e.get('result', '')).lower() == 'pass'):
+                    feat_ids.add(feat)
+            session_task_count = len(feat_ids)
+
+        parts.append(f'Session tasks completed: {session_task_count}')
+
+        if session_task_count >= 3:
+            parts.append(
+                f'SESSION BOUNDARY ADVISORY: {session_task_count} tasks completed in the '
+                f'prior session window. Per planning_discipline.mdc, you should checkpoint '
+                f'uncommitted work, write a handoff breadcrumb, and suggest a fresh thread '
+                f'to the user before continuing.'
+            )
+
         recent = lines[-3:] if len(lines) >= 3 else lines
         msgs = []
         for line in recent:

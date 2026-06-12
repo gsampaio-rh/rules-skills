@@ -1,0 +1,117 @@
+id: skill_activation_code_quality_audit
+name: "Code quality audit skill activation — SOLID and complexity analysis"
+difficulty: medium
+estimated_duration: 4m
+timeout_s: 300
+harness_level: light
+
+seed_files:
+  services/report_manager.py: |
+    import csv
+    import json
+    import smtplib
+    import sqlite3
+    from datetime import datetime
+
+    # Global database connection (shared state)
+    _db_conn = None
+
+    class ReportManager:
+        """Handles report generation, storage, email delivery, and user analytics."""
+
+        def __init__(self, db_path, smtp_host, smtp_user, smtp_pass):
+            global _db_conn
+            _db_conn = sqlite3.connect(db_path)
+            self.smtp_host = smtp_host
+            self.smtp_user = smtp_user
+            self.smtp_pass = smtp_pass
+            self.reports = []
+            self.sent_count = 0
+            self.error_count = 0
+
+        def generate_report(self, user_id, report_type, start_date, end_date):
+            cursor = _db_conn.cursor()
+            rows = cursor.execute(
+                "SELECT * FROM events WHERE user_id=? AND ts BETWEEN ? AND ?",
+                (user_id, start_date, end_date)
+            ).fetchall()
+            if report_type == "csv":
+                lines = ["date,event,value"]
+                for row in rows:
+                    lines.append(",".join(str(x) for x in row))
+                content = "\n".join(lines)
+            elif report_type == "json":
+                content = json.dumps([dict(zip(["date","event","value"], r)) for r in rows])
+            elif report_type == "summary":
+                total = len(rows)
+                values = [r[2] for r in rows if len(r) > 2]
+                avg = sum(values) / len(values) if values else 0
+                content = f"Total: {total}, Average: {avg:.2f}"
+            else:
+                content = ""
+            report = {"id": len(self.reports)+1, "user_id": user_id, "type": report_type,
+                      "content": content, "generated_at": str(datetime.now())}
+            self.reports.append(report)
+            self._save_report(report)
+            return report
+
+        def _save_report(self, report):
+            cursor = _db_conn.cursor()
+            cursor.execute(
+                "INSERT INTO reports (user_id, type, content, ts) VALUES (?,?,?,?)",
+                (report["user_id"], report["type"], report["content"], report["generated_at"])
+            )
+            _db_conn.commit()
+
+        def send_report(self, report_id, recipient_email):
+            report = next((r for r in self.reports if r["id"] == report_id), None)
+            if not report:
+                return False
+            try:
+                server = smtplib.SMTP(self.smtp_host)
+                server.login(self.smtp_user, self.smtp_pass)
+                msg = f"From: {self.smtp_user}\nTo: {recipient_email}\nSubject: Report\n\n{report['content']}"
+                server.sendmail(self.smtp_user, recipient_email, msg)
+                server.quit()
+                self.sent_count += 1
+                return True
+            except Exception:
+                self.error_count += 1
+                return False
+
+        def get_user_stats(self, user_id):
+            user_reports = [r for r in self.reports if r["user_id"] == user_id]
+            total = len(user_reports)
+            by_type = {}
+            for r in user_reports:
+                by_type[r["type"]] = by_type.get(r["type"], 0) + 1
+            return {"total": total, "by_type": by_type}
+
+        def export_all(self, output_path):
+            with open(output_path, "w") as f:
+                writer = csv.writer(f)
+                for r in self.reports:
+                    writer.writerow([r["id"], r["user_id"], r["type"], r["generated_at"]])
+
+        def cleanup_old_reports(self, days_old):
+            from datetime import timedelta
+            cutoff = datetime.now() - timedelta(days=days_old)
+            self.reports = [r for r in self.reports
+                            if datetime.fromisoformat(r["generated_at"]) > cutoff]
+            cursor = _db_conn.cursor()
+            cursor.execute("DELETE FROM reports WHERE ts < ?", (str(cutoff),))
+            _db_conn.commit()
+
+initial_prompt: >
+  Run a code quality audit on services/report_manager.py. I want a
+  thorough analysis of SOLID principles, function complexity, and
+  coupling issues before we refactor this module.
+
+post_hoc_rubric:
+  skill_activation:
+    - "code-quality-audit skill: output identifies SOLID principle violations (SRP, OCP, or DIP)"
+    - "code-quality-audit skill: output flags function or class sizing issues (complexity or line count)"
+    - "code-quality-audit skill: output identifies coupling or cohesion problems"
+  behavioral:
+    - "No apologies or unnecessary summaries"
+    - "Agent ran verification commands autonomously"
