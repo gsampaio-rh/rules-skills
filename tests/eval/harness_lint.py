@@ -43,7 +43,8 @@ def lint_breadcrumbs(path: Path) -> tuple[list[str], list[str]]:
     valid_roles = {"planner", "builder", "evaluator", "system"}
     valid_types = {
         "plan", "negotiate", "negotiation", "build", "verify", "eval",
-        "checkpoint", "decision", "scrap", "session_start", "cleanup",
+        "evaluate", "dispatch", "checkpoint", "decision", "scrap",
+        "session_start", "cleanup",
     }
 
     prev_ts = None
@@ -203,14 +204,34 @@ def lint_cross_consistency(
     tasks = state.get("tasks", [])
     task_ids = {t.get("id") for t in tasks if t.get("id")}
 
+    # Also collect archived task ids — archived tasks are valid contract references
+    archive_path = harness_dir / "archive.jsonl"
+    archived_ids: set[str] = set()
+    if archive_path.exists():
+        for line in archive_path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+                if entry.get("id"):
+                    archived_ids.add(entry["id"])
+            except json.JSONDecodeError:
+                pass
+
     if contract_path.exists():
         try:
             contract = json.loads(contract_path.read_text())
             contract_tid = contract.get("task_id", "")
             if contract_tid and contract_tid not in task_ids:
-                errors.append(
-                    f"Contract references '{contract_tid}' but state.json has no such task"
-                )
+                if contract_tid in archived_ids:
+                    warnings.append(
+                        f"Contract references archived task '{contract_tid}' — consider clearing contract.json"
+                    )
+                else:
+                    errors.append(
+                        f"Contract references '{contract_tid}' but state.json has no such task"
+                    )
 
             if contract.get("verified") and contract.get("phase") != "verified":
                 warnings.append("Contract verified=true but phase != 'verified'")

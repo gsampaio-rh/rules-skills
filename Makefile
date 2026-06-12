@@ -9,13 +9,15 @@
 #   make eval-session   → Tier 3: full session eval (needs CURSOR_API_KEY)
 #   make eval           → Tier 1 + Tier 3
 
-PYTHON   ?= python
-MODEL    ?= composer-2.5
+PYTHON      ?= python
+MODEL       ?= composer-2.5
+ABLATE_RULE ?= adversarial_harness.mdc
 
 .PHONY: help validate setup sync-local
 .PHONY: eval eval-fast eval-session eval-session-dry eval-session-judge eval-session-report
 .PHONY: eval-session-long eval-session-long-dry eval-session-long-judge
 .PHONY: eval-ci-pr eval-ci-nightly eval-regression-check
+.PHONY: eval-ablation eval-ablation-dry eval-ablation-adversarial
 .PHONY: clean
 
 help: ## Show this help
@@ -113,6 +115,18 @@ eval-regression-check: ## Run regression check against latest run dir
 		--run-dir tests/eval_results/$$(ls -t tests/eval_results/ | head -1) \
 		--baseline tests/eval/fixtures/eval_baseline.json \
 		--tier pr
+
+eval-ablation: ## Ablation run: each standard scenario 2x (control + ablated). Set ABLATE_RULE=<rule.mdc>
+	$(PYTHON) tests/eval/session_runner.py --ablate-rule $(ABLATE_RULE) --model $(MODEL)
+
+eval-ablation-dry: ## Show ablation plan without running
+	$(PYTHON) tests/eval/session_runner.py --ablate-rule $(ABLATE_RULE) --dry-run
+
+eval-ablation-adversarial: ## Ablation targeting adversarial_harness.mdc (ACAM Configuration gate)
+	$(PYTHON) tests/eval/session_runner.py \
+		--ablate-rule adversarial_harness.mdc \
+		--filter protocol \
+		--model $(MODEL)
 
 # ─── Schema Migration ───────────────────────────────────────
 

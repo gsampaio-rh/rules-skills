@@ -148,11 +148,14 @@ def load_scenarios(filter_str: str | None = None, long: bool = False,
         scenarios.append(scenario)
 
     if filter_str:
-        f = filter_str.lower()
+        # Support comma-separated filters: any token that matches id or name is included
+        tokens = [t.strip().lower() for t in filter_str.split(",") if t.strip()]
         scenarios = [
             s for s in scenarios
-            if f in s.get("id", "").lower()
-            or f in s.get("name", "").lower()
+            if any(
+                tok in s.get("id", "").lower() or tok in s.get("name", "").lower()
+                for tok in tokens
+            )
         ]
 
     return scenarios
@@ -434,8 +437,9 @@ def _run_ablation(
     sandbox: bool,
 ) -> None:
     """Run each scenario twice (control + ablated), judge both, write report.json."""
-    from tests.eval.session_judge import judge_session, load_scenario
-    from tests.eval.ablation_report import compute_report, print_summary
+    sys.path.insert(0, str(EVAL_DIR))
+    from session_judge import judge_session, load_scenario
+    from ablation_report import compute_report, print_summary
 
     rule_stem = rule_name.removesuffix(".mdc")
     print(f"\nAblation mode: removing '{rule_name}' from ablated workspace")

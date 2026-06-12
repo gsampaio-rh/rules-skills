@@ -14,23 +14,21 @@ For multi-step tasks (3+ distinct steps):
 
 ## Thread Hygiene
 
-Long conversations degrade context quality. Follow these guidelines:
-- When a task is complete (feature shipped, bug fixed, research done), suggest starting a fresh thread for the next task
-- If the conversation exceeds 30+ turns on different topics, the context is likely stale — rely on reading files fresh rather than conversation memory
-- Use .cursor/rules/ to persist project constraints instead of repeating them each conversation
+Long conversations degrade context quality:
+- Suggest a fresh thread when a task is complete (feature shipped, bug fixed, research done)
+- After 30+ turns on different topics, rely on reading files fresh rather than conversation memory
+- Persist constraints in `.cursor/rules/`, not conversation repetition
 
 ## Session Boundaries
 
-**Primary trigger (measurable):** When `harness-context` injected a SESSION BOUNDARY ADVISORY (session_tasks_completed >= 3):
+**Primary trigger:** When `harness-context` injects SESSION BOUNDARY ADVISORY (`session_tasks_completed >= 3`):
 1. Checkpoint uncommitted work — `git status`, stage changes
-2. Write a handoff breadcrumb: `{"ts":"...","role":"builder","type":"checkpoint","msg":"Handoff: <summary>"}`
-3. Suggest a fresh thread to the user before continuing to the next task
+2. Write handoff breadcrumb: `{"ts":"...","role":"builder","type":"checkpoint","msg":"Handoff: <summary>"}`
+3. Suggest a fresh thread before continuing
 
-**Secondary trigger (fallback when harness context is unavailable):** After 3+ distinct follow-up tasks in one conversation — apply the same checkpoint steps above.
+**Fallback (no harness context):** After 3+ distinct tasks in one conversation — same steps above.
 
-**Always:**
-- **After completing a feature**: commit before starting the next
-- **Before new work**: commit any uncommitted changes first
+**Always:** commit before starting a new feature; commit uncommitted work before new work.
 
 ## One Objective Per Prompt
 
