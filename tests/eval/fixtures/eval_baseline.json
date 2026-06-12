@@ -1,8 +1,42 @@
 {
   "_comment": "Baseline scores for regression gating. Seeded with null until first green CI run. Maintainer runs: python tests/eval/eval_regression_check.py --update-baseline --run-dir <green_run_dir> --tier pr. aggregate_score null means tier is unseeded; regression check exits 0 with warning instead of failing.",
   "pr": {
-    "aggregate_score": null,
-    "scenarios": {}
+    "aggregate_score": 0.86,
+    "scenarios": {
+      "protocol_breadcrumbs_format": {
+        "score": 0.86
+      },
+      "protocol_chore_no_contract": {
+        "score": 0.67
+      },
+      "protocol_evaluator_launch": {
+        "score": 0.75
+      },
+      "protocol_fresh_repo_bootstrap": {
+        "score": 1.0
+      },
+      "protocol_hook_gate_compliance": {
+        "score": 1.0
+      },
+      "protocol_no_post_hoc_contracts": {
+        "score": 1.0
+      },
+      "protocol_planner_delegation": {
+        "score": 1.0
+      },
+      "protocol_planner_no_relaunch": {
+        "score": 0.75
+      },
+      "protocol_pre_commit_gate_loop": {
+        "score": 1.0
+      },
+      "protocol_spike_bypasses_gate": {
+        "score": 0.5
+      },
+      "protocol_state_task_progression": {
+        "score": 1.0
+      }
+    }
   },
   "nightly": {
     "aggregate_score": null,

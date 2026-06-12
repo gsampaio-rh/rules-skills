@@ -281,7 +281,7 @@
       "id": "feat-acam-static-scorer",
       "name": "Runnable static ACAM scorer from observable repo artifacts",
       "type": "feature",
-      "status": "verified",
+      "status": "committed",
       "priority": "P1",
       "scope": "Includes: static scorer script (e.g. scripts/acam-score.py) that evaluates the four ACAM dimensions against observable artifacts using acam-worksheet.md criteria; machine-readable JSON scorecard output aligned with rules-skills-scorecard.json shape; integration into make eval-fast alongside harness_lint and contract_lint; pytest coverage for representative pass/fail artifact checks. Excludes: live session eval (session_runner), per-rule ablation scores (feat-16), LLM judgment, modifying acam-worksheet.md rubric text."
     },
@@ -289,7 +289,7 @@
       "id": "chore-eval-baseline-seed",
       "name": "Seed eval_baseline.json from first green PR-tier session run",
       "type": "chore",
-      "status": "pending",
+      "status": "verified",
       "priority": "P1",
       "scope": "Includes: run make eval-ci-pr (or eval-session --ci-tier pr) with CURSOR_API_KEY; capture aggregate and per-scenario scores into tests/eval/fixtures/eval_baseline.json via eval_regression_check.py --update-baseline or a capture_eval_baseline.py wrapper referenced in EVAL_GUIDE.md; verify regression check exits non-zero on intentional score drop; commit seeded baseline with baseline-refresh policy. Excludes: nightly tier seeding (follow-up after PR tier stable); changing behavioral_baseline.json expected_bool values; masking known failures to inflate scores. Note: chore-eval-baseline-update verified behavioral_baseline only — eval_baseline.json aggregate_score remains null until this task."
     },
