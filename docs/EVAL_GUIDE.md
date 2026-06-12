@@ -32,7 +32,7 @@ python .cursor/hooks/context-package.py --format markdown  # Markdown for agent 
 │         Tier 1               │         Tier 3                    │
 │       Fast Static            │     Session Scenarios             │
 │                              │                                   │
-│  contract_lint.py            │  scenarios/*.yaml (28 scenarios)  │
+│  contract_lint.py            │  scenarios/*.yaml (31 scenarios)  │
 │  harness_lint.py             │  session_runner.py                │
 │  validate.py                 │  session_judge.py                 │
 │                              │  session_report.py                │
@@ -60,6 +60,7 @@ python .cursor/hooks/context-package.py --format markdown  # Markdown for agent 
 | `tests/validate.py` | Rules/skills structural compliance (frontmatter, token budget, required sections) |
 | `tests/eval/contract_lint.py` | Contract structure, criteria quality, vague-language detection |
 | `tests/eval/harness_lint.py` | Breadcrumb integrity, state.json consistency, cross-file coherence |
+| `scripts/acam-score.py` | Static ACAM dimension scoring (configuration/workflows/multi_agent/interaction levels) |
 
 ### When to run
 
@@ -170,7 +171,7 @@ post_hoc_rubric:
     - "Acceptance criteria are binary-testable"
 ```
 
-Scenarios live in `tests/eval/scenarios/` (28 scenarios: 27 standard + 1 long). Each YAML file defines one scenario.
+Scenarios live in `tests/eval/scenarios/` (31 scenarios: 30 standard + 1 long). Each YAML file defines one scenario.
 
 ### Judging tiers
 
@@ -422,7 +423,7 @@ Three workflows are implemented in `.github/workflows/`:
 |----------|---------|-------------|
 | `eval-fast.yml` | Every PR + push to `main` | `pytest tests/` + `make eval-fast` (no secrets, <2 min) |
 | `eval-regression-pr.yml` | PR to `main` (paths: tests/eval, library, Makefile) | PR tier: 11 protocol scenarios (~90–120 min), regression check |
-| `eval-regression-nightly.yml` | Cron 06:00 UTC + `workflow_dispatch` | Nightly tier: 31 scenarios, all judge tiers |
+| `eval-regression-nightly.yml` | Cron 06:00 UTC + `workflow_dispatch` | Nightly tier: 31 scenarios, structural tier judge |
 
 ### Minimum scenario set (PR tier)
 
@@ -449,14 +450,14 @@ Any scenario set that covers all 5 problems is sufficient for a consumer project
 `tests/eval/fixtures/eval_baseline.json` is the regression gate. Rules:
 
 1. **Who can update**: maintainers only (enforced via `CODEOWNERS`)
-2. **How to update**: run `python tests/eval/capture_eval_baseline.py --tier pr` on a green local run; commit the updated file with a PR labeled `baseline-refresh`
+2. **How to update**: run `python tests/eval/eval_regression_check.py --update-baseline --run-dir tests/eval_results/<latest> --tier pr` on a green local run; commit the updated file with a PR labeled `baseline-refresh`
 3. **When to update**: after a legitimate score improvement (e.g., new rule improves a scenario), not to mask regressions
 4. **Null baselines**: initial values are `null` — CI skips regression check until the first real run seeds real values
 5. **Review**: `baseline-refresh` PRs require maintainer approval and a comment explaining why scores changed
 
 ```bash
 # Seed baseline after first green CI run:
-python tests/eval/capture_eval_baseline.py --tier pr --run-dir tests/eval_results/<latest>
+python tests/eval/eval_regression_check.py --update-baseline --run-dir tests/eval_results/<latest> --tier pr
 git add tests/eval/fixtures/eval_baseline.json
 git commit -m "chore: seed PR tier regression baseline"
 ```
@@ -524,7 +525,7 @@ To add a new known failure: append an entry with `expected_bool: false` and open
 Seed after the first green CI run:
 
 ```bash
-python tests/eval/capture_eval_baseline.py --tier pr --run-dir tests/eval_results/<latest>
+python tests/eval/eval_regression_check.py --update-baseline --run-dir tests/eval_results/<latest> --tier pr
 git add tests/eval/fixtures/eval_baseline.json
 git commit -m "chore: seed PR tier regression baseline"
 ```

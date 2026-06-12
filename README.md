@@ -25,7 +25,7 @@ rules-skills/
 ├── library/
 │   ├── cursor/                  # Cursor config library
 │   │   ├── rules/              # 16 .mdc rule files
-│   │   ├── skills/             # 13 skill workflows
+│   │   ├── skills/             # 14 skill workflows
 │   │   ├── agents/             # Planner + evaluator definitions
 │   │   ├── hooks/              # 11 shell scripts + 2 Python helpers (context-package.py, prune-harness.py)
 │   │   └── references/         # Patterns, design, rubrics
@@ -98,6 +98,7 @@ mkdir -p /path/to/project/.harness/{evals,audits}
 | `iac-templates` | Infrastructure-as-Code template management |
 | `project-scaffolding` | Multi-mode project structure generation |
 | `info-architecture` | Information architecture patterns |
+| `llm-skeptic` | Challenges LLM/GenAI usage — prefers deterministic alternatives |
 | `tech-writing` | Technical writing page patterns |
 
 ## Hooks (`library/cursor/hooks/`)

@@ -143,9 +143,9 @@ CI: `.github/workflows/eval-fast.yml`, `eval-regression-pr.yml`, `eval-regressio
 
 | Dimension | Level | Key evidence |
 |---|---|---|
-| Configuration | Intermediate → Advanced (pending) | 8 scoped rules + ablation running |
+| Configuration | Intermediate | 8 scoped rules; `per_rule_effectiveness` gap — ablation code exists (`make eval-ablation`), data artifact not yet committed |
 | Workflows | **Advanced** | contract-gate.sh + CI eval regression suite (feat-17) |
-| Multi-agent | Intermediate | evaluator-guard.sh blocks source writes; orchestration advisory |
-| Interaction | Intermediate | harness-context.sh injects structured context; session metrics (scripts/session-metrics.py) |
+| Multi-agent | Intermediate | evaluator-guard.sh blocks source writes; `programmatic_orchestration` gap — manual `/evaluator` only |
+| Interaction | Intermediate | harness-context.sh injects structured context; `measured_patterns` gap — `session-metrics.py` exists but lacks turns_to_completion/prompt_clarity |
 
 Population: Tier 3+ (~top 0.5% of n≈3,200 public repos, ACAM survey June 2026).

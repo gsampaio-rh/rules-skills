@@ -164,6 +164,70 @@ that check test output in verify commands.
 
 ---
 
+## architecture.mdc
+
+### v1.0 — 2026-05-27 (initial)
+**Change:** Created agent-requestable rule defining DDD, Clean Architecture, and Hexagonal Architecture patterns.
+**Outcome:** Not yet quantified — no dedicated eval scenario or ablation run.
+
+---
+
+## causal_rigor.mdc
+
+### v1.0 — 2026-05-27 (initial)
+**Change:** Created scoped rule (experiments/**) enforcing the 5-test framework for non-circular causal findings.
+**Outcome:** Not yet quantified — no eval scenario coverage.
+
+---
+
+## design_principles.mdc
+
+### v1.0 — 2026-05-27 (initial)
+**Change:** Created agent-requestable rule encoding Dieter Rams, BJ Fogg, Jony Ive, and Le Corbusier design principles for UI/UX tasks.
+**Outcome:** Not yet quantified — no eval scenario coverage.
+
+---
+
+## prompt_coaching.mdc
+
+### v1.0 — 2026-05-27 (initial)
+**Change:** Created agent-requestable rule to coach the user toward more effective prompts when requests are vague or underspecified.
+**Outcome:** Not yet quantified — no eval scenario coverage.
+
+---
+
+## python_ml.mdc
+
+### v1.0 — 2026-05-27 (initial)
+**Change:** Created scoped rule for Python and ML-specific code standards (type hints, numpy/pandas idioms, reproducibility).
+**Outcome:** Not yet quantified — no eval scenario coverage.
+
+---
+
+## research_standards.mdc
+
+### v1.0 — 2026-05-27 (initial)
+**Change:** Created scoped rule enforcing research document standards (methodology, evidence, citations, hypotheses vs findings).
+**Outcome:** Not yet quantified — no eval scenario coverage.
+
+---
+
+## security.mdc
+
+### v1.0 — 2026-05-27 (initial)
+**Change:** Created agent-requestable rule covering auth, secrets, input validation, and infrastructure security best practices.
+**Outcome:** Not yet quantified — no eval scenario coverage.
+
+---
+
+## testing.mdc
+
+### v1.0 — 2026-05-27 (initial)
+**Change:** Created scoped rule for test writing standards (naming, isolation, coverage thresholds, mocking patterns).
+**Outcome:** Not yet quantified — no eval scenario coverage.
+
+---
+
 ## Measurement Notes
 
 - **Quantified rules** (ablation + eval scenarios): `adversarial_harness.mdc`, `planning_discipline.mdc`

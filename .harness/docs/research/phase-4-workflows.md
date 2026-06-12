@@ -88,7 +88,7 @@ The Inspect AI framework [F2] (UK AI Safety Institute) defines the reference arc
 - **Scorer**: quality measurement function
 - **Eval log**: structured trace suitable for regression analysis
 
-This architecture is isomorphic to rules-skills' eval pipeline: scenarios (Tasks), `tests/eval/session_runner.py` (Solver), `tests/eval/session_judge.py` (Scorer), eval report (Eval log). The parallel validates the pipeline architecture. The gap is coverage: the Inspect AI reference implementation runs suites on every relevant task type; rules-skills has zero scenarios exercising skill activation.
+This architecture is isomorphic to rules-skills' eval pipeline: scenarios (Tasks), `tests/eval/session_runner.py` (Solver), `tests/eval/session_judge.py` (Scorer), eval report (Eval log). The parallel validates the pipeline architecture. The gap at research time was coverage: the Inspect AI reference implementation runs suites on every relevant task type; rules-skills had no skill-activation scenarios at research time. **Update (2026-06-12):** 3 skill-activation scenarios have since been added (`skill-activation-code-review`, `skill-activation-code-quality-audit`, `skill-activation-llm-skeptic`) — the gap is partially closed; routing accuracy data is still pending.
 
 BFCL [F3] provides the empirical grounding for why skill activation coverage matters. Across 150+ models and 17 categories of function/tool calling, accuracy ranges from 30% to 95% on complex multi-tool scenarios. The finding most relevant here: **description quality drives routing accuracy**. Vague, overlapping, or keyword-sparse descriptions cause systematic misrouting regardless of model capability. The 14 SKILL.md `description` fields have never been tested against this failure mode.
 
@@ -209,8 +209,8 @@ Evidence B: `tests/eval/session_judge.py` — multi-tier judge with: trajectory 
 | Lifecycle statuses named | 5 (pending→committed) | Not named; 7 hook events | Not named | Not named |
 | Acceptance-criteria gating | contract.json before any Write | Not documented publicly | Not documented | Not configured |
 | Traced execution | breadcrumbs.jsonl (140+ entries, append-only) | Session logs (private) | CLAUDE.md "memory" (not structured) | Not configured |
-| Eval regression suite | 27 scenarios + session_judge | Not public | Not public | Not applicable |
-| Skill activation eval | **0 scenarios** (chore-skill-scenarios pending) | Not public | Not applicable | Not applicable |
+| Eval regression suite | 31 scenarios + session_judge | Not public | Not public | Not applicable |
+| Skill activation eval | **3 scenarios** (skill-activation-code-review, -code-quality-audit, -llm-skeptic) | Not public | Not applicable | Not applicable |
 
 **Key finding:** On every measurable Intermediate and Advanced workflow criterion, rules-skills is more structured than the comparison tools in their default documented configurations. Devin's PreToolUse block and session logging are the closest comparable — but Devin's eval pipeline and skill activation measurement are not publicly documented. The gap that distinguishes rules-skills from Devin is also the gap that prevents Advanced scoring: neither has public skill effectiveness data.
 
@@ -218,9 +218,11 @@ Evidence B: `tests/eval/session_judge.py` — multi-tier judge with: trajectory 
 
 ## 4. Honest Gaps (BC6 — No Hedging)
 
-### 4.1. Zero Skill Activation Eval Coverage
+### 4.1. Skill Activation Eval Coverage — Partially Closed
 
-**Gap:** `check_skill_activation()` exists in `tests/eval/session_judge.py` but not one eval scenario in `tests/eval/scenarios/` uses the `skill_activation` rubric. The function was implemented; it has never executed on a real scenario.
+**Original gap:** `check_skill_activation()` exists in `tests/eval/session_judge.py` but no eval scenario in `tests/eval/scenarios/` used the `skill_activation` rubric at research time. The function was implemented; it had never executed on a real scenario.
+
+**Update (2026-06-12):** 3 skill-activation scenarios have been added (`skill-activation-code-review.yaml`, `skill-activation-code-quality-audit.yaml`, `skill-activation-llm-skeptic.yaml`). The gap is partially closed. What remains: routing accuracy data (actual pass/fail rates from live eval runs).
 
 14 skills in `library/cursor/skills/` have no measured routing accuracy. `docs/SKILLS_STANDARD.md` documents "Skill activation accuracy: Manual testing" as the designated measurement source — confirming automated testing is absent by design, not oversight.
 
@@ -367,7 +369,7 @@ The hook architecture (contract-gate.sh denying Writes, verify-harness.sh blocki
 
 What does not move the score to Advanced: two binding constraints.
 
-First, zero skill activation eval coverage. The 14 skills have never been tested for routing accuracy or behavioral effectiveness. BFCL [F3] shows this is a real failure mode: tool selection accuracy varies 30-95% based on description quality. With no data, the skill library is infrastructure of unknown effectiveness.
+First, skill activation eval coverage was absent at research time. The 14 skills had not been tested for routing accuracy or behavioral effectiveness. **Update (2026-06-12):** 3 skill-activation scenarios now exist; routing accuracy data is still pending. BFCL [F3] shows this is a real failure mode: tool selection accuracy varies 30-95% based on description quality. Without pass/fail data, the skill library remains infrastructure of unverified effectiveness.
 
 Second, the 33% session boundary score. This is the hardest fact in the entire four-phase analysis: an alwaysApply rule encoding explicit lifecycle behavior produces the correct behavior 33% of the time. This gap exposes the fundamental limit of the Intermediate approach. Lifecycle *awareness* (the rule and state machine exist) is not the same as lifecycle *enforcement* (the behavior reliably fires). Advanced requires both. The eval shows the latter is failing.
 
