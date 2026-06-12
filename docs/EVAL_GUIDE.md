@@ -460,3 +460,116 @@ python tests/eval/capture_eval_baseline.py --tier pr --run-dir tests/eval_result
 git add tests/eval/fixtures/eval_baseline.json
 git commit -m "chore: seed PR tier regression baseline"
 ```
+
+---
+
+## Measurement Cadence Runbook
+
+When to run each eval tier, how to capture a dated ACAM snapshot, how to interpret baselines, and how to compare measurements over time.
+
+### Cadence
+
+| When | Command | What it covers |
+|------|---------|----------------|
+| Every PR / daily | `make eval-fast` | Static lints (contract, harness, ACAM score) — no API key required |
+| On PR merge to `main` | `make eval-ci-pr` | 11 protocol scenarios + regression check vs `eval_baseline.json` |
+| Weekly / nightly | `make eval-ci-nightly` | 31 scenarios + ACAM dimension rollup + baseline comparison |
+
+Run `make eval-fast` as the minimum check before every commit. The full session tiers require `CURSOR_API_KEY`.
+
+### Snapshot Capture
+
+A snapshot is a dated record of static ACAM scores plus any available session scores. Take one at least weekly (or after any significant rule/skill change) to enable trend comparison.
+
+1. Run `make eval-fast` to confirm the repo is structurally clean (contract lint, harness lint, ACAM score).
+2. Save the dated ACAM scorecard: `python scripts/acam-score.py > .harness/snapshots/acam-$(date +%Y-%m-%d).json`
+3. If session eval results exist from a recent run, save the summary: `cp tests/eval_results/$(ls -t tests/eval_results/ | head -1)/summary.json .harness/snapshots/session-summary-$(date +%Y-%m-%d).json`
+4. Commit the snapshot: `git add .harness/snapshots/ && git commit -m "chore: ACAM snapshot $(date +%Y-%m-%d)"`
+
+Snapshots live in `.harness/snapshots/` (create the directory if absent). Commit them — they are the historical record.
+
+**When `CURSOR_API_KEY` is unavailable**: a static-only snapshot (`make eval-fast` + `python scripts/acam-score.py`) is valid and still produces a comparable ACAM scorecard without the session tier. Note in the commit message: `chore: ACAM static snapshot <date> (no session tier — API key unavailable)`.
+
+### Interpreting `behavioral_baseline.json`
+
+`tests/eval/fixtures/behavioral_baseline.json` lists criteria-level expectations for behavioral scenarios. Each entry has three fields:
+
+```json
+{
+  "scenario_id": "behavioral_context_health_stale_thread",
+  "criterion": "Agent wrote a handoff breadcrumb summarizing current state and next steps",
+  "expected_bool": false
+}
+```
+
+**`expected_bool: false`** marks a **known failure** — a behavioral gap accepted at baseline-seed time. It means the current model does not reliably satisfy this criterion, and that gap is acknowledged rather than hidden. These entries do **not** trigger a CI failure and are not regressions.
+
+**`expected_bool: true`** marks a required behavior. If the agent fails this criterion in a future eval run, it is flagged as a regression.
+
+To add a new known failure: append an entry with `expected_bool: false` and open a PR with a `baseline-refresh` label. The PR description must explain why this behavioral gap is accepted (e.g., model limitation, out-of-scope for current harness version).
+
+### Interpreting `eval_baseline.json`
+
+`tests/eval/fixtures/eval_baseline.json` records aggregate scores per tier:
+
+```json
+{
+  "pr":      { "aggregate_score": 0.86, "scenarios": { "protocol_breadcrumbs_format": { "score": 0.86 }, ... } },
+  "nightly": { "aggregate_score": null, "scenarios": {} }
+}
+```
+
+**`aggregate_score: null`** (unseeded) means the tier has never produced a green CI run. The regression check exits 0 with a warning (`unseeded baseline — skipping regression gate`) rather than failing hard. This is intentional: a null baseline is not a failure, it is a signal to seed it.
+
+Seed after the first green CI run:
+
+```bash
+python tests/eval/capture_eval_baseline.py --tier pr --run-dir tests/eval_results/<latest>
+git add tests/eval/fixtures/eval_baseline.json
+git commit -m "chore: seed PR tier regression baseline"
+```
+
+### Trend Comparison
+
+To compare ACAM scores across two dated snapshots:
+
+```bash
+# Diff raw ACAM scorecards
+diff .harness/snapshots/acam-2026-06-01.json .harness/snapshots/acam-2026-06-15.json
+
+# Compare per-ACAM-dimension session rates across two session summaries
+python - <<'EOF'
+import json
+a = json.load(open(".harness/snapshots/session-summary-2026-06-01.json"))
+b = json.load(open(".harness/snapshots/session-summary-2026-06-15.json"))
+for dim in ["configuration", "workflows", "multi_agent", "interaction"]:
+    ra = a.get("acam_dimensions", {}).get(dim, {}).get("rate")
+    rb = b.get("acam_dimensions", {}).get(dim, {}).get("rate")
+    delta = f"{(rb - ra):+.2f}" if ra is not None and rb is not None else "n/a"
+    print(f"{dim:20}  {str(ra):6} → {str(rb):6}  delta={delta}")
+EOF
+```
+
+**Noise warnings**: snapshots more than ~30 days apart, or captured across a major rule change or model version upgrade, may show score differences unrelated to harness improvements. Prefer comparing snapshots from the same model version. After a model version change, re-seed `eval_baseline.json` from a fresh green run before interpreting deltas as signal.
+
+### Full Measurement Pass
+
+For a complete static measurement pass (no API key required, runs in seconds):
+
+```bash
+make eval-fast
+```
+
+This runs in sequence: `tests/validate.py` → `tests/eval/contract_lint.py` → `tests/eval/harness_lint.py` → `scripts/acam-score.py`. All must exit 0.
+
+For the full pipeline including session scenarios (requires `CURSOR_API_KEY`):
+
+```bash
+make eval-ci-nightly   # 31 scenarios + ACAM dimension rollup + regression check
+```
+
+To run only the PR-tier scenarios (faster, ~90 min):
+
+```bash
+make eval-ci-pr        # 11 protocol scenarios + regression check
+```
