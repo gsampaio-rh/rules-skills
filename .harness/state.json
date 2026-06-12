@@ -297,7 +297,7 @@
       "id": "feat-acam-scenario-mapping",
       "name": "Map eval scenarios to ACAM dimensions with per-dimension rollup",
       "type": "feature",
-      "status": "verified",
+      "status": "committed",
       "priority": "P2",
       "scope": "Includes: explicit scenario→ACAM dimension association (acam_dimension field on scenario YAMLs and/or central mapping fixture); lint validation that every scenario in ci_suites.json maps to exactly one primary dimension; per-dimension score rollup in session_report.py summary output. Excludes: rewriting scenario prompts or judge criteria; feat-16 per-rule ablation; changing ACAM worksheet levels."
     },
