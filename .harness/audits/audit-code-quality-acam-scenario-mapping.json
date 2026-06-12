@@ -1,0 +1,196 @@
+{
+  "domain": "code-quality",
+  "feature": "feat-acam-scenario-mapping",
+  "timestamp": "2026-06-12T14:30:00Z",
+  "scope": [
+    "tests/eval/fixtures/acam_dimension_map.json",
+    "tests/eval/test_acam_dimension_map.py",
+    "tests/eval/harness_lint.py",
+    "tests/eval/session_report.py",
+    "tests/eval/fixtures/acam_expected_rules_skills.json"
+  ],
+  "metrics": {
+    "lint_acam_dimension_map_lines": 51,
+    "lint_acam_dimension_map_cc": 11,
+    "compute_summary_lines": 87,
+    "compute_summary_cc": 11,
+    "_load_acam_dimension_map_lines": 8,
+    "harness_lint_file_lines": 396,
+    "session_report_file_lines": 259,
+    "tests_passed": "12/12 tests/eval/test_acam_dimension_map.py"
+  },
+  "overall_score": "D",
+  "summary": "ACAM scenario mapping is functionally sound (12/12 tests pass) but carries measurable quality debt: two functions exceed the 50-line and complexity-10 thresholds, ACAM dimension names are duplicated across modules, _load_acam_dimension_map silently swallows I/O/JSON failures, and compute_summary rollup lacks tests for missing/corrupt map edge cases.",
+  "criteria_results": [
+    {
+      "id": "srp-functions",
+      "result": "PASS",
+      "severity": "high",
+      "evidence": "lint_acam_dimension_map (harness_lint.py:264-314) has one responsibility: validate acam_dimension_map.json against ci_suites.json. _load_acam_dimension_map (session_report.py:19-26) loads only the map. compute_summary grew with acam rollup but remains summary assembly.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "srp-classes",
+      "result": "NOT_APPLICABLE",
+      "severity": "high",
+      "evidence": "No classes introduced in changed files.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "ocp-extension",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "New behavior added via acam_dimension_map.json (external registry) and new lint_acam_dimension_map function wired into harness_lint main() without modifying existing lint function bodies.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "lsp-substitution",
+      "result": "NOT_APPLICABLE",
+      "severity": "medium",
+      "evidence": "No inheritance hierarchies in scope.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "isp-interfaces",
+      "result": "NOT_APPLICABLE",
+      "severity": "medium",
+      "evidence": "No Protocol/ABC interfaces in changed files.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "dip-abstractions",
+      "result": "PASS",
+      "severity": "high",
+      "evidence": "Eval tooling appropriately uses concrete Path + JSON I/O. Tests inject map path via monkeypatch.setattr(sr, 'ACAM_DIMENSION_MAP_PATH', map_path) without tight cross-module imports beyond public functions.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "function-size",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "lint_acam_dimension_map is 51 lines (harness_lint.py:264-314, exceeds 50). compute_summary is 87 lines (session_report.py:80-166, exceeds 50; acam rollup block adds ~18 lines to an already oversized function).",
+      "fix_suggestion": "Extract _validate_dimension_map_entries and _check_suite_coverage helpers from lint_acam_dimension_map to bring it under 50 lines. Extract _build_acam_dimension_rollup(judgments, dimension_map) from compute_summary."
+    },
+    {
+      "id": "file-size",
+      "result": "FAIL",
+      "severity": "medium",
+      "evidence": "harness_lint.py is 396 lines after adding lint_acam_dimension_map (~55 new lines), exceeding the 300-line fail threshold. session_report.py is 259 lines (flagged, under 300).",
+      "fix_suggestion": "Move ACAM dimension lint into tests/eval/acam_lint.py or similar module to keep harness_lint.py under 300 lines."
+    },
+    {
+      "id": "cyclomatic-complexity",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "AST analysis: lint_acam_dimension_map cc=11 (threshold 10); compute_summary cc=11. lint_acam_dimension_map accumulates branches from existence checks, two try/except blocks, isinstance guard, and nested for/if validation loops.",
+      "fix_suggestion": "Extract early-return helpers (_load_json_file, _collect_invalid_dimensions) to reduce decision points per function below 10."
+    },
+    {
+      "id": "nesting-depth",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "Maximum indentation in changed code is 3 levels (e.g., compute_summary judgment loop with inner result classification). lint_acam_dimension_map uses flat loops with single-level conditionals.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "naming-descriptive",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "acam_buckets, dimension_map, acam_dimensions, ACAM_DIMENSION_MAP_PATH, lint_acam_dimension_map reveal purpose. No single-letter or opaque abbreviations in new code.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "naming-consistent",
+      "result": "FAIL",
+      "severity": "medium",
+      "evidence": "Same four ACAM dimension strings defined as ACAM_VALID_DIMENSIONS (harness_lint.py:261, frozenset) and ACAM_DIMENSIONS (session_report.py:15, list). Different names for identical concept.",
+      "fix_suggestion": "Import ACAM_DIMENSIONS from a single module (e.g., tests/eval/acam_constants.py) and derive frozenset where needed."
+    },
+    {
+      "id": "dry-no-duplication",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "ACAM dimension allowlist duplicated: harness_lint.py:261 vs session_report.py:15. test_acam_dimension_map.py tests (a)(b)(c) (lines 82-109) reimplement lint logic (suite/map diff, value validation) against the committed fixture instead of calling lint_acam_dimension_map.",
+      "fix_suggestion": "Single ACAM_DIMENSIONS constant shared by lint, session_report, and tests. Replace tests (a)(b)(c) with a single integration test asserting lint_acam_dimension_map(EVAL_DIR) returns ([], []). Keep unit tests for isolated failure modes."
+    },
+    {
+      "id": "dry-single-source-of-truth",
+      "result": "FAIL",
+      "severity": "medium",
+      "evidence": "acam_dimension_map.json is SSOT for scenario→dimension mappings (good), but the four valid dimension name strings are maintained separately in harness_lint.py and session_report.py.",
+      "fix_suggestion": "Export ACAM_DIMENSIONS once; lint imports it for validation."
+    },
+    {
+      "id": "coupling-low",
+      "result": "PASS",
+      "severity": "high",
+      "evidence": "session_report.py adds only pathlib/json imports (no new cross-module deps). harness_lint.py self-contained. test file imports two public surfaces (lint_acam_dimension_map, compute_summary). No circular imports detected.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "cohesion-high",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "lint_acam_dimension_map belongs in harness_lint (eval fixture validation). acam_dimensions rollup belongs in session_report (judgment aggregation). acam_dimension_map.json is pure data.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "error-handling-explicit",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "_load_acam_dimension_map (session_report.py:23-26) catches (json.JSONDecodeError, OSError) and returns {} with no log, warning, or re-raise. Corrupt or unreadable map silently drops all ACAM rollup bucketing. Contrast: lint_acam_dimension_map surfaces missing file, malformed JSON, non-dict root, and missing ci_suites as explicit errors.",
+      "fix_suggestion": "Log a warning when map load fails, or propagate error to summary metadata (e.g., acam_dimensions_load_error field). At minimum, distinguish missing file (expected) from corrupt JSON (actionable)."
+    },
+    {
+      "id": "error-handling-boundaries",
+      "result": "FAIL",
+      "severity": "medium",
+      "evidence": "I/O boundary in _load_acam_dimension_map swallows failures inside a helper called from compute_summary business logic (line 133), producing misleading rollup zeros instead of signaling data unavailability.",
+      "fix_suggestion": "Keep error handling at load boundary but surface status in summary output rather than silent empty dict."
+    },
+    {
+      "id": "type-safety",
+      "result": "PASS",
+      "severity": "medium",
+      "evidence": "lint_acam_dimension_map(eval_dir: Path) -> tuple[list[str], list[str]]. _load_acam_dimension_map() -> dict[str, str]. compute_summary(judgments: list[dict]) -> dict. No unjustified Any usage.",
+      "fix_suggestion": null
+    },
+    {
+      "id": "test-coverage-critical",
+      "result": "FAIL",
+      "severity": "high",
+      "evidence": "lint_acam_dimension_map: 8 behavioral tests cover valid/missing/invalid/stale/missing-file/malformed-JSON paths (good). Gaps: no test for non-dict dimension_map root (harness_lint.py:283-285) or missing/malformed ci_suites.json. _load_acam_dimension_map/compute_summary rollup: no test for missing map file or corrupt JSON during rollup (silent {} behavior untested). Verified: pytest 12/12 pass; monkeypatch isolation OK (pytest auto-restores ACAM_DIMENSION_MAP_PATH).",
+      "fix_suggestion": "Add test_compute_summary_rollup_when_map_missing and test_compute_summary_rollup_when_map_corrupt asserting expected fallback behavior. Add test_lint_errors_when_map_not_object and test_lint_errors_when_ci_suites_missing."
+    }
+  ],
+  "score_breakdown": {
+    "high_pass": 4,
+    "high_fail": 5,
+    "medium_pass": 2,
+    "medium_fail": 4,
+    "low_pass": 0,
+    "low_fail": 0,
+    "not_applicable": 3
+  },
+  "spot_checks": {
+    "datetime_duplicate_import": {
+      "result": "PASS",
+      "evidence": "session_report.py has exactly one datetime import at line 152 (deferred inside compute_summary). No module-level duplicate."
+    },
+    "_load_acam_dimension_map_called_in_compute_summary": {
+      "result": "PASS",
+      "evidence": "compute_summary line 133 calls dimension_map = _load_acam_dimension_map() before acam_buckets rollup."
+    },
+    "monkeypatch_test_isolation": {
+      "result": "PASS",
+      "evidence": "Tests at test_acam_dimension_map.py:167 and :195 use pytest monkeypatch fixture which auto-restores ACAM_DIMENSION_MAP_PATH after each test; no manual restore needed."
+    }
+  },
+  "top_recommendations": [
+    "Extract _build_acam_dimension_rollup from compute_summary and split lint_acam_dimension_map to get both functions under 50 lines and cc≤10.",
+    "Create shared tests/eval/acam_constants.py with ACAM_DIMENSIONS; import in harness_lint, session_report, and tests.",
+    "Surface _load_acam_dimension_map failures instead of silent {}; add rollup edge-case tests for missing/corrupt map.",
+    "Move ACAM lint to its own module to bring harness_lint.py under 300 lines.",
+    "Replace redundant fixture validation tests (a)(b)(c) with lint integration assertion."
+  ]
+}

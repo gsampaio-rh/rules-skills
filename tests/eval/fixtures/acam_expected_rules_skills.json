@@ -26,8 +26,8 @@
     ]
   },
   "workflows": {
-    "level": "intermediate",
-    "score": 2,
+    "level": "advanced",
+    "score": 3,
     "checks": [
       {
         "id": "workflows.basic.task_lifecycle",
@@ -47,7 +47,7 @@
       },
       {
         "id": "workflows.advanced.eval_regression_suite",
-        "result": false
+        "result": true
       }
     ]
   },

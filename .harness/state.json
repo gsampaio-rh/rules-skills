@@ -289,7 +289,7 @@
       "id": "chore-eval-baseline-seed",
       "name": "Seed eval_baseline.json from first green PR-tier session run",
       "type": "chore",
-      "status": "verified",
+      "status": "committed",
       "priority": "P1",
       "scope": "Includes: run make eval-ci-pr (or eval-session --ci-tier pr) with CURSOR_API_KEY; capture aggregate and per-scenario scores into tests/eval/fixtures/eval_baseline.json via eval_regression_check.py --update-baseline or a capture_eval_baseline.py wrapper referenced in EVAL_GUIDE.md; verify regression check exits non-zero on intentional score drop; commit seeded baseline with baseline-refresh policy. Excludes: nightly tier seeding (follow-up after PR tier stable); changing behavioral_baseline.json expected_bool values; masking known failures to inflate scores. Note: chore-eval-baseline-update verified behavioral_baseline only — eval_baseline.json aggregate_score remains null until this task."
     },
@@ -297,7 +297,7 @@
       "id": "feat-acam-scenario-mapping",
       "name": "Map eval scenarios to ACAM dimensions with per-dimension rollup",
       "type": "feature",
-      "status": "pending",
+      "status": "verified",
       "priority": "P2",
       "scope": "Includes: explicit scenario→ACAM dimension association (acam_dimension field on scenario YAMLs and/or central mapping fixture); lint validation that every scenario in ci_suites.json maps to exactly one primary dimension; per-dimension score rollup in session_report.py summary output. Excludes: rewriting scenario prompts or judge criteria; feat-16 per-rule ablation; changing ACAM worksheet levels."
     },

@@ -12,6 +12,18 @@ from pathlib import Path
 
 EVAL_DIR = Path(__file__).parent
 EVAL_RESULTS_DIR = EVAL_DIR.parent / "eval_results"
+ACAM_DIMENSIONS = ["configuration", "workflows", "multi_agent", "interaction"]
+ACAM_DIMENSION_MAP_PATH = EVAL_DIR / "fixtures" / "acam_dimension_map.json"
+
+
+def _load_acam_dimension_map() -> dict[str, str]:
+    """Load scenario_id → acam_dimension mapping; returns empty dict if file missing."""
+    if not ACAM_DIMENSION_MAP_PATH.exists():
+        return {}
+    try:
+        return json.loads(ACAM_DIMENSION_MAP_PATH.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 
 def _resolve_run_dir(run_dir: str | None = None) -> Path:
@@ -63,6 +75,25 @@ def classify_dimension(result: dict) -> str:
     if any(kw in criterion for kw in ("apolog", "autonomously", "breadcrumbs trace")):
         return "behavioral"
     return "artifact"
+
+
+def _build_acam_rollup(scenarios: dict[str, dict]) -> dict[str, dict]:
+    """Build per-ACAM-dimension pass/total/rate rollup from scenario summaries."""
+    dimension_map = _load_acam_dimension_map()
+    buckets: dict[str, dict] = {dim: {"pass": 0, "total": 0} for dim in ACAM_DIMENSIONS}
+    for s in scenarios.values():
+        acam_dim = dimension_map.get(s["scenario_id"])
+        if acam_dim and acam_dim in buckets:
+            buckets[acam_dim]["pass"] += s["pass_count"]
+            buckets[acam_dim]["total"] += s["total_checks"]
+    return {
+        dim: {
+            "pass": b["pass"],
+            "total": b["total"],
+            "rate": round(b["pass"] / b["total"], 2) if b["total"] > 0 else None,
+        }
+        for dim, b in buckets.items()
+    }
 
 
 def compute_summary(judgments: list[dict]) -> dict:
@@ -118,6 +149,8 @@ def compute_summary(judgments: list[dict]) -> dict:
     total_unmatched = sum(s["unmatched_count"] for s in scenarios.values())
     total_uncertain = sum(s["uncertain_count"] for s in scenarios.values())
 
+    acam_dimensions = _build_acam_rollup(scenarios)
+
     from datetime import datetime, timezone
 
     return {
@@ -131,6 +164,7 @@ def compute_summary(judgments: list[dict]) -> dict:
             "total_uncertain": total_uncertain,
             "overall_pass_rate": round(total_pass / max(total_checks, 1), 2),
         },
+        "acam_dimensions": acam_dimensions,
     }
 
 
@@ -171,6 +205,16 @@ def print_table(summary: dict):
           f"Uncertain: {agg.get('total_uncertain', 0)} | "
           f"Pass rate: {agg['overall_pass_rate']:.0%}")
     print()
+
+    acam_dimensions = summary.get("acam_dimensions")
+    if acam_dimensions:
+        print("ACAM Dimension Rollup")
+        print("-" * 40)
+        for dim in ACAM_DIMENSIONS:
+            d = acam_dimensions.get(dim, {"pass": 0, "total": 0, "rate": None})
+            rate_str = f"{d['rate']:.0%}" if d["rate"] is not None else "—"
+            print(f"  {dim:<20} {d['pass']}/{d['total']}  {rate_str}")
+        print()
 
 
 def save_summary(summary: dict, run_dir: Path) -> Path:

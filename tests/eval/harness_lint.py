@@ -258,6 +258,56 @@ def lint_cross_consistency(
     return errors, warnings
 
 
+ACAM_VALID_DIMENSIONS = frozenset({"configuration", "workflows", "multi_agent", "interaction"})
+_ACAM_VALID_STR = ", ".join(sorted(ACAM_VALID_DIMENSIONS))
+
+
+def lint_acam_dimension_map(eval_dir: Path) -> tuple[list[str], list[str]]:
+    """Validate acam_dimension_map.json coverage against ci_suites.json."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    fixtures_dir = eval_dir / "fixtures"
+    map_path = fixtures_dir / "acam_dimension_map.json"
+    suites_path = fixtures_dir / "ci_suites.json"
+
+    if not map_path.exists():
+        errors.append("acam_dimension_map.json not found in tests/eval/fixtures/")
+        return errors, warnings
+    try:
+        dimension_map = json.loads(map_path.read_text())
+    except json.JSONDecodeError as e:
+        errors.append(f"acam_dimension_map.json invalid JSON: {e}")
+        return errors, warnings
+    if not isinstance(dimension_map, dict):
+        errors.append("acam_dimension_map.json must be a flat JSON object")
+        return errors, warnings
+
+    if not suites_path.exists():
+        errors.append("ci_suites.json not found — cannot validate dimension map coverage")
+        return errors, warnings
+    try:
+        suites = json.loads(suites_path.read_text())
+    except json.JSONDecodeError as e:
+        errors.append(f"ci_suites.json invalid JSON: {e}")
+        return errors, warnings
+
+    all_suite_ids: set[str] = set(suites.get("pr", [])) | set(suites.get("nightly", []))
+
+    for sid, dim in dimension_map.items():
+        if not isinstance(dim, str) or dim not in ACAM_VALID_DIMENSIONS:
+            errors.append(f"acam_dimension_map: '{sid}' has invalid dimension '{dim}' (valid: {_ACAM_VALID_STR})")
+
+    errors.extend(
+        f"acam_dimension_map: scenario '{sid}' from ci_suites.json has no dimension mapping"
+        for sid in sorted(all_suite_ids - set(dimension_map))
+    )
+    warnings.extend(
+        f"acam_dimension_map: '{sid}' not in ci_suites.json (stale entry)"
+        for sid in sorted(set(dimension_map) - all_suite_ids)
+    )
+    return errors, warnings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Lint harness state files")
     parser.add_argument("path", nargs="?", default=".harness")
@@ -299,6 +349,12 @@ def main() -> int:
         all_errors.extend(errs)
         all_warnings.extend(warns)
         sections[name] = {"errors": errs, "warnings": warns}
+
+    eval_dir = Path(__file__).parent
+    acam_errs, acam_warns = lint_acam_dimension_map(eval_dir)
+    all_errors.extend(acam_errs)
+    all_warnings.extend(acam_warns)
+    sections["acam_dimension_map"] = {"errors": acam_errs, "warnings": acam_warns}
 
     if args.json:
         print(json.dumps({
