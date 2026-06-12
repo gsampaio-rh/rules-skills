@@ -1,0 +1,73 @@
+{
+  "task_id": "chore-v2-debt-harness",
+  "timestamp": "2026-06-12T15:35:00Z",
+  "overall": "PASS",
+  "retest": true,
+  "computational_checks": {
+    "lint": "PASS — make eval-fast: validate.py 0 errors; contract_lint 0 errors; harness_lint 0 errors (1 warn: stuck evaluating task, expected during eval)",
+    "types": "NOT_RUN — housekeeping chore, no new Python modules",
+    "tests": "NOT_RUN — no new test files in scope",
+    "build": "PASS — make eval-fast exit 0"
+  },
+  "criteria": [
+    {
+      "criterion": "AC1: state.json tasks[] exactly 5 IDs, all non-chore tasks pending; chore-v2-debt-harness may be evaluating",
+      "result": "PASS",
+      "evidence": "ids=['chore-v2-debt-harness','feat-eval-measurement-pass','spike-model-selection','spike-token-budget','spike-token-estimation']; 4× pending, chore-v2-debt-harness=evaluating. Fixed AC1 command exits 0."
+    },
+    {
+      "criterion": "AC2: .harness/.archive/tasks.jsonl no duplicate id values",
+      "result": "PASS",
+      "evidence": "python3 duplicate-ID check exits 0; renamed entries feat-16-spec-md, feat-15-eval-guide, feat-17-r1-commit-hook present; canonical feat-15/16/17 each appear once"
+    },
+    {
+      "criterion": "AC3: session-metrics.py no false ACAM Advanced claim",
+      "result": "PASS",
+      "evidence": "grep -c 'ACAM Advanced Interaction Criterion' → 0. Docstring describes breadcrumb metrics and notes measured_patterns gap honestly."
+    },
+    {
+      "criterion": "AC4: direction reflects post-v2 state, stale priorities removed",
+      "result": "PASS",
+      "evidence": "'Measurement loop COMPLETE' and 'feat-eval-measurement-pass' in direction; 'static ACAM scorer' and 'measurement runbook' absent"
+    },
+    {
+      "criterion": "AC5: open_questions has no RESOLVED/DEFERRED entries",
+      "result": "PASS",
+      "evidence": "4 Unresolved entries only; archivable=[]"
+    },
+    {
+      "criterion": "AC6: breadcrumbs.jsonl at most 50 lines",
+      "result": "PASS",
+      "evidence": "wc -l .harness/breadcrumbs.jsonl → 50"
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "archive-tasks.py --skip-checks for pre-evaluator chores",
+      "result": "PASS",
+      "evidence": "16 tasks archived; only 5 remain in active array"
+    },
+    {
+      "case": "Archive ID collisions resolved via rename",
+      "result": "PASS",
+      "evidence": "feat-16-spec-md, feat-15-eval-guide, feat-17-r1-commit-hook present; no duplicate IDs"
+    },
+    {
+      "case": "Explicit last-50 truncation when prune leaves >50",
+      "result": "PASS",
+      "evidence": "breadcrumbs.jsonl exactly 50 lines after re-truncation"
+    },
+    {
+      "case": "Prune archives to .harness/.archive/",
+      "result": "PASS",
+      "evidence": "Archive dir gitignored; prune applied per prior build breadcrumbs"
+    },
+    {
+      "case": "acam_dimension placement marked RESOLVED before prune",
+      "result": "PASS",
+      "evidence": "No RESOLVED entries in open_questions; acam_dimension_map.json shipped in prior feat"
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "Retest after fix_and_retest. Prior fail: AC1 (all-pending assertion) and AC6 (51 lines). Both fixed. Contract verification_method text still lists all-pending AC1 command; behavioral fix validated with exclude-chore logic. harness_lint warns chore-v2-debt-harness stuck evaluating — expected until this PASS sets verified."
+}

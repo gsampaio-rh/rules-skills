@@ -1,13 +1,15 @@
 """
 session-metrics.py — Measure interaction patterns from breadcrumbs.jsonl.
 
-Satisfies ACAM Advanced Interaction Criterion 2: "Are interaction patterns
-measured across sessions (prompt clarity, turns to completion)?"
-
 Reads .harness/breadcrumbs.jsonl and outputs per-session and aggregate metrics:
   - tasks completed per session
   - session boundary advisory rate
   - mean tasks per session
+
+NOTE: acam-score.py check interaction.advanced.measured_patterns requires
+turns_to_completion and prompt_clarity output keys, which are not implemented
+here. This script currently measures task counts and boundary rates only.
+See feat-eval-measurement-pass or spike-token-estimation for implementation.
   - role activity breakdown
   - breadcrumb type distribution
 

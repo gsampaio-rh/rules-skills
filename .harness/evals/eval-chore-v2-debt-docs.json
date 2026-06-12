@@ -1,0 +1,87 @@
+{
+  "task_id": "chore-v2-debt-docs",
+  "timestamp": "2026-06-12T15:05:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "PASS — make eval-fast: validate.py 0 errors; contract_lint 0 errors; harness_lint 0 errors",
+    "types": "NOT_RUN — documentation-only task",
+    "tests": "NOT_RUN — no new test files in scope",
+    "build": "PASS — make eval-fast exit 0"
+  },
+  "criteria": [
+    {
+      "criterion": "AC1: docs/EVAL_GUIDE.md contains no capture_eval_baseline.py; replaced with eval_regression_check.py --update-baseline",
+      "result": "PASS",
+      "evidence": "grep -c 'capture_eval_baseline' docs/EVAL_GUIDE.md → 0. L453, L460, L528 now use python tests/eval/eval_regression_check.py --update-baseline --run-dir tests/eval_results/<latest> --tier pr"
+    },
+    {
+      "criterion": "AC2: EVAL_GUIDE.md scenario counts updated from 28 to 31 (30 standard + 1 long)",
+      "result": "PASS",
+      "evidence": "grep -c '28 scenario' docs/EVAL_GUIDE.md → 0. L35: '31 scenarios'; L174: '31 scenarios: 30 standard + 1 long'"
+    },
+    {
+      "criterion": "AC3: EVAL_GUIDE.md Tier 1 tools table includes acam-score.py",
+      "result": "PASS",
+      "evidence": "grep -qi 'acam-score' docs/EVAL_GUIDE.md → match. L63: scripts/acam-score.py row in Tier 1 table"
+    },
+    {
+      "criterion": "AC4: EVAL_GUIDE.md CI nightly row no longer says 'all judge tiers'; uses structural tier/judge",
+      "result": "PASS",
+      "evidence": "grep -c 'all judge tiers' docs/EVAL_GUIDE.md → 0. L426: 'Nightly tier: 31 scenarios, structural tier judge'"
+    },
+    {
+      "criterion": "AC5: AGENTS.md Configuration row no longer claims 'ablation running'",
+      "result": "PASS",
+      "evidence": "grep -c 'ablation running' AGENTS.md → 0. L146: 'per_rule_effectiveness gap — ablation code exists (make eval-ablation), data artifact not yet committed'"
+    },
+    {
+      "criterion": "AC6: README.md skill count 14 (not 13); llm-skeptic in skills section",
+      "result": "PASS",
+      "evidence": "grep -c '13 skill workflows' README.md → 0. L28 tree: '14 skill workflows'. L101: llm-skeptic in skills table"
+    },
+    {
+      "criterion": "AC7: RULES_CHANGELOG.md has ## headings for all 8 missing rules",
+      "result": "PASS",
+      "evidence": "grep -q '^## $r' for architecture.mdc, causal_rigor.mdc, design_principles.mdc, prompt_coaching.mdc, python_ml.mdc, research_standards.mdc, security.mdc, testing.mdc — all matched at L167–223"
+    },
+    {
+      "criterion": "AC8: state.json vision no longer contains '41 scenario'; updated to 31",
+      "result": "PASS",
+      "evidence": "python3 assert '41 scenario' not in s['vision'] → PASS-AC8. Vision now references '31 scenario evals'"
+    },
+    {
+      "criterion": "AC9: phase-4-workflows.md stale zero-coverage claims corrected; reflects 3 skill-activation scenarios",
+      "result": "PASS",
+      "evidence": "Stale-pattern grep count → 0. L91, L213, L225, L372 updated with '3 skill-activation scenarios' and named YAMLs (skill-activation-code-review, -code-quality-audit, -llm-skeptic)"
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: All 3 capture_eval_baseline contexts replaced (L452 prose, L459 code block, L527 runbook)",
+      "result": "PASS",
+      "evidence": "All three locations now use eval_regression_check.py --update-baseline command"
+    },
+    {
+      "case": "EC2: RULES_CHANGELOG stubs minimal (## heading + ### v1.0 + 1-line description)",
+      "result": "PASS",
+      "evidence": "Each of 8 rules at L167–230 has ## heading, ### v1.0 date, and brief description"
+    },
+    {
+      "case": "EC3: phase-4-workflows L213/L223/L91 corrected not deleted",
+      "result": "PASS",
+      "evidence": "Research context preserved; factual claims updated to 3 scenarios with 2026-06-12 update notes"
+    },
+    {
+      "case": "EC4: AGENTS.md hooks table out of contract scope",
+      "result": "PASS",
+      "evidence": "Not evaluated per contract edge case; deferred to chore-v2-debt-harness"
+    },
+    {
+      "case": "EC5: README L28 tree diagram updated",
+      "result": "PASS",
+      "evidence": "L28 shows '14 skill workflows'; skills table includes llm-skeptic"
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "make eval-fast exit 0 with 0 errors (warnings only: always-on token budget, contract rubrics, breadcrumb timestamps, stuck-task advisory for chore-v2-debt-docs)."
+}
