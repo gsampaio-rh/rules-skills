@@ -1,0 +1,114 @@
+{
+  "configuration": {
+    "level": "intermediate",
+    "score": 2,
+    "checks": [
+      {
+        "id": "configuration.basic.has_ai_config",
+        "result": true
+      },
+      {
+        "id": "configuration.intermediate.distinct_scopes",
+        "result": true
+      },
+      {
+        "id": "configuration.intermediate.documented_rationale",
+        "result": true
+      },
+      {
+        "id": "configuration.advanced.per_rule_effectiveness",
+        "result": false
+      },
+      {
+        "id": "configuration.advanced.cross_tool_portability",
+        "result": true
+      }
+    ]
+  },
+  "workflows": {
+    "level": "intermediate",
+    "score": 2,
+    "checks": [
+      {
+        "id": "workflows.basic.task_lifecycle",
+        "result": true
+      },
+      {
+        "id": "workflows.intermediate.structural_gate",
+        "result": true
+      },
+      {
+        "id": "workflows.intermediate.audit_log",
+        "result": true
+      },
+      {
+        "id": "workflows.advanced.machine_readable_criteria",
+        "result": true
+      },
+      {
+        "id": "workflows.advanced.eval_regression_suite",
+        "result": false
+      }
+    ]
+  },
+  "multi_agent": {
+    "level": "intermediate",
+    "score": 2,
+    "checks": [
+      {
+        "id": "multi_agent.basic.named_agents",
+        "result": true
+      },
+      {
+        "id": "multi_agent.intermediate.role_separation",
+        "result": true
+      },
+      {
+        "id": "multi_agent.intermediate.write_restriction",
+        "result": true
+      },
+      {
+        "id": "multi_agent.advanced.trust_boundary",
+        "result": true
+      },
+      {
+        "id": "multi_agent.advanced.programmatic_orchestration",
+        "result": false
+      },
+      {
+        "id": "multi_agent.advanced.context_packages",
+        "result": true
+      }
+    ]
+  },
+  "interaction": {
+    "level": "intermediate",
+    "score": 2,
+    "checks": [
+      {
+        "id": "interaction.basic.user_guidance",
+        "result": true
+      },
+      {
+        "id": "interaction.intermediate.prompt_coaching",
+        "result": true
+      },
+      {
+        "id": "interaction.intermediate.context_loading",
+        "result": true
+      },
+      {
+        "id": "interaction.advanced.structured_context_delivery",
+        "result": true
+      },
+      {
+        "id": "interaction.advanced.measured_patterns",
+        "result": false
+      },
+      {
+        "id": "interaction.advanced.prompt_versioning",
+        "result": true
+      }
+    ]
+  }
+}

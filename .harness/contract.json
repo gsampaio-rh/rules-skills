@@ -1,0 +1,40 @@
+{
+  "task_id": "feat-acam-static-scorer",
+  "feature": "Runnable static ACAM scorer from observable repo artifacts",
+  "problem": "The ACAM assessment (spike-research-agents.md) is a manual document. There is no way to re-score the repo after changes, track progress over time, or integrate ACAM measurement into CI. The eval_baseline.json is null and regression is a no-op because there is no static measurement layer.",
+  "proposed_solution": "scripts/acam-score.py: a static Python script that inspects observable repo artifacts (rule files, hooks, agent definitions, breadcrumbs, CI config) against the acam-worksheet.md criteria and produces a machine-readable JSON scorecard. No API key. No live agent. Slots into make eval-fast. Pytest coverage.",
+  "acceptance_criteria": [
+    "python scripts/acam-score.py exits 0 and prints valid JSON to stdout with top-level keys: repo (string), assessed (ISO-8601 date string), acam_version (string), dimensions (object with exactly configuration, workflows, multi_agent, interaction), summary (object with overall_acam string)",
+    "Each dimension object has level (lowercase: none|basic|intermediate|advanced), score (int: none=0, basic=1, intermediate=2, advanced=3), and checks (non-empty list). Each check has id (dot-notation worksheet key, e.g. workflows.intermediate.structural_gate), criterion (human-readable question from acam-worksheet.md), result (bool), evidence (non-empty string citing repo-relative path or 'not found'). Level follows worksheet ladder: advanced only if every basic AND intermediate check passes AND every advanced check passes; intermediate only if every basic AND intermediate check passes; basic only if every basic check passes; otherwise none. A single failed check at level N caps the dimension below N.",
+    "python scripts/acam-score.py --format markdown exits 0 and prints a markdown table with header row containing exactly these column names (case-insensitive match): Dimension, Level, Key Gap; exactly 4 data rows (one per dimension); Key Gap is the first failing check's criterion text or '—' when level=advanced",
+    "Scoring the rules-skills repo root (default cwd, no --root) produces level=intermediate on all 4 dimensions; pytest compares full JSON dimensions.*.level and dimensions.*.checks[*].result against committed golden fixture tests/eval/fixtures/acam_expected_rules_skills.json (derived from .harness/docs/research/rules-skills-scorecard.json levels and check outcomes — not free-text spike-research-agents.md)",
+    "Scoring an empty temp directory via --root produces level=none and score=0 on all 4 dimensions with every basic check result=false",
+    "python scripts/acam-score.py --root /nonexistent/path exits 2 with error message on stderr; python scripts/acam-score.py --root <empty-existing-dir> exits 0 (does not crash) and scores all dimensions none",
+    "make eval-fast invokes $(PYTHON) scripts/acam-score.py as the third command after contract_lint.py and harness_lint.py; if acam-score.py exits non-zero, make eval-fast exits non-zero without running subsequent targets",
+    "pytest tests/eval/test_acam_score.py passes with ≥12 tests covering: (a) empty repo all-none, (b) rules-skills golden fixture match, (c) --root missing path exit 2, (d) per-dimension fixture that flips one intermediate check to fail and asserts dimension caps to basic, (e) at least one test per dimension using minimal tmp_path fixtures (not only rules-skills integration)"
+  ],
+  "edge_cases": [
+    "Repo with only a single flat .cursorrules (no .mdc, no scoped rules) scores configuration=basic — one file does not satisfy Configuration Intermediate (≥2 distinct scope types among rule files)",
+    "Repo with library/cursor/hooks/contract-gate.sh (or .cursor/hooks/contract-gate.sh) referencing contract.json but no breadcrumbs.jsonl scores workflows=basic — structural gate alone does not satisfy Intermediate (append-only audit log also required)",
+    "Repo with library/cursor/agents/planner.md and evaluator.md but no evaluator-guard.sh scores multi_agent=intermediate (separate prompts + prompt-level write restriction) not advanced — trust-boundary deny hook is Advanced per worksheet",
+    "Repo with AGENTS.md and per-rule ablation fixture data but missing other Advanced checks scores configuration=intermediate not advanced — partial Advanced artifacts must not upgrade level without ALL intermediate checks passing first",
+    "--root pointing to a directory without .cursor/ or library/cursor/ exits 0, does not crash, and scores configuration=none (no AI config artifacts discoverable under that root)"
+  ],
+  "verification_method": "1) JSON schema: python scripts/acam-score.py | python -c \"import sys,json; d=json.load(sys.stdin); assert set(d)=={'repo','assessed','acam_version','dimensions','summary'}; assert set(d['dimensions'])=={'configuration','workflows','multi_agent','interaction'}\". 2) Ladder: inspect dimensions.*.checks — failed intermediate check must yield level basic or none, never intermediate. 3) Markdown: python scripts/acam-score.py --format markdown | grep -E 'Dimension|Level|Key Gap' and count 4 dimension rows. 4) Golden: pytest tests/eval/test_acam_score.py::test_rules_skills_matches_golden_fixture -v. 5) Static artifact mapping (spot-check via checks[].evidence paths): Configuration basic=any of {.cursorrules,CLAUDE.md,.windsurfrules,**/*.mdc}; Configuration intermediate=≥2 scope types among {alwaysApply:true, globs:*, alwaysApply:false agent-requested} in library/cursor/rules/*.mdc or .cursor/rules/*.mdc PLUS rationale doc docs/RULES_STANDARD.md or AGENTS.md rules section; Workflows intermediate=contract-gate.sh (preToolUse deny referencing contract) AND .harness/breadcrumbs.jsonl; Multi-agent intermediate=≥2 named agent defs in library/cursor/agents/*.md with role-distinct prompts; Interaction intermediate=prompt_coaching.mdc or equivalent coaching skill AND sessionStart hook (harness-context.sh) loading task context. 6) eval-fast: make eval-fast 2>&1 | tail -5 shows acam-score invocation; intentional break (rename script) causes make eval-fast to fail. 7) Full suite: pytest tests/eval/test_acam_score.py -v — expect ≥12 collected tests, 0 failures.",
+  "rubrics": ["code-quality"],
+  "rubric_mode": "warn",
+  "negotiation_rounds": 1,
+  "negotiation_summary": {
+    "AC1": "STRENGTHENED — was 4 bare dimension keys; now requires scorecard-compatible top-level schema per state.json scope (rules-skills-scorecard.json shape)",
+    "AC2": "STRENGTHENED — added worksheet ladder cap logic, check id field, score mapping 0-3, evidence must cite paths",
+    "AC3": "STRENGTHENED — exact column names, 4 rows, Key Gap semantics defined",
+    "AC4": "STRENGTHENED — replaced drift-prone 'match spike-research-agents.md' with committed golden fixture acam_expected_rules_skills.json",
+    "AC5": "STRENGTHENED — explicit score=0 and all basic checks false",
+    "AC6": "STRENGTHENED — exit code 2 for missing --root; distinguish missing path vs empty existing dir",
+    "AC7": "STRENGTHENED — exact eval-fast slot (third command after contract_lint + harness_lint)",
+    "AC8": "STRENGTHENED — raised floor to ≥12 tests with per-dimension fixture matrix and ladder-cap test",
+    "edge_cases": "ADDED partial-Advanced trap (AGENTS.md+ablation without full ladder); ADDED contract-gate-only-without-breadcrumbs; CLARIFIED flat .cursorrules scope types"
+  },
+  "phase": "evaluating",
+  "verified": true
+}

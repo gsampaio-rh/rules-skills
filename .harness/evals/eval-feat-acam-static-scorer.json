@@ -1,0 +1,83 @@
+{
+  "task_id": "feat-acam-static-scorer",
+  "timestamp": "2026-06-12T11:00:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "NOT_RUN — no project linter configured for scripts/acam-score.py",
+    "types": "NOT_RUN",
+    "tests": "PASS — python -m pytest tests/eval/test_acam_score.py -v → 15 passed in 1.09s",
+    "build": "PASS — python -m py_compile scripts/acam-score.py exit 0; make eval-fast exit 0"
+  },
+  "criteria": [
+    {
+      "criterion": "AC1: python scripts/acam-score.py exits 0; JSON has repo, assessed (ISO-8601), acam_version, dimensions (configuration|workflows|multi_agent|interaction), summary.overall_acam",
+      "result": "PASS",
+      "evidence": "Inline assert script printed 'AC1 PASS'. repo='/Users/gsampaio/redhat/playground/rules-skills', assessed='2026-06-12T10:56:33Z', acam_version='1.0', summary={'overall_acam': 'intermediate'}."
+    },
+    {
+      "criterion": "AC2: Each dimension has level (none|basic|intermediate|advanced), score 0-3, non-empty checks with dot-notation id, bool result, non-empty evidence; ladder caps level when any check at tier fails",
+      "result": "PASS",
+      "evidence": "Inline ladder schema script printed 'AC2 PASS'. All four dimensions level=intermediate score=2 on rules-skills root. Ladder cap tests pass: test_configuration_ladder_cap_to_basic, test_workflows_ladder_cap_to_basic, test_interaction_ladder_cap_to_basic."
+    },
+    {
+      "criterion": "AC3: --format markdown exits 0; table header Dimension|Level|Key Gap; exactly 4 data rows; Key Gap shows first failing check criterion (or em-dash when advanced)",
+      "result": "PASS",
+      "evidence": "python scripts/acam-score.py --format markdown → 6 table lines (header, separator, 4 rows). Header: '| Dimension | Level | Key Gap |'. Rows: Configuration/Workflows/Multi Agent/Interaction all intermediate with advanced-gap criterion text. test_markdown_output_format PASSED."
+    },
+    {
+      "criterion": "AC4: rules-skills root scores intermediate on all 4 dimensions; pytest matches golden fixture acam_expected_rules_skills.json",
+      "result": "PASS",
+      "evidence": "levels={'configuration': 'intermediate', 'workflows': 'intermediate', 'multi_agent': 'intermediate', 'interaction': 'intermediate'}. test_rules_skills_matches_golden_fixture PASSED."
+    },
+    {
+      "criterion": "AC5: --root empty dir → level=none score=0 all dimensions; every basic check result=false",
+      "result": "PASS",
+      "evidence": "test_empty_repo_all_none PASSED; test_empty_repo_basic_checks_all_false PASSED."
+    },
+    {
+      "criterion": "AC6: --root /nonexistent exits 2 with stderr error; --root empty existing dir exits 0 scores none",
+      "result": "PASS",
+      "evidence": "stderr: 'error: --root path does not exist: /absolutely/nonexistent/path' (shell exit 2). test_missing_root_exits_2 PASSED (assert returncode==2, 'not exist' in stderr). Empty tmp_path via test_empty_repo_all_none exits 0."
+    },
+    {
+      "criterion": "AC7: make eval-fast invokes scripts/acam-score.py as third command after contract_lint.py and harness_lint.py; non-zero acam-score aborts eval-fast",
+      "result": "PASS",
+      "evidence": "Makefile lines 66-68: contract_lint.py, harness_lint.py, acam-score.py (third). Renaming script → make eval-fast exit 2: 'make: *** [eval-fast] Error 2'. Restored script; make eval-fast exit 0."
+    },
+    {
+      "criterion": "AC8: pytest tests/eval/test_acam_score.py ≥12 tests covering empty repo, golden match, exit 2, ladder cap, per-dimension fixtures",
+      "result": "PASS",
+      "evidence": "15 collected, 15 passed. Matrix: (a) empty none, (b) golden, (c) missing root exit 2, (d-g) ladder caps per dimension, (h-k) per-dimension minimal fixtures, (l) markdown, (m) partial advanced trap."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: single flat .cursorrules (no .mdc) → configuration=basic",
+      "result": "PASS",
+      "evidence": "test_configuration_basic_from_cursorrules PASSED. Live probe: EC1 level: basic."
+    },
+    {
+      "case": "EC2: contract-gate.sh without breadcrumbs.jsonl → workflows=basic",
+      "result": "PASS",
+      "evidence": "test_workflows_ladder_cap_to_basic PASSED. Live probe: EC2: basic."
+    },
+    {
+      "case": "EC3: planner.md + evaluator.md with prompt-level write restriction but no evaluator-guard.sh → multi_agent=intermediate (not advanced)",
+      "result": "FAIL",
+      "evidence": "Copied real library/cursor/agents/planner.md and evaluator.md (evaluator contains 'You may ONLY write to these paths') into tmp_path without hooks. Scorer returned level=basic score=1; multi_agent.intermediate.write_restriction result=false evidence='not found'. Expected intermediate.",
+      "fix_suggestion": "In score_multi_agent(), detect prompt-level write restrictions by scanning agent .md files for patterns like 'ONLY write to', 'may not modify', or path allowlists — set write_restriction result=true with evidence citing the agent file when found, independent of evaluator-guard.sh. Add test_multi_agent_intermediate_from_prompt_restrictions without guard hook."
+    },
+    {
+      "case": "EC4: AGENTS.md + scoped rules + partial advanced artifacts without full ladder → configuration=intermediate not advanced",
+      "result": "PASS",
+      "evidence": "test_partial_advanced_does_not_upgrade PASSED (level=intermediate)."
+    },
+    {
+      "case": "EC5: --root dir without .cursor/ or library/cursor/ exits 0, configuration=none",
+      "result": "PASS",
+      "evidence": "test_empty_repo_all_none PASSED. Live probe: EC5: none exit: 0."
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "All 8 acceptance criteria pass live verification. EC3 fails: write_restriction check only inspects evaluator-guard.sh hook files (acam-score.py:316-323), ignoring prompt-level restrictions documented in agent definitions. Does not block criteria verification but should be fixed in a follow-up to align scorer with worksheet intent. make eval-fast tail shows full JSON scorecard on stdout (acam-score runs as final static step)."
+}

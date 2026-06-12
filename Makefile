@@ -65,6 +65,7 @@ eval: eval-fast eval-session ## Run full eval (Tier 1 + Tier 3)
 eval-fast: validate ## Tier 1: fast static checks (seconds, no API key)
 	$(PYTHON) tests/eval/contract_lint.py
 	$(PYTHON) tests/eval/harness_lint.py
+	$(PYTHON) scripts/acam-score.py
 
 eval-session: ## Tier 3: run scenarios in isolated sandbox via Cursor SDK
 	$(PYTHON) tests/eval/session_runner.py --model $(MODEL) --timeout 300

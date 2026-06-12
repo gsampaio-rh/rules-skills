@@ -3,7 +3,7 @@
   "created": "2026-05-27T14:00:00Z",
   "schema_version": 2,
   "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. THE HARNESS IS: a durable, file-system task system that keeps AI agents honest across sessions. It solves five problems the owner identified: (1) repository scope — vision, direction, trade-offs in state.json; (2) task definition — discrete tasks with type and scope; (3) task grouping — flat tasks[] array filtered by status at read time; (4) task status tracking — lifecycle enum + append-only breadcrumbs.jsonl for session recovery; (5) acceptance criteria — contract.json with binary-testable criteria negotiated before implementation. For whom: teams using Cursor/Claude Code on non-trivial multi-file work who need agents to stop self-grading and stop losing context between sessions. Why each component exists: state.json = scope + backlog; contract.json = definition of done; breadcrumbs = audit trail; planner subagent = decompose vague requests; evaluator subagent = adversarial QA separate from builder context; hooks (lean) = enforce contract-before-code structurally; eval pipeline = regression test that agents follow the workflow. HONEST ASSESSMENT: the core five-problem harness is sound and ~40 lines of JSON + rules. Everything layered on top — negotiations/ JSON schemas, 11 hooks (full profile), metrics dashboard, 41 scenario evals with 5 judge tiers, multi-agent orchestration, UI dashboard — has grown organically and now obscures the value proposition. 47 verified tasks prove the core works; pending tasks are now reprioritized around measurement gaps, not harness failures. ACAM RESEARCH (2026-06-11, COMMITTED): spike-research-agents verified rules-skills as Intermediate on all 4 ACAM dimensions at Tier 3 (~top 0.5% of n≈3,200 public repos). Reaching Advanced requires quantitative effectiveness data — per-rule ablation scores, skill activation eval, CI-integrated eval regression, and measured interaction patterns — not more rules, hooks, or documentation.",
-  "direction": "STABLE (2026-06-12): All infrastructure migrations complete. context-package.py and prune-harness.py colocated in library/cursor/hooks/ and distributed via make sync-local. harness-context.sh resolves $SCRIPT_DIR/context-package.py — verified in both source and synced copy. Archive restructured to .harness/.archive/ (gitignored). contract.json lifecycle correct: removed stale feat-13b contract (task archived). evaluator.md updated to use context-package.py for lean context. 228/228 tests + 53/53 hook tests passing, harness_lint 0 errors. Pending commits: multiple verified chores. Pending tasks: spike-token-estimation, spike-model-selection, spike-token-budget (P2). chore-breadcrumb-timestamps (P3), chore-eval-baseline-update (P2).",
+  "direction": "STABLE (2026-06-12): All infrastructure migrations complete. context-package.py and prune-harness.py colocated in library/cursor/hooks/ and distributed via make sync-local. harness-context.sh resolves $SCRIPT_DIR/context-package.py — verified in both source and synced copy. Archive restructured to .harness/.archive/ (gitignored). contract.json lifecycle correct: removed stale feat-13b contract (task archived). evaluator.md updated to use context-package.py for lean context. 243/243 tests + 53/53 hook tests passing, harness_lint 0 errors. ACAM research committed (Intermediate all dimensions, Tier 3). Next priority: close diagnosis→measurement loop — static ACAM scorer, eval_baseline seeding, scenario↔ACAM mapping, measurement runbook. Pending P2 spikes: spike-token-estimation, spike-model-selection, spike-token-budget.",
   "trade_offs": [
     {
       "decision": "Flat tasks array, not grouped buckets",
@@ -129,13 +129,26 @@
       "decision": "Colocate hook helper scripts in library/cursor/hooks/ (not scripts/)",
       "alternative": "Extend make sync-local to copy scripts/ subset; or add make sync-hooks",
       "reasoning": "make sync-local copies library/cursor/hooks/ → .cursor/hooks/ as the only distribution path. Scripts called at sessionStart must live beside the hook that invokes them so $SCRIPT_DIR resolves identically in source and synced copies. Repo-internal tools (archive-tasks.py, migrate-state-schema.py) stay in scripts/."
+    },
+    {
+      "decision": "Four-task measurement loop plan (scorer, baseline seed, scenario mapping, runbook) before P2 token spikes",
+      "alternative": "Single monolithic 'eval runbook' task covering all deliverables",
+      "reasoning": "Static ACAM scorer and baseline seeding are independently shippable and unblock regression detection without waiting on live-session mapping or documentation. Runbook comes last so it documents working artifacts, not aspirational procedures."
+    },
+    {
+      "decision": "Defer unified scorecard export to runbook scope (convention + Makefile target) rather than separate feature task",
+      "alternative": "Dedicated feat-eval-scorecard-export task with new JSON schema and history directory",
+      "reasoning": "Trend comparison needs a documented snapshot procedure more than a new artifact type. Static ACAM JSON + session summary.json + eval_baseline.json already contain comparable fields once mapping exists; runbook defines how to archive and diff them."
     }
   ],
   "open_questions": [
     "Unresolved: breadcrumb retention policy — keep last N entries (default 50), entries newer than D days (default 7), or whichever retains more? Affects prune-harness defaults and context-health stale-thread thresholds.",
     "Unresolved: vision/direction trim threshold — character limit (e.g. 2000 chars each) vs approximate token budget? prune-harness should preserve first paragraph + last update stamp if trimming.",
     "RESOLVED (2026-06-12): evaluator.md updated — step 2 now instructs python .cursor/hooks/context-package.py --format markdown as primary context source, with fallback to reading state.json + breadcrumbs.jsonl directly.",
-    "RESOLVED (2026-06-12): consumer projects — invoke directly via python .cursor/hooks/prune-harness.py and python .cursor/hooks/context-package.py. Documented in HARNESS_ESSENCE.md. No wrapper script needed; scripts are self-contained with Path.cwd() root detection."
+    "RESOLVED (2026-06-12): consumer projects — invoke directly via python .cursor/hooks/prune-harness.py and python .cursor/hooks/context-package.py. Documented in HARNESS_ESSENCE.md. No wrapper script needed; scripts are self-contained with Path.cwd() root detection.",
+    "Unresolved: acam_dimension placement — per-scenario YAML field vs central mapping table in tests/eval/fixtures/? Affects harness_lint validation and whether consumers can add scenarios without editing a second file.",
+    "Unresolved: eval history storage — git-tracked dated snapshots under .harness/eval-history/ vs CI artifacts only vs external dashboard. Runbook should pick one default; implementation can stay manual initially.",
+    "Unresolved: PR-tier baseline seed timing — seed eval_baseline.json from first available green run (accepting known behavioral failures in behavioral_baseline) vs wait until skill_activation and session_boundary scores improve. Seeding with known failures enables regression detection on what already passes."
   ],
   "tasks": [
     {
@@ -263,6 +276,46 @@
       "priority": "P2",
       "scope": "Run capture_eval_baseline.py after the harness_level:none fix (skill_activation 57→80%). Baseline is stale and will produce false regression alerts. Per EVAL_GUIDE.md baseline refresh policy.",
       "technical_debt": true
+    },
+    {
+      "id": "feat-acam-static-scorer",
+      "name": "Runnable static ACAM scorer from observable repo artifacts",
+      "type": "feature",
+      "status": "verified",
+      "priority": "P1",
+      "scope": "Includes: static scorer script (e.g. scripts/acam-score.py) that evaluates the four ACAM dimensions against observable artifacts using acam-worksheet.md criteria; machine-readable JSON scorecard output aligned with rules-skills-scorecard.json shape; integration into make eval-fast alongside harness_lint and contract_lint; pytest coverage for representative pass/fail artifact checks. Excludes: live session eval (session_runner), per-rule ablation scores (feat-16), LLM judgment, modifying acam-worksheet.md rubric text."
+    },
+    {
+      "id": "chore-eval-baseline-seed",
+      "name": "Seed eval_baseline.json from first green PR-tier session run",
+      "type": "chore",
+      "status": "pending",
+      "priority": "P1",
+      "scope": "Includes: run make eval-ci-pr (or eval-session --ci-tier pr) with CURSOR_API_KEY; capture aggregate and per-scenario scores into tests/eval/fixtures/eval_baseline.json via eval_regression_check.py --update-baseline or a capture_eval_baseline.py wrapper referenced in EVAL_GUIDE.md; verify regression check exits non-zero on intentional score drop; commit seeded baseline with baseline-refresh policy. Excludes: nightly tier seeding (follow-up after PR tier stable); changing behavioral_baseline.json expected_bool values; masking known failures to inflate scores. Note: chore-eval-baseline-update verified behavioral_baseline only — eval_baseline.json aggregate_score remains null until this task."
+    },
+    {
+      "id": "feat-acam-scenario-mapping",
+      "name": "Map eval scenarios to ACAM dimensions with per-dimension rollup",
+      "type": "feature",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Includes: explicit scenario→ACAM dimension association (acam_dimension field on scenario YAMLs and/or central mapping fixture); lint validation that every scenario in ci_suites.json maps to exactly one primary dimension; per-dimension score rollup in session_report.py summary output. Excludes: rewriting scenario prompts or judge criteria; feat-16 per-rule ablation; changing ACAM worksheet levels."
+    },
+    {
+      "id": "docs-eval-measurement-runbook",
+      "name": "Eval measurement cadence runbook for repeatable comparison over time",
+      "type": "chore",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Includes: RUNBOOK.md or dedicated EVAL_GUIDE.md section specifying measurement cadence (eval-fast daily/PR, eval-ci-pr on merge, eval-ci-nightly weekly); step-by-step snapshot capture (static ACAM scorecard + session summary + baseline diff); how to interpret behavioral_baseline.json known failures (expected_bool:false entries); trend comparison procedure using dated snapshots; Makefile target or documented one-liner for full measurement pass. Depends on feat-acam-static-scorer, chore-eval-baseline-seed, feat-acam-scenario-mapping being at least draft-complete. Excludes: automated dashboard UI; CI workflow changes beyond documenting existing targets."
+    },
+    {
+      "id": "feat-eval-measurement-pass",
+      "name": "Single-command full measurement pass combining static and live tiers",
+      "type": "feature",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Includes: Makefile target (e.g. eval-measure) that runs eval-fast (static ACAM scorer + Tier 1 lints), optionally eval-ci-pr when CURSOR_API_KEY set, and writes a dated combined scorecard JSON to a documented location for runbook trend comparison; graceful skip messaging when API key absent. Excludes: new eval scenarios; nightly full suite in default pass; external metrics service integration. Depends on feat-acam-static-scorer and feat-acam-scenario-mapping."
     }
   ]
 }
