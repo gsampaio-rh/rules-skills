@@ -61,3 +61,12 @@
 {"ts": "2026-06-12T10:09:39Z", "role": "builder", "type": "build", "feat": null, "msg": "evaluator.md: updated step 2 to use context-package.py --format markdown for lean context; mirrored to library/cursor/agents/evaluator.md.", "result": "pass"}
 {"ts": "2026-06-12T10:09:39Z", "role": "builder", "type": "build", "feat": null, "msg": "state.json: direction updated to STABLE. Two open questions resolved (consumer Makefile, evaluator context delivery). HARNESS_ESSENCE.md: added consumer note.", "result": "pass"}
 {"ts":"2026-06-12T10:12:55","role":"builder","type":"checkpoint","feat":null,"msg":"Commit:  (19 files)"}
+{"ts": "2026-06-12T10:13:17Z", "role": "builder", "type": "checkpoint", "feat": null, "msg": "Committed 1ecea9b: 8 tasks \u2192 committed. 26 files, 1935 insertions.", "result": "pass"}
+{"ts":"2026-06-12T10:14:21Z","role":"system","type":"session_start","feat":null,"msg":"New chat session started","result":"pass"}
+{"ts":"2026-06-12T10:15:00Z","role":"builder","type":"build","feat":"chore-breadcrumb-timestamps","msg":"harness_lint.py: demote timestamp-order WARNs to INFO when |delta| < 8h (UTC vs UTC-3 timezone drift). 228/228 tests pass.","result":"pass"}
+{"ts":"2026-06-12T10:15:01Z","role":"builder","type":"build","feat":"chore-eval-baseline-update","msg":"Verified: behavioral_baseline.json already current (0 diff after re-capture). eval_baseline.json is null — CI skips regression. No changes needed.","result":"pass"}
+{"ts":"2026-06-12T10:26:44Z","role":"evaluator","type":"evaluate","feat":"chore-breadcrumb-timestamps","msg":"PASS: timestamp delta threshold verified (suppress <8h, warn >=8h); baselines current, 228/228 tests pass","result":"pass"}
+{"ts":"2026-06-12T10:30:00Z","role":"builder","type":"build","feat":"chore-breadcrumb-timestamps","msg":"Added INFO tier to lint_breadcrumbs (3-tuple return). Added test_harness_lint.py: 15 tests covering delta threshold, boundary, parametrize. 243/243 tests pass.","result":"pass"}
+{"ts":"2026-06-12T10:34:52Z","role":"evaluator","type":"evaluate","feat":"chore-breadcrumb-timestamps","msg":"PASS: INFO tier + 15 regression tests verified; 243/243 pass, harness_lint shows 4 INFO + 4 WARN on real breadcrumbs","result":"pass"}
+{"ts":"2026-06-12T10:36:28Z","role":"system","type":"session_start","feat":null,"msg":"New chat session started","result":"pass"}
+{"ts":"2026-06-12T10:36:41","role":"builder","type":"checkpoint","feat":null,"msg":"Commit:  (3 files)"}

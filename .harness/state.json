@@ -142,7 +142,7 @@
       "id": "chore-prune-harness",
       "name": "Harness state prune script",
       "type": "chore",
-      "status": "verified",
+      "status": "committed",
       "priority": 1,
       "scope": "Includes: scripts/prune-harness.py with --dry-run and --apply; archive RESOLVED/DEFERRED open_questions to .harness/questions_archive.jsonl; archive breadcrumbs beyond retention window to .harness/breadcrumbs_archive.jsonl (default: keep last 50 OR entries ≤7 days old, whichever is larger); remove stale flag files (.harness/.routing-pending older than 30 min, .cursor/hooks/.evaluator-active when contract phase≠evaluating, .cursor/hooks/.commit-approved when no active build); optional --trim-vision/--trim-direction with documented char threshold; Makefile target harness-prune; pytest unit tests; HARNESS_ESSENCE.md §Maintenance. Excludes: hook wiring (feat-session-context-integration); does not replace nuclear scripts/clean-harness.sh reset."
     },
@@ -150,7 +150,7 @@
       "id": "feat-context-package",
       "name": "Lean harness context package generator",
       "type": "feature",
-      "status": "verified",
+      "status": "committed",
       "priority": 1,
       "scope": "Includes: scripts/context-package.py emitting canonical JSON (current building/pending task, contract acceptance_criteria + phase + verified, last N breadcrumbs default 8, active open_questions excluding RESOLVED/DEFERRED prefixes); --format markdown for human/agent injection; --harness-dir flag; optional --write .harness/context-package.json; pytest with fixture state/contract/breadcrumbs; document schema in HARNESS_ESSENCE.md §Context package. Excludes: harness-context.sh refactor (feat-session-context-integration); no evaluator agent prompt changes yet."
     },
@@ -158,7 +158,7 @@
       "id": "feat-session-context-integration",
       "name": "Session-start context package and prune advisory hooks",
       "type": "feature",
-      "status": "verified",
+      "status": "committed",
       "priority": 2,
       "scope": "Includes: refactor library/cursor/hooks/harness-context.sh to call context-package.py (replace inline Python breadcrumb slice); inject compact markdown package at sessionStart; emit PRUNE ADVISORY when breadcrumb count >50 or ≥3 archivable open_questions (suggest python scripts/prune-harness.py --dry-run); mirror in library/claude/hooks/harness-context.sh; update AGENTS.md hook table; validate-hooks.sh coverage for package output. Depends on chore-prune-harness and feat-context-package. Excludes: auto-mutating prune on hook fire; context-health.sh changes (separate follow-up if behavioral_context_health_stale_thread still <80% after integration)."
     },
@@ -196,7 +196,7 @@
       "id": "chore-relocate-hook-scripts",
       "name": "Move context-package.py and prune-harness.py into library/cursor/hooks/",
       "type": "chore",
-      "status": "verified",
+      "status": "committed",
       "priority": "P1",
       "scope": "Move scripts/context-package.py and scripts/prune-harness.py → library/cursor/hooks/ (git mv). Remove originals from scripts/. No path or caller updates in this task — verify files exist at new location only. After make sync-local, both .py files must appear in .cursor/hooks/. Excludes: harness-context.sh, Makefile, tests, docs (separate tasks).",
       "technical_debt": true
@@ -205,7 +205,7 @@
       "id": "chore-fix-harness-context-path",
       "name": "Fix harness-context.sh to resolve context-package.py via SCRIPT_DIR",
       "type": "chore",
-      "status": "verified",
+      "status": "committed",
       "priority": "P1",
       "scope": "Update CONTEXT_PKG to \"$SCRIPT_DIR/context-package.py\" in library/cursor/hooks/harness-context.sh and library/claude/hooks/harness-context.sh. Update header comments (no scripts/ references). Depends on chore-relocate-hook-scripts. Verify: hook works from library/cursor/hooks/ AND from .cursor/hooks/ after sync-local (no context-package unavailable fallback). Excludes: test file updates.",
       "technical_debt": true
@@ -214,7 +214,7 @@
       "id": "chore-makefile-prune-path",
       "name": "Update Makefile harness-prune to new script location",
       "type": "chore",
-      "status": "verified",
+      "status": "committed",
       "priority": "P1",
       "scope": "Change harness-prune target from scripts/prune-harness.py to library/cursor/hooks/prune-harness.py. Depends on chore-relocate-hook-scripts. Verify: make harness-prune exits 0 (dry-run). Excludes: docs.",
       "technical_debt": true
@@ -223,7 +223,7 @@
       "id": "chore-hook-scripts-tests",
       "name": "Update pytest paths for relocated hook scripts",
       "type": "chore",
-      "status": "verified",
+      "status": "committed",
       "priority": "P1",
       "scope": "Update SCRIPT/PRUNE_SCRIPT constants and mock CONTEXT_PKG patch strings in tests/eval/test_context_package.py, tests/eval/test_prune_harness.py, tests/eval/test_harness_context_hook.py to library/cursor/hooks/. Depends on chore-relocate-hook-scripts and chore-fix-harness-context-path. Verify: full pytest suite 228/228 pass; --root flag isolation tests unchanged.",
       "technical_debt": true
@@ -232,7 +232,7 @@
       "id": "chore-hook-scripts-docs",
       "name": "Update docs for hook-colocated script paths",
       "type": "chore",
-      "status": "verified",
+      "status": "committed",
       "priority": "P1",
       "scope": "Update script path references in docs/HARNESS_ESSENCE.md and docs/EVAL_GUIDE.md (library/cursor/hooks/ for repo dev, .cursor/hooks/ for post-sync usage). Depends on chore-relocate-hook-scripts. Excludes: AGENTS.md (no script paths today).",
       "technical_debt": true
@@ -250,7 +250,7 @@
       "id": "chore-breadcrumb-timestamps",
       "name": "Fix breadcrumb timestamp out-of-order warnings (UTC vs UTC-3 timezone mixing)",
       "type": "chore",
-      "status": "pending",
+      "status": "verified",
       "priority": "P3",
       "scope": "harness_lint.py: demote timestamp-order WARNs to INFO when delta < 8 hours (likely timezone shift, not real disorder). Or: normalize all timestamps to UTC in prune-harness.py.",
       "technical_debt": true
@@ -259,7 +259,7 @@
       "id": "chore-eval-baseline-update",
       "name": "Update eval baseline to reflect judge fix (harness_level:none) and new scenarios",
       "type": "chore",
-      "status": "pending",
+      "status": "verified",
       "priority": "P2",
       "scope": "Run capture_eval_baseline.py after the harness_level:none fix (skill_activation 57→80%). Baseline is stale and will produce false regression alerts. Per EVAL_GUIDE.md baseline refresh policy.",
       "technical_debt": true

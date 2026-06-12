@@ -25,19 +25,20 @@ def _parse_ts(ts: str) -> datetime:
     return dt
 
 
-def lint_breadcrumbs(path: Path) -> tuple[list[str], list[str]]:
+def lint_breadcrumbs(path: Path) -> tuple[list[str], list[str], list[str]]:
     """Validate breadcrumbs.jsonl structure and integrity."""
     errors: list[str] = []
     warnings: list[str] = []
+    infos: list[str] = []
 
     if not path.exists():
         warnings.append("breadcrumbs.jsonl not found")
-        return errors, warnings
+        return errors, warnings, infos
 
     lines = path.read_text().splitlines()
     if not lines:
         warnings.append("breadcrumbs.jsonl is empty")
-        return errors, warnings
+        return errors, warnings, infos
 
     required_fields = {"ts", "role", "msg"}
     valid_roles = {"planner", "builder", "evaluator", "system"}
@@ -83,7 +84,14 @@ def lint_breadcrumbs(path: Path) -> tuple[list[str], list[str]]:
                 current = _parse_ts(ts)
                 previous = _parse_ts(prev_ts)
                 if current < previous:
-                    warnings.append(f"Line {i + 1}: timestamp out of order ({ts} < {prev_ts})")
+                    delta_hours = abs((previous - current).total_seconds()) / 3600
+                    if delta_hours >= 8:
+                        warnings.append(f"Line {i + 1}: timestamp out of order ({ts} < {prev_ts})")
+                    else:
+                        infos.append(
+                            f"Line {i + 1}: timestamp drift {delta_hours:.1f}h suppressed "
+                            f"(likely timezone offset, not real disorder)"
+                        )
             except (ValueError, TypeError):
                 pass
         if ts:
@@ -92,7 +100,7 @@ def lint_breadcrumbs(path: Path) -> tuple[list[str], list[str]]:
     if bad_json_count > 3:
         errors.append(f"... and {bad_json_count - 3} more invalid JSON lines")
 
-    return errors, warnings
+    return errors, warnings, infos
 
 
 def lint_state(path: Path) -> tuple[list[str], list[str]]:
@@ -266,10 +274,16 @@ def main() -> int:
 
     all_errors: list[str] = []
     all_warnings: list[str] = []
+    all_infos: list[str] = []
     sections: dict[str, dict] = {}
 
+    bc_errs, bc_warns, bc_infos = lint_breadcrumbs(harness_dir / "breadcrumbs.jsonl")
+    all_errors.extend(bc_errs)
+    all_warnings.extend(bc_warns)
+    all_infos.extend(bc_infos)
+    sections["breadcrumbs"] = {"errors": bc_errs, "warnings": bc_warns, "infos": bc_infos}
+
     for name, lint_fn, file_path in [
-        ("breadcrumbs", lint_breadcrumbs, harness_dir / "breadcrumbs.jsonl"),
         ("state", lint_state, harness_dir / "state.json"),
     ]:
         errs, warns = lint_fn(file_path)
@@ -291,6 +305,7 @@ def main() -> int:
             "status": "fail" if all_errors else "pass",
             "errors": all_errors,
             "warnings": all_warnings,
+            "infos": all_infos,
             "sections": sections,
         }, indent=2))
     else:
@@ -298,15 +313,18 @@ def main() -> int:
         for section, data in sections.items():
             errs = data["errors"]
             warns = data["warnings"]
-            if errs or warns:
+            infos = data.get("infos", [])
+            if errs or warns or infos:
                 print(f"\n  [{section}]")
                 for e in errs:
                     print(f"    ERROR: {e}")
                 for w in warns:
                     print(f"    WARN:  {w}")
-        if not all_errors and not all_warnings:
+                for info in infos:
+                    print(f"    INFO:  {info}")
+        if not all_errors and not all_warnings and not all_infos:
             print("  All checks passed")
-        print(f"\nResult: {len(all_errors)} errors, {len(all_warnings)} warnings")
+        print(f"\nResult: {len(all_errors)} errors, {len(all_warnings)} warnings, {len(all_infos)} infos")
 
     return 1 if all_errors else 0
 
