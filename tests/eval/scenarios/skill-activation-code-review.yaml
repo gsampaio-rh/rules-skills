@@ -3,7 +3,7 @@ name: "Code review skill activation — structured severity output"
 difficulty: medium
 estimated_duration: 4m
 timeout_s: 300
-harness_level: light
+harness_level: none
 
 seed_files:
   app/auth.py: |

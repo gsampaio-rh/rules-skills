@@ -136,6 +136,9 @@ migrate-harness: ## Migrate .harness/ files from v1 (features) to v2 (tasks) sch
 migrate-harness-dry: ## Preview migration without writing files
 	$(PYTHON) scripts/migrate-state-schema.py --dry-run
 
+harness-prune: ## Preview stale harness state to prune (dry-run; use --apply to mutate)
+	$(PYTHON) library/cursor/hooks/prune-harness.py
+
 # ─── Utilities ────────────────────────────────────────────────
 
 clean: ## Remove all eval results

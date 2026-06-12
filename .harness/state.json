@@ -3,7 +3,7 @@
   "created": "2026-05-27T14:00:00Z",
   "schema_version": 2,
   "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. THE HARNESS IS: a durable, file-system task system that keeps AI agents honest across sessions. It solves five problems the owner identified: (1) repository scope — vision, direction, trade-offs in state.json; (2) task definition — discrete tasks with type and scope; (3) task grouping — flat tasks[] array filtered by status at read time; (4) task status tracking — lifecycle enum + append-only breadcrumbs.jsonl for session recovery; (5) acceptance criteria — contract.json with binary-testable criteria negotiated before implementation. For whom: teams using Cursor/Claude Code on non-trivial multi-file work who need agents to stop self-grading and stop losing context between sessions. Why each component exists: state.json = scope + backlog; contract.json = definition of done; breadcrumbs = audit trail; planner subagent = decompose vague requests; evaluator subagent = adversarial QA separate from builder context; hooks (lean) = enforce contract-before-code structurally; eval pipeline = regression test that agents follow the workflow. HONEST ASSESSMENT: the core five-problem harness is sound and ~40 lines of JSON + rules. Everything layered on top — negotiations/ JSON schemas, 11 hooks (full profile), metrics dashboard, 41 scenario evals with 5 judge tiers, multi-agent orchestration, UI dashboard — has grown organically and now obscures the value proposition. 47 verified tasks prove the core works; pending tasks are now reprioritized around measurement gaps, not harness failures. ACAM RESEARCH (2026-06-11, COMMITTED): spike-research-agents verified rules-skills as Intermediate on all 4 ACAM dimensions at Tier 3 (~top 0.5% of n≈3,200 public repos). Reaching Advanced requires quantitative effectiveness data — per-rule ablation scores, skill activation eval, CI-integrated eval regression, and measured interaction patterns — not more rules, hooks, or documentation.",
-  "direction": "MEASUREMENT INFRASTRUCTURE (2026-06-11): spike-research-agents COMMITTED. ACAM verdict: Intermediate across Configuration, Workflows, Multi-agent, and Interaction. Binding constraint to Advanced: absence of quantitative effectiveness data. Next focus is closing measurement gaps in priority order: (1) feat-16 rule ablation — unlocks Configuration Advanced and diagnoses the 33% session boundary failure; (2) chore-skill-scenarios — closes zero skill_activation eval coverage across 14 skills; (3) feat-17 CI integration — converts 27+ manual eval scenarios into automated regression suite (Workflows Advanced criterion); (4) fix-verify-harness — closes self-certification bypass in stop hook; (5) gap-14 session boundary — inject session count via harness-context.sh + tighten trigger conditions. Remaining eval-tooling: feat-14a (LLM judge calibration), gap-18 (skip-harness auth), chore-archive-review. Maintenance: fix-adversarial-mdc (RULES_STANDARD violation). Architecture unchanged: structural deny for critical steps, advisory for quality signals. Deferred from research (no task yet): context package delivery between agents, prompt versioning/changelog.",
+  "direction": "STABLE (2026-06-12): All infrastructure migrations complete. context-package.py and prune-harness.py colocated in library/cursor/hooks/ and distributed via make sync-local. harness-context.sh resolves $SCRIPT_DIR/context-package.py — verified in both source and synced copy. Archive restructured to .harness/.archive/ (gitignored). contract.json lifecycle correct: removed stale feat-13b contract (task archived). evaluator.md updated to use context-package.py for lean context. 228/228 tests + 53/53 hook tests passing, harness_lint 0 errors. Pending commits: multiple verified chores. Pending tasks: spike-token-estimation, spike-model-selection, spike-token-budget (P2). chore-breadcrumb-timestamps (P3), chore-eval-baseline-update (P2).",
   "trade_offs": [
     {
       "decision": "Flat tasks array, not grouped buckets",
@@ -109,24 +109,160 @@
       "decision": "feat-17 tiered CI: 11-scenario protocol PR gate + nightly full suite (31 scenarios)",
       "alternative": "Full 27+ scenario suite on every PR",
       "reasoning": "Sequential live sessions run ~5–15 min each; full suite is ~4–6 hours and blocks every PR. Protocol-prefix subset (~90–120 min sequential) protects the five-problem harness core; nightly runs all standard + long scenarios with LLM judge tier."
+    },
+    {
+      "decision": "Separate JSONL archives for pruned breadcrumbs and open_questions (not archive.jsonl)",
+      "alternative": "Append all pruned records to .harness/archive.jsonl with a record_type discriminator",
+      "reasoning": "archive.jsonl is task-shaped (id, name, status, archived_at) and is read by harness_lint cross-consistency checks. Mixing breadcrumb and question records would break lint assumptions and archive-tasks.py consumers. Dedicated breadcrumbs_archive.jsonl and questions_archive.jsonl keep schemas stable."
+    },
+    {
+      "decision": "Prune is manual or explicit --apply; sessionStart hook emits advisory only",
+      "alternative": "Auto-prune stale breadcrumbs and resolved questions on every sessionStart",
+      "reasoning": "Mutating harness state inside sessionStart hooks risks race conditions with concurrent sessions and silent data loss. Matches archive-tasks.py (--dry-run first) pattern. harness-context.sh should surface PRUNE ADVISORY with counts and the command to run, not delete records automatically."
+    },
+    {
+      "decision": "Context package: JSON canonical schema, compact markdown for hook injection",
+      "alternative": "Markdown-only package or inject raw state.json + contract.json slices",
+      "reasoning": "JSON is machine-testable (pytest, eval scenarios) and composable for evaluator Task prompts. Markdown is a derived view for token-efficient sessionStart injection. Avoids dumping full builder history while giving evaluator structured task + AC + recent trace."
+    },
+    {
+      "decision": "Colocate hook helper scripts in library/cursor/hooks/ (not scripts/)",
+      "alternative": "Extend make sync-local to copy scripts/ subset; or add make sync-hooks",
+      "reasoning": "make sync-local copies library/cursor/hooks/ → .cursor/hooks/ as the only distribution path. Scripts called at sessionStart must live beside the hook that invokes them so $SCRIPT_DIR resolves identically in source and synced copies. Repo-internal tools (archive-tasks.py, migrate-state-schema.py) stay in scripts/."
     }
   ],
   "open_questions": [
-    "RESOLVED (2026-06-12): negotiations/ folder deprecated — use type=negotiate breadcrumbs. Updated docs/HARNESS_ESSENCE.md.",
-    "RESOLVED (2026-06-12): lean hook profile ships to consumers (4 hooks); full profile (8 hooks) stays for this repo only. Documented in docs/HARNESS_ESSENCE.md §Hook Profiles.",
-    "RESOLVED (2026-06-12): minimum eval set = 11 protocol scenarios (PR tier in ci_suites.json). Documented in docs/EVAL_GUIDE.md §Minimum scenario set.",
-    "RESOLVED (2026-06-12): contract.json phase enum now includes 'verified' in docs/HARNESS_ESSENCE.md. Fix-verify-harness gap-23 also closed.",
-    "RESOLVED (2026-06-12): feat-16 DONE — A/B scenarios run via worktree session_runner with --ablate-rule flag. Sequential execution, no eval cost doubling. Each scenario pair produces paired delta + Wilcoxon + Cohen's d.",
-    "DEFERRED: trajectory scoring hybrid (deterministic tool-call graph for quantifiable signals + LLM for qualitative rubrics). feat-14a built the LLM infrastructure (UNKNOWN verdict, smart truncation, per-dimension prompts). Golden calibration set (30-50 human-labeled transcripts for Cohen's κ) blocks full implementation — requires human input. Accept current UNCERTAIN rate (~10%) until golden set exists.",
-    "DEFERRED: ACAM artifacts stay in .harness/docs/research/ until feat-16 ablation data is available. Trigger for move to docs/: (1) at least one dimension with quantitative effectiveness data, (2) owner approves publication format (blog series vs. internal reference). Current ACAM scores are Intermediate on all 4 dimensions with no ablation evidence.",
-    "DEFERRED: ACAM external validation (practitioner survey, blind scoring, benchmark). Blocked on: (1) feat-16 ablation data to have quantitative claims worth validating, (2) publication format decision (Q7). Not actionable until Q7 is unblocked.",
-    "RESOLVED (2026-06-12): context package delivery — accept prompt-level isolation (Task tool fresh context per subagent) until telemetry shows evaluator anchoring is a real problem. The evaluator intentionally reads builder output; context isolation is only a problem if judge scores show systematic anchoring bias. Trigger to revisit: evaluator PASS rate > 90% on contracts the builder proposes (too lenient) indicating anchoring.",
-    "RESOLVED (2026-06-12): prompt versioning — rely on git history + feat-16 ablation data for rule iteration evidence. Per-rule changelog adds maintenance burden without measurement benefit. If a rule change doesn't move eval scores, the changelog is noise. If it does, the commit message + feat-16 delta is the evidence. Revisit if ablation shows >5% unexplained variance not tied to any commit.",
-    "RESOLVED (2026-06-12): baseline refresh policy documented in docs/EVAL_GUIDE.md §Baseline refresh policy. CODEOWNERS added at .github/CODEOWNERS for eval_baseline.json and ci_suites.json. Procedure: maintainer runs capture_eval_baseline.py, PR labeled baseline-refresh, requires owner approval.",
-    "RESOLVED (2026-06-12): gap-14 DONE — harness-context.sh injects session_tasks_completed count (unique build+pass feats between last 2 session_start markers) and SESSION BOUNDARY ADVISORY when N>=3. planning_discipline.mdc updated with measurable primary trigger. 10/10 tests pass.",
-    "DEFERRED: SKILLS_STANDARD H1/H3/H4 hypotheses require real-session telemetry (completion rate, user correction rate, question count per invocation). No telemetry channel exists. Current coverage: H2 (behavioral rubric scores via chore-skill-scenarios), H5 (line count via validate.py). Trigger to build telemetry: >100 real sessions where skill activation can be detected reliably from transcripts.",
-    "RESOLVED (2026-06-12): feat-13b DONE — chain-evaluator.sh now auto-advances phase=building to evaluating, creates .evaluator-active flag, appends dispatch breadcrumb. State transitions are programmatic; final /evaluator invocation remains advisory (Cursor hook API cannot directly invoke subagents). This is the achievable slice of ACAM Multi-agent Advanced; full programmatic dispatch requires Cursor SDK capability not currently available.",
-    "DEFERRED: measured inter-agent effectiveness (A/B: 3-role harness vs. solo builder). Unblocking work: (1) eval scenarios seeded with/without evaluator role (add 3-5 paired scenarios), (2) outcome metric definition (task success rate, contract violation rate, rework count), (3) run both variants via feat-16 ablation mechanism (--ablate-rule applied to evaluator role). Not a current bottleneck — harness is Intermediate on this dimension by design."
+    "Unresolved: breadcrumb retention policy — keep last N entries (default 50), entries newer than D days (default 7), or whichever retains more? Affects prune-harness defaults and context-health stale-thread thresholds.",
+    "Unresolved: vision/direction trim threshold — character limit (e.g. 2000 chars each) vs approximate token budget? prune-harness should preserve first paragraph + last update stamp if trimming.",
+    "RESOLVED (2026-06-12): evaluator.md updated — step 2 now instructs python .cursor/hooks/context-package.py --format markdown as primary context source, with fallback to reading state.json + breadcrumbs.jsonl directly.",
+    "RESOLVED (2026-06-12): consumer projects — invoke directly via python .cursor/hooks/prune-harness.py and python .cursor/hooks/context-package.py. Documented in HARNESS_ESSENCE.md. No wrapper script needed; scripts are self-contained with Path.cwd() root detection."
   ],
-  "tasks": []
+  "tasks": [
+    {
+      "id": "chore-prune-harness",
+      "name": "Harness state prune script",
+      "type": "chore",
+      "status": "verified",
+      "priority": 1,
+      "scope": "Includes: scripts/prune-harness.py with --dry-run and --apply; archive RESOLVED/DEFERRED open_questions to .harness/questions_archive.jsonl; archive breadcrumbs beyond retention window to .harness/breadcrumbs_archive.jsonl (default: keep last 50 OR entries ≤7 days old, whichever is larger); remove stale flag files (.harness/.routing-pending older than 30 min, .cursor/hooks/.evaluator-active when contract phase≠evaluating, .cursor/hooks/.commit-approved when no active build); optional --trim-vision/--trim-direction with documented char threshold; Makefile target harness-prune; pytest unit tests; HARNESS_ESSENCE.md §Maintenance. Excludes: hook wiring (feat-session-context-integration); does not replace nuclear scripts/clean-harness.sh reset."
+    },
+    {
+      "id": "feat-context-package",
+      "name": "Lean harness context package generator",
+      "type": "feature",
+      "status": "verified",
+      "priority": 1,
+      "scope": "Includes: scripts/context-package.py emitting canonical JSON (current building/pending task, contract acceptance_criteria + phase + verified, last N breadcrumbs default 8, active open_questions excluding RESOLVED/DEFERRED prefixes); --format markdown for human/agent injection; --harness-dir flag; optional --write .harness/context-package.json; pytest with fixture state/contract/breadcrumbs; document schema in HARNESS_ESSENCE.md §Context package. Excludes: harness-context.sh refactor (feat-session-context-integration); no evaluator agent prompt changes yet."
+    },
+    {
+      "id": "feat-session-context-integration",
+      "name": "Session-start context package and prune advisory hooks",
+      "type": "feature",
+      "status": "verified",
+      "priority": 2,
+      "scope": "Includes: refactor library/cursor/hooks/harness-context.sh to call context-package.py (replace inline Python breadcrumb slice); inject compact markdown package at sessionStart; emit PRUNE ADVISORY when breadcrumb count >50 or ≥3 archivable open_questions (suggest python scripts/prune-harness.py --dry-run); mirror in library/claude/hooks/harness-context.sh; update AGENTS.md hook table; validate-hooks.sh coverage for package output. Depends on chore-prune-harness and feat-context-package. Excludes: auto-mutating prune on hook fire; context-health.sh changes (separate follow-up if behavioral_context_health_stale_thread still <80% after integration)."
+    },
+    {
+      "id": "spike-token-estimation",
+      "name": "Token footprint audit for harness context",
+      "type": "spike",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Measure only — no optimization. Audit token counts for always-on rules, context package output, breadcrumbs, and sessionStart injection using tiktoken or equivalent.",
+      "research_question": "How many tokens does the current harness context inject at session start? What's the per-rule, per-breadcrumb, per-context-package token footprint?",
+      "deliverable": "scripts/token-audit.py that measures token counts for key artifacts (always-on rules, context package, typical breadcrumbs) using tiktoken or similar"
+    },
+    {
+      "id": "spike-model-selection",
+      "name": "Model routing matrix for harness workflow",
+      "type": "spike",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Research + decision doc only — no implementation. Identify which harness phases benefit from model routing and define signals for tier selection.",
+      "research_question": "Which tasks in the harness workflow benefit from model routing? What signals (task type, complexity, token budget) should drive model selection?",
+      "deliverable": ".harness/docs/research/model-selection.md with a proposed routing matrix (task type → model tier)"
+    },
+    {
+      "id": "spike-token-budget",
+      "name": "Per-task token budget thresholds and enforcement",
+      "type": "spike",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Research + proposed spec only — implementation is a separate feature task. Define practical budgets per harness phase and enforcement mechanism.",
+      "research_question": "Can we enforce per-task token budgets? What is a practical budget for each harness phase (planning, building, evaluating)?",
+      "deliverable": ".harness/docs/research/token-budget.md with proposed budget thresholds and enforcement mechanism"
+    },
+    {
+      "id": "chore-relocate-hook-scripts",
+      "name": "Move context-package.py and prune-harness.py into library/cursor/hooks/",
+      "type": "chore",
+      "status": "verified",
+      "priority": "P1",
+      "scope": "Move scripts/context-package.py and scripts/prune-harness.py → library/cursor/hooks/ (git mv). Remove originals from scripts/. No path or caller updates in this task — verify files exist at new location only. After make sync-local, both .py files must appear in .cursor/hooks/. Excludes: harness-context.sh, Makefile, tests, docs (separate tasks).",
+      "technical_debt": true
+    },
+    {
+      "id": "chore-fix-harness-context-path",
+      "name": "Fix harness-context.sh to resolve context-package.py via SCRIPT_DIR",
+      "type": "chore",
+      "status": "verified",
+      "priority": "P1",
+      "scope": "Update CONTEXT_PKG to \"$SCRIPT_DIR/context-package.py\" in library/cursor/hooks/harness-context.sh and library/claude/hooks/harness-context.sh. Update header comments (no scripts/ references). Depends on chore-relocate-hook-scripts. Verify: hook works from library/cursor/hooks/ AND from .cursor/hooks/ after sync-local (no context-package unavailable fallback). Excludes: test file updates.",
+      "technical_debt": true
+    },
+    {
+      "id": "chore-makefile-prune-path",
+      "name": "Update Makefile harness-prune to new script location",
+      "type": "chore",
+      "status": "verified",
+      "priority": "P1",
+      "scope": "Change harness-prune target from scripts/prune-harness.py to library/cursor/hooks/prune-harness.py. Depends on chore-relocate-hook-scripts. Verify: make harness-prune exits 0 (dry-run). Excludes: docs.",
+      "technical_debt": true
+    },
+    {
+      "id": "chore-hook-scripts-tests",
+      "name": "Update pytest paths for relocated hook scripts",
+      "type": "chore",
+      "status": "verified",
+      "priority": "P1",
+      "scope": "Update SCRIPT/PRUNE_SCRIPT constants and mock CONTEXT_PKG patch strings in tests/eval/test_context_package.py, tests/eval/test_prune_harness.py, tests/eval/test_harness_context_hook.py to library/cursor/hooks/. Depends on chore-relocate-hook-scripts and chore-fix-harness-context-path. Verify: full pytest suite 228/228 pass; --root flag isolation tests unchanged.",
+      "technical_debt": true
+    },
+    {
+      "id": "chore-hook-scripts-docs",
+      "name": "Update docs for hook-colocated script paths",
+      "type": "chore",
+      "status": "verified",
+      "priority": "P1",
+      "scope": "Update script path references in docs/HARNESS_ESSENCE.md and docs/EVAL_GUIDE.md (library/cursor/hooks/ for repo dev, .cursor/hooks/ for post-sync usage). Depends on chore-relocate-hook-scripts. Excludes: AGENTS.md (no script paths today).",
+      "technical_debt": true
+    },
+    {
+      "id": "chore-sync-hooks",
+      "name": "Add make sync-hooks target to keep .cursor/hooks/ in sync with library/cursor/hooks/",
+      "type": "chore",
+      "status": "cancelled",
+      "priority": "P2",
+      "scope": "SUPERSEDED by chore-relocate-hook-scripts cluster (2026-06-12). Root cause was scripts/ not in sync-local target, not missing sync-hooks. Once Python helpers live in library/cursor/hooks/, make sync-local distributes them automatically. Reopen only if hook-only drift recurs without script path issues.",
+      "technical_debt": true
+    },
+    {
+      "id": "chore-breadcrumb-timestamps",
+      "name": "Fix breadcrumb timestamp out-of-order warnings (UTC vs UTC-3 timezone mixing)",
+      "type": "chore",
+      "status": "pending",
+      "priority": "P3",
+      "scope": "harness_lint.py: demote timestamp-order WARNs to INFO when delta < 8 hours (likely timezone shift, not real disorder). Or: normalize all timestamps to UTC in prune-harness.py.",
+      "technical_debt": true
+    },
+    {
+      "id": "chore-eval-baseline-update",
+      "name": "Update eval baseline to reflect judge fix (harness_level:none) and new scenarios",
+      "type": "chore",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Run capture_eval_baseline.py after the harness_level:none fix (skill_activation 57→80%). Baseline is stale and will produce false regression alerts. Per EVAL_GUIDE.md baseline refresh policy.",
+      "technical_debt": true
+    }
+  ]
 }

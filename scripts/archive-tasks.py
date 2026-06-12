@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Archive verified/cancelled tasks from state.json to .harness/archive.jsonl.
+"""Archive verified/cancelled tasks from state.json to .harness/.archive/tasks.jsonl.
 
 Keeps tasks[] as active backlog only. Archived tasks preserve all fields
 plus an archived_at timestamp.
@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 STATE_PATH = Path(".harness/state.json")
-ARCHIVE_PATH = Path(".harness/archive.jsonl")
+ARCHIVE_PATH = Path(".harness/.archive/tasks.jsonl")
 BREADCRUMBS_PATH = Path(".harness/breadcrumbs.jsonl")
 EVALS_DIR = Path(".harness/evals")
 ARCHIVABLE_STATUSES = {"verified", "committed", "cancelled"}
@@ -133,6 +133,7 @@ def main() -> int:
             print(f"  {t['id']} ({t.get('status')}) — {t.get('name', '')[:60]}")
         return 0
 
+    ARCHIVE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with ARCHIVE_PATH.open("a") as f:
         for t in to_archive:
             t["archived_at"] = ts

@@ -27,7 +27,7 @@ rules-skills/
 │   │   ├── rules/              # 16 .mdc rule files
 │   │   ├── skills/             # 13 skill workflows
 │   │   ├── agents/             # Planner + evaluator definitions
-│   │   ├── hooks/              # 11 enforcement scripts
+│   │   ├── hooks/              # 11 shell scripts + 2 Python helpers (context-package.py, prune-harness.py)
 │   │   └── references/         # Patterns, design, rubrics
 │   └── claude/                  # Claude Code config (parallel port)
 ├── scripts/                     # Dev tooling
@@ -125,7 +125,7 @@ Two profiles control which hooks are active:
 | Profile | Use case | Active hooks |
 |---------|----------|-------------|
 | **lean** (default here) | Rules/skills development | harness-context, contract-gate, dedup-server, verify-harness, enforce-progress, context-health |
-| **full** | Real projects, dogfooding | All 11 scripts + 2 LLM prompt hooks (adds harness-gate, evaluator-guard, pre-commit, chain-evaluator) |
+| **full** | Real projects, dogfooding | All 11 shell hooks + 2 Python helpers (adds harness-gate, evaluator-guard, pre-commit, chain-evaluator) |
 
 ```bash
 scripts/hooks-profile.sh lean     # lightweight harness enforcement

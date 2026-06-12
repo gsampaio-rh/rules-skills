@@ -8,3 +8,4 @@ tests/eval_results/
 
 # Commit approval flag (defense-in-depth; also covered by .cursor/ ignore)
 .commit-approved
+.harness/.archive/

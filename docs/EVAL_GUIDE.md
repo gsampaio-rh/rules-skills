@@ -15,6 +15,12 @@ make eval                   # Both: Tier 1 + Tier 3
 make eval-session-long      # Long scenarios (~10-15 min each)
 make eval-session-long-dry  # Preview long scenario plan
 make eval-session-long-judge # Judge long scenario results
+
+# Harness maintenance
+make harness-prune          # Preview stale state to prune (dry-run)
+python .cursor/hooks/prune-harness.py --apply     # Apply: archive old questions + breadcrumbs
+python .cursor/hooks/context-package.py           # JSON context package for current task
+python .cursor/hooks/context-package.py --format markdown  # Markdown for agent prompts
 ```
 
 ## Architecture
@@ -361,9 +367,14 @@ post_hoc_rubric:
     - "What contract quality looks like"
 ```
 
-2. Run `make eval-session-dry` to verify it loads
-3. Run `make eval-session` to execute
-4. Run `make eval-session-judge` + `make eval-session-report` to see results
+2. Set `harness_level` appropriately:
+   - `full` (default) — all harness checks run (state.json, breadcrumbs, contract, evaluator)
+   - `light` — skips contract/evaluator checks; use for behavioral/routing scenarios
+   - `none` — skips ALL harness checks; use for skill-activation and non-harness scenarios
+
+3. Run `make eval-session-dry` to verify it loads
+4. Run `make eval-session` to execute
+5. Run `make eval-session-judge` + `make eval-session-report` to see results
 
 ## Known Limitations
 

@@ -141,8 +141,9 @@ else
   fail "verify-harness should fire for unverified contract"
 fi
 
-# Test: verified contract → pass
+# Test: verified contract + evaluator PASS breadcrumb → pass
 echo '{"feature":"test","verified":true,"phase":"evaluating"}' > .harness/contract.json
+echo '{"ts":"2026-01-01T00:00:00Z","role":"evaluator","type":"evaluate","feat":"","msg":"PASS","result":"pass"}' > .harness/breadcrumbs.jsonl
 OUTPUT=$(echo '{}' | .cursor/hooks/verify-harness.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q '^\{\}$'; then
   pass "verify-harness passes when contract is verified"
@@ -163,19 +164,19 @@ else
   fail "chain-evaluator should fire PLAN GATE when state.json exists without contract"
 fi
 
-# Test: phase=negotiating → CONTRACT NEGOTIATED (builder should build)
+# Test: phase=negotiating → "Contract negotiation complete" (builder should build)
 echo '{"feature":"test","verified":false,"phase":"negotiating"}' > .harness/contract.json
 OUTPUT=$(echo '{}' | .cursor/hooks/chain-evaluator.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "CONTRACT NEGOTIATED"; then
+if echo "$OUTPUT" | rg -q "Contract negotiation complete"; then
   pass "chain-evaluator routes negotiating → build instruction"
 else
   fail "chain-evaluator should route negotiating phase to build: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: phase=negotiated → CONTRACT NEGOTIATED (builder should build)
+# Test: phase=negotiated → "Contract negotiation complete" (builder should build)
 echo '{"feature":"test","verified":false,"phase":"negotiated"}' > .harness/contract.json
 OUTPUT=$(echo '{}' | .cursor/hooks/chain-evaluator.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "CONTRACT NEGOTIATED"; then
+if echo "$OUTPUT" | rg -q "Contract negotiation complete"; then
   pass "chain-evaluator routes negotiated → build instruction"
 else
   fail "chain-evaluator should route negotiated phase to build: $(echo "$OUTPUT" | head -1)"
@@ -190,10 +191,10 @@ else
   fail "chain-evaluator should route building phase to evaluator: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: phase=evaluating + unverified → EVAL INCOMPLETE (re-launch)
+# Test: phase=evaluating + unverified → "EVAL FAIL" retry message
 echo '{"feature":"test","verified":false,"phase":"evaluating"}' > .harness/contract.json
 OUTPUT=$(echo '{}' | .cursor/hooks/chain-evaluator.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "EVAL INCOMPLETE"; then
+if echo "$OUTPUT" | rg -q "EVAL FAIL"; then
   pass "chain-evaluator routes evaluating+unverified → re-launch"
 else
   fail "chain-evaluator should fire EVAL INCOMPLETE for unverified evaluating: $(echo "$OUTPUT" | head -1)"

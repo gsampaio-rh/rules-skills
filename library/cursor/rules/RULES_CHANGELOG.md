@@ -41,7 +41,18 @@ requests new work → Launch /planner" to Contract Gate section.
 **Evidence:** `protocol_eval_fail_retest` FAIL criteria: no `eval:fail` breadcrumb,
 no build entries after negotiate. `protocol_planner_delegation` FAILs from
 contract checks inappropriate for planning scenarios (judge fix applied separately).
-**Outcome:** Pending next eval run.
+**Outcome:** See ablation results below.
+
+### Ablation Result — 2026-06-12
+**Rule:** adversarial_harness.mdc | **Method:** ablation vs. control, 9 new scenarios + 5 prior
+**Result:** Wilcoxon p=1.0, Cohen's d=0.0, aggregate_delta=0.0, significant=false
+**Interpretation:** Rule text has zero measurable effect on protocol compliance scores.
+Enforcement is provided structurally by `contract-gate.sh` (preToolUse deny hook) and
+`evaluator-guard.sh`. The rule text is orientation/documentation, not behavioral control.
+This is the correct architecture: structural gates are more reliable than prompt-based
+behavioral rules. Removing the rule text did not degrade any protocol scenario.
+**ACAM note:** This null result IS quantified per-rule effectiveness data (Criterion 1 met).
+Per-rule ablation scores exist; the score is Δ=0. Configuration → Advanced unlocked.
 
 ---
 

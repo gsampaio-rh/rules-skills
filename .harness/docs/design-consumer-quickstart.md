@@ -75,7 +75,9 @@ These are this-repo-only (dogfooding infrastructure):
 - `docs/EVAL_GUIDE.md` — eval pipeline documentation
 - `docs/HARNESS_STANDARD.md` (being replaced by HARNESS_ESSENCE.md)
 - `hooks.full.json` — extended profile with evaluator-guard + chain-evaluator
-- `scripts/` — migration, profile switching, validation
+- `scripts/` — repo-internal tools (migration, profile switching, validation); not distributed to consumer projects
+- `.cursor/hooks/context-package.py` — distributed lean context generator (called by harness-context.sh at sessionStart)
+- `.cursor/hooks/prune-harness.py` — distributed maintenance tool (archive stale breadcrumbs/questions)
 
 ---
 
@@ -84,7 +86,9 @@ These are this-repo-only (dogfooding infrastructure):
 | Path | Content | Required? |
 |------|---------|-----------|
 | `.cursor/hooks.json` | Hook config (copy of hooks.lean.json) | Yes |
-| `.cursor/hooks/*.sh` | Hook scripts (10 shell files + hooks-lib.sh) | Yes |
+| `.cursor/hooks/*.sh` | Hook shell scripts (11 files + hooks-lib.sh) | Yes |
+| `.cursor/hooks/context-package.py` | Context generator (called at sessionStart) | Yes |
+| `.cursor/hooks/prune-harness.py` | Maintenance pruning tool | Yes |
 | `.cursor/rules/*.mdc` | Always-on rules (8 files) | Yes |
 | `.cursor/skills/adversarial-harness/SKILL.md` | Harness workflow instructions | Yes |
 | `.cursor/agents/planner.md` | Planner subagent definition | Yes |

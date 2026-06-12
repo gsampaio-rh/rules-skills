@@ -1,0 +1,102 @@
+{
+  "task_id": "chore-prune-harness",
+  "timestamp": "2026-06-12T18:00:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "PASS — harness_lint.py exit 0, 0 errors (3 breadcrumb timestamp warnings, non-blocking)",
+    "types": "NOT_APPLICABLE — Python script + tests, no type checker in verification_method",
+    "tests": "PASS — pytest tests/eval/test_prune_harness.py -v: 21 collected, 21 passed in 0.81s",
+    "build": "PASS — python3 -c \"import json; json.load(open('.harness/state.json'))\" exit 0"
+  },
+  "criteria": [
+    {
+      "criterion": "Dry-run exits 0, prints plan, leaves all harness files byte-identical",
+      "result": "PASS",
+      "evidence": "make harness-prune exit 0 with DRY-RUN output. TestDryRun::test_dry_run_no_op_on_files asserts state.json and breadcrumbs.jsonl unchanged; TestDryRun::test_dry_run_prints_plan asserts RESOLVED/open_questions in stdout; TestFlagPruning::test_dry_run_does_not_remove_flags asserts stale .routing-pending kept after dry-run."
+    },
+    {
+      "criterion": "--apply archives RESOLVED/DEFERRED open_questions to questions_archive.jsonl with schema",
+      "result": "PASS",
+      "evidence": "TestQuestionsArchive::test_apply_archives_resolved_and_deferred removes 2 entries, keeps 1. test_apply_archive_format_has_archived_at confirms {\"question\", \"archived_at\"} JSONL schema with parseable ISO8601."
+    },
+    {
+      "criterion": "--apply breadcrumb retention: max(last-50, within-7-days) policy",
+      "result": "PASS",
+      "evidence": "TestBreadcrumbRetention::test_100_recent_entries_archives_0 (100 recent → 0 archived). test_100_old_entries_archives_50 (100 old → 50 archived, 50 kept). test_recent_within_7days_and_under_50_not_archived confirms byte-identical when both policies retain all."
+    },
+    {
+      "criterion": "--apply flag stale-removal rules (routing-pending 30min, evaluator-active phase-aware, commit-approved build-aware)",
+      "result": "PASS",
+      "evidence": "TestFlagPruning (8 tests): test_stale_routing_pending_removed (mtime>30min → deleted), test_fresh_routing_pending_kept, test_evaluator_active_removed_when_not_evaluating (phase=building), test_evaluator_active_kept_when_evaluating, test_commit_approved_removed_when_no_building_task, test_commit_approved_kept_when_building_task, test_dry_run_does_not_remove_flags, test_absent_flag_no_error."
+    },
+    {
+      "criterion": "After --apply, harness_lint exits 0 and state.json parses as JSON",
+      "result": "PASS",
+      "evidence": "python3 tests/eval/harness_lint.py exit 0 (0 errors). json.load on .harness/state.json exit 0. TestStateValidAfterApply::test_state_json_valid_after_prune exercises post-apply validity in isolated tmp_path."
+    },
+    {
+      "criterion": "Makefile harness-prune runs script without --apply, exit 0",
+      "result": "PASS",
+      "evidence": "make harness-prune exit 0; Makefile line 139-140: harness-prune target runs $(PYTHON) scripts/prune-harness.py (no --apply flag)."
+    },
+    {
+      "criterion": "pytest tests/eval/test_prune_harness.py -v exits 0 (covers dry-run, apply, archive, retention, flags)",
+      "result": "PASS",
+      "evidence": "21 tests collected, 21 passed. TestFlagPruning class present with 8 tests covering all flag scenarios that caused prior FAIL on this criterion."
+    },
+    {
+      "criterion": "docs/HARNESS_ESSENCE.md ## Maintenance section documents usage, retention, flag rules",
+      "result": "PASS",
+      "evidence": "docs/HARNESS_ESSENCE.md lines 104-142: ## Maintenance section with make harness-prune / --apply usage, artifact table (RESOLVED/DEFERRED, breadcrumbs, 3 flag rules), retention policy (last 50 vs 7 days, whichever retains more), archive format examples."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "Empty tasks array — exit 0",
+      "result": "PASS",
+      "evidence": "TestStateValidAfterApply::test_empty_tasks_array_no_crash"
+    },
+    {
+      "case": "No RESOLVED/DEFERRED — questions_archive.jsonl not created",
+      "result": "PASS",
+      "evidence": "TestQuestionsArchive::test_no_resolved_questions_no_archive_created"
+    },
+    {
+      "case": "Missing breadcrumbs.jsonl — exit 0, stderr warning containing 'breadcrumb'",
+      "result": "PASS",
+      "evidence": "TestBreadcrumbRetention::test_missing_breadcrumbs_no_crash"
+    },
+    {
+      "case": "Absent flag file — skip silently, exit 0",
+      "result": "PASS",
+      "evidence": "TestFlagPruning::test_absent_flag_no_error"
+    },
+    {
+      "case": "All breadcrumbs within 7 days and ≤50 lines — byte-identical",
+      "result": "PASS",
+      "evidence": "TestBreadcrumbRetention::test_recent_within_7days_and_under_50_not_archived"
+    },
+    {
+      "case": "100 recent breadcrumb lines — archive 0",
+      "result": "PASS",
+      "evidence": "TestBreadcrumbRetention::test_100_recent_entries_archives_0"
+    },
+    {
+      "case": "100 old breadcrumb lines — archive exactly 50",
+      "result": "PASS",
+      "evidence": "TestBreadcrumbRetention::test_100_old_entries_archives_50"
+    },
+    {
+      "case": "UNRESOLVED/SUPERSEDED remain after --apply",
+      "result": "PASS",
+      "evidence": "TestQuestionsArchive::test_unresolved_superseded_stay_in_state"
+    },
+    {
+      "case": "Second consecutive --apply — no duplicate archive lines",
+      "result": "PASS",
+      "evidence": "TestQuestionsArchive::test_idempotent_no_duplicate_archive_lines"
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "Re-evaluation after builder added TestFlagPruning (8 tests). Prior FAIL on criterion 7 resolved. All 8 acceptance criteria and 9 edge cases pass."
+}

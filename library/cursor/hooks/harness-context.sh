@@ -1,94 +1,100 @@
 #!/bin/bash
 # sessionStart hook: injects current harness state into conversation context.
-# Reads state.json, contract.json, and recent breadcrumbs to give the agent
-# immediate awareness of where the harness is.
+# Calls context-package.py (co-located in this hooks directory) for the main
+# context block, then appends session counter, SESSION BOUNDARY ADVISORY,
+# and prune advisory.
+#
+# HARNESS_ROOT env var overrides the repo root (default: CWD). Used in tests.
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/hooks-lib.sh"
 hooks_init "harness-context"
 
-STATE=".harness/state.json"
-CONTRACT=".harness/contract.json"
-BREADCRUMBS=".harness/breadcrumbs.jsonl"
+HARNESS_ROOT="${HARNESS_ROOT:-.}"
+STATE="$HARNESS_ROOT/.harness/state.json"
+CONTRACT="$HARNESS_ROOT/.harness/contract.json"
+BREADCRUMBS="$HARNESS_ROOT/.harness/breadcrumbs.jsonl"
+CONTEXT_PKG="$SCRIPT_DIR/context-package.py"
 
-# Write a session_start marker so context-health.sh can scope its analysis
-# to the current session only (breadcrumbs are project-level, not session-level).
+# Resolve Python interpreter: prefer python3, fall back to python.
+PYTHON_BIN=""
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+fi
+
+# Temp files for safe multiline content composition.
+TMP_PKG=$(mktemp)
+TMP_SUFFIX=$(mktemp)
+trap 'rm -f "$TMP_PKG" "$TMP_SUFFIX"' EXIT
+
+# Write session_start breadcrumb for session boundary tracking.
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "{\"ts\":\"$TS\",\"role\":\"system\",\"type\":\"session_start\",\"feat\":null,\"msg\":\"New chat session started\",\"result\":\"pass\"}" >> "$BREADCRUMBS" 2>/dev/null
 
+# Cold-start: no harness files at all.
 if [ ! -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: no harness state, injecting cold-start note" >> "$HOOK_LOG" 2>/dev/null
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: no harness state, cold-start note" >> "$HOOK_LOG" 2>/dev/null
   echo '{"additional_context": "No harness active (.harness/state.json not found). If this task is non-trivial (3+ files, user-facing, architectural), launch /planner to create state.json before implementing."}'
   exit 0
 fi
 
-CONTEXT=$(python3 -c "
-import json, os
+# ── Context package (markdown) → $TMP_PKG ────────────────────────────────────
+if [ -n "$PYTHON_BIN" ] && [ -f "$CONTEXT_PKG" ]; then
+  "$PYTHON_BIN" "$CONTEXT_PKG" --format markdown --root "$HARNESS_ROOT" > "$TMP_PKG" 2>/dev/null
+fi
 
+# Fallback when context-package.py is unavailable or produced empty output.
+if [ ! -s "$TMP_PKG" ]; then
+  {
+    echo "## Current Task"
+    echo "(context-package unavailable — reading state directly)"
+    if [ -n "$PYTHON_BIN" ] && [ -f "$CONTRACT" ]; then
+      "$PYTHON_BIN" -c "
+import json
+try:
+    c = json.load(open('$CONTRACT'))
+    print('## Acceptance Criteria')
+    for ac in c.get('acceptance_criteria', []):
+        print(f'- {ac}')
+except Exception:
+    pass
+" 2>/dev/null
+    fi
+  } > "$TMP_PKG"
+fi
+
+# ── Session counter, advisories → $TMP_SUFFIX ────────────────────────────────
+${PYTHON_BIN:-python3} - "$STATE" "$CONTRACT" "$BREADCRUMBS" > "$TMP_SUFFIX" 2>/dev/null << 'PYEOF'
+import json, os, sys
+
+state_path, contract_path, breadcrumbs_path = sys.argv[1], sys.argv[2], sys.argv[3]
 parts = []
 
-state_path = '$STATE'
-contract_path = '$CONTRACT'
-breadcrumbs_path = '$BREADCRUMBS'
-
+# Archive advisory and contract-without-state warning.
 building = []
-
-if os.path.isfile(state_path):
-    try:
-        with open(state_path) as f:
-            state = json.load(f)
-        project = state.get('project', 'unknown')
+try:
+    if os.path.isfile(state_path):
+        state = json.load(open(state_path))
         tasks = state.get('tasks', [])
-        total = len(tasks)
         archivable = [t for t in tasks if t.get('status') in ('verified', 'committed', 'cancelled')]
-        done = len(archivable)
         sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
-        pending = [t for t in sorted_tasks if t.get('status') == 'pending']
         building = [t for t in sorted_tasks if t.get('status') == 'building']
-
-        parts.append(f'Harness active for \"{project}\": {done}/{total} tasks done.')
-
         if len(archivable) >= 10:
-            parts.append(f'ARCHIVE ADVISORY: {len(archivable)} completed/cancelled tasks in state.json. Run `python scripts/archive-tasks.py` (or --dry-run first) to move them to .harness/archive.jsonl and keep the backlog lean.')
+            parts.append(f'ARCHIVE ADVISORY: {len(archivable)} completed/cancelled tasks in state.json. Run `python scripts/archive-tasks.py` (or --dry-run) to keep the backlog lean.')
+    if not os.path.isfile(contract_path) and building:
+        b = building[0]
+        parts.append(f'CONTRACT REQUIRED: Task "{b.get("id","?")}" is building but no contract.json exists.')
+        parts.append('Before ANY implementation code: write .harness/contract.json then launch /evaluator.')
+except Exception:
+    pass
 
-        if building:
-            b = building[0]
-            parts.append(f'Currently building: {b.get(\"id\", \"?\") } ({b.get(\"name\", \"unnamed\")}).')
-        elif pending:
-            p = pending[0]
-            parts.append(f'Next pending: {p.get(\"id\", \"?\")} ({p.get(\"name\", \"unnamed\")}).')
-    except Exception:
-        parts.append('Harness state.json exists but could not be parsed.')
-
-if os.path.isfile(contract_path):
-    try:
-        with open(contract_path) as f:
-            contract = json.load(f)
-        feat = contract.get('feature', 'unknown')
-        phase = contract.get('phase', 'unknown')
-        verified = contract.get('verified', False)
-        parts.append(f'Contract for \"{feat}\": phase={phase}, verified={verified}.')
-    except Exception:
-        parts.append('Contract exists but could not be parsed.')
-elif building:
-    b = building[0]
-    parts.append(f'CONTRACT REQUIRED: Task \"{b.get(\"id\",\"?\")}\" is in building status but no contract.json exists. Before writing ANY implementation code, you MUST:')
-    parts.append('1. Write .harness/contract.json with: feature, acceptance_criteria (binary-testable), edge_cases, verification_method')
-    parts.append('2. Launch the evaluator subagent for contract negotiation')
-    parts.append('3. Only after negotiation completes, proceed with implementation')
-    parts.append('Skipping the contract violates the adversarial harness protocol.')
-
-if os.path.isfile(breadcrumbs_path):
-    try:
-        with open(breadcrumbs_path) as f:
-            lines = f.readlines()
-
-        # Session task count: count unique feat IDs with type=build AND result=pass
-        # in the window STRICTLY BETWEEN the last two session_start markers.
-        # Algo: (1) scan all lines, (2) collect indices of session_start entries,
-        # (3) if fewer than 2 markers → N=0 (not enough history yet),
-        # (4) else extract lines[marker[-2]+1 : marker[-1]] as the prior-session window,
-        # (5) count unique non-null feat IDs in that window with build+pass.
+# Session task counting (between last two session_start markers).
+session_task_count = 0
+try:
+    if os.path.isfile(breadcrumbs_path):
+        lines = open(breadcrumbs_path).readlines()
         parsed = []
         for line in lines:
             line = line.strip()
@@ -98,57 +104,58 @@ if os.path.isfile(breadcrumbs_path):
                 parsed.append(json.loads(line))
             except Exception:
                 parsed.append(None)
-
-        marker_indices = [
-            i for i, e in enumerate(parsed)
-            if e is not None and e.get('type') == 'session_start'
-        ]
-
-        session_task_count = 0
-        if len(marker_indices) >= 2:
-            lo = marker_indices[-2] + 1
-            hi = marker_indices[-1]
+        markers = [i for i, e in enumerate(parsed) if e is not None and e.get('type') == 'session_start']
+        if len(markers) >= 2:
+            lo, hi = markers[-2] + 1, markers[-1]
             window = [e for e in parsed[lo:hi] if e is not None]
             feat_ids = set()
             for e in window:
                 feat = e.get('feat')
-                if (feat
-                        and e.get('role') == 'builder'
+                if (feat and e.get('role') == 'builder'
                         and e.get('type') == 'build'
                         and str(e.get('result', '')).lower() == 'pass'):
                     feat_ids.add(feat)
             session_task_count = len(feat_ids)
+except Exception:
+    pass
 
-        parts.append(f'Session tasks completed: {session_task_count}')
+parts.append(f'Session tasks completed: {session_task_count}')
+if session_task_count >= 3:
+    parts.append(
+        f'SESSION BOUNDARY ADVISORY: {session_task_count} tasks completed in the prior session window. '
+        f'Per planning_discipline.mdc, checkpoint uncommitted work, write a handoff breadcrumb, '
+        f'and suggest a fresh thread before continuing.'
+    )
+print('\n'.join(parts))
+PYEOF
 
-        if session_task_count >= 3:
-            parts.append(
-                f'SESSION BOUNDARY ADVISORY: {session_task_count} tasks completed in the '
-                f'prior session window. Per planning_discipline.mdc, you should checkpoint '
-                f'uncommitted work, write a handoff breadcrumb, and suggest a fresh thread '
-                f'to the user before continuing.'
-            )
+# ── Prune advisory (>40 non-empty breadcrumb lines) ──────────────────────────
+PRUNE_NOTE=""
+if [ -f "$BREADCRUMBS" ]; then
+  BC_LINES=$(grep -c . "$BREADCRUMBS" 2>/dev/null || echo 0)
+  if [ "$BC_LINES" -gt 40 ]; then
+    PRUNE_NOTE="PRUNE ADVISORY: breadcrumbs.jsonl has ${BC_LINES} lines. Run \`make harness-prune\` to archive old entries and keep context lean."
+  fi
+fi
 
-        recent = lines[-3:] if len(lines) >= 3 else lines
-        msgs = []
-        for line in recent:
-            try:
-                entry = json.loads(line.strip())
-                msgs.append(f'  [{entry.get(\"role\",\"?\")}] {entry.get(\"msg\",\"?\")}')
-            except Exception:
-                pass
-        if msgs:
-            parts.append('Recent breadcrumbs:')
-            parts.extend(msgs)
-    except Exception:
-        pass
+# ── Compose final JSON output ─────────────────────────────────────────────────
+CONTEXT=$(${PYTHON_BIN:-python3} - "$TMP_PKG" "$TMP_SUFFIX" "$PRUNE_NOTE" << 'PYEOF'
+import json, sys
 
-context = '\\n'.join(parts)
-print(json.dumps({'additional_context': context}))
-" 2>/dev/null)
+pkg_path, suffix_path, prune_note = sys.argv[1], sys.argv[2], sys.argv[3]
+
+pkg_md = open(pkg_path).read().strip() if __import__('os').path.isfile(pkg_path) else ''
+suffix = open(suffix_path).read().strip() if __import__('os').path.isfile(suffix_path) else ''
+prune = prune_note.strip()
+
+parts = [p for p in [pkg_md, suffix, prune] if p]
+additional_context = '\n\n'.join(parts)
+print(json.dumps({'additional_context': additional_context}))
+PYEOF
+)
 
 if [ -z "$CONTEXT" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: python failed, skipping" >> "$HOOK_LOG" 2>/dev/null
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-context: composition failed, empty context" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi

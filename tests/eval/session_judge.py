@@ -178,6 +178,10 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
 
     level = _get_harness_level(rubric)
 
+    # harness_level: none — scenario tests non-harness behavior; skip all harness checks
+    if level == "none":
+        return []
+
     state = harness.get("state.json", {})
     state_tasks = _task_list(state)
     has_state = bool(state and state_tasks)

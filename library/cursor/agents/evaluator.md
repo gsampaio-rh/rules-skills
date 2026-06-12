@@ -71,7 +71,7 @@ Test the ACTUAL APPLICATION, not the diff. Reading code and saying "looks good" 
 ### Process
 
 1. Read the contract at `.harness/contract.json`
-2. Read `.harness/state.json` and recent entries in `.harness/breadcrumbs.jsonl` to understand context
+2. Get a lean context snapshot: `python .cursor/hooks/context-package.py --format markdown` (falls back to reading `.harness/state.json` + `.harness/breadcrumbs.jsonl` directly if unavailable)
 3. Run computational checks first (if not already passing):
    - Linter: no errors introduced
    - Type checker: no type errors
