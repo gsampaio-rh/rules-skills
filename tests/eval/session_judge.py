@@ -1686,7 +1686,9 @@ def judge_session(
 
     if "computational" in tiers:
         all_results.extend(check_harness_compliance(session, rubric))
-        if (level == "full" or has_negotiation_rubric) and not is_negative:
+        # Contract quality checks only for full-harness scenarios.
+        # negotiation_quality rubric entries in light scenarios are for LLM tier only.
+        if level == "full" and not is_negative:
             all_results.extend(check_contract_quality(session))
 
     if "structural" in tiers:
