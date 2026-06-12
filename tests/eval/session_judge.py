@@ -174,7 +174,7 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     harness = artifacts.get("harness", {})
 
     if _is_negative_harness_scenario(rubric):
-        return _check_harness_absent(harness)
+        return _check_harness_absent(harness, rubric)
 
     level = _get_harness_level(rubric)
 
@@ -261,16 +261,26 @@ def check_harness_compliance(session: dict, rubric: dict) -> list[dict]:
     return results
 
 
-def _check_harness_absent(harness: dict) -> list[dict]:
-    """For negative scenarios: harness artifacts should NOT exist."""
+def _check_harness_absent(harness: dict, rubric: dict | None = None) -> list[dict]:
+    """For negative scenarios: harness artifacts should NOT exist.
+
+    When seed_files include .harness/state.json the state.json check is skipped —
+    it was pre-populated by the scenario, so its presence is not agent-created.
+    """
     results = []
-    has_state = bool(harness.get("state.json"))
-    results.append({
-        "criterion": "No .harness/state.json created (expected for simple task)",
-        "result": "PASS" if not has_state else "FAIL",
-        "evidence": "state.json absent" if not has_state else "state.json exists unexpectedly",
-        "tier": "computational",
-    })
+
+    seed_files = (rubric or {}).get("seed_files", {}) if rubric else {}
+    state_seeded = ".harness/state.json" in seed_files
+    breadcrumbs_seeded = ".harness/breadcrumbs.jsonl" in seed_files
+
+    if not state_seeded:
+        has_state = bool(harness.get("state.json"))
+        results.append({
+            "criterion": "No .harness/state.json created (expected for simple task)",
+            "result": "PASS" if not has_state else "FAIL",
+            "evidence": "state.json absent" if not has_state else "state.json exists unexpectedly",
+            "tier": "computational",
+        })
 
     has_contract = bool(harness.get("contract.json"))
     results.append({
@@ -281,9 +291,12 @@ def _check_harness_absent(harness: dict) -> list[dict]:
     })
 
     breadcrumbs = harness.get("breadcrumbs.jsonl", [])
+    # Exclude seeded breadcrumbs (count > seeded count) or check only agent-written entries
+    seeded_count = len((seed_files.get(".harness/breadcrumbs.jsonl") or "").splitlines()) if breadcrumbs_seeded else 0
+    agent_breadcrumbs = breadcrumbs[seeded_count:] if breadcrumbs_seeded else breadcrumbs
     harness_types = {"negotiate", "eval", "plan"}
     harness_activity = [
-        b for b in breadcrumbs
+        b for b in agent_breadcrumbs
         if isinstance(b, dict) and b.get("type") in harness_types
     ]
     results.append({

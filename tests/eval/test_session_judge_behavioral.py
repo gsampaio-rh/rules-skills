@@ -447,3 +447,62 @@ class TestSysImportCleanup:
                 )
                 return
         pytest.fail("_evaluate_behavioral function not found")
+
+
+class TestCheckHarnessAbsentSeeded:
+    """Regression: _check_harness_absent must skip state.json check when seeded."""
+
+    def _make_harness(self, has_state=True, has_contract=False, breadcrumbs=None):
+        h = {}
+        if has_state:
+            h["state.json"] = {"tasks": [{"id": "spike-1"}]}
+        if has_contract:
+            h["contract.json"] = {"task_id": "spike-1"}
+        h["breadcrumbs.jsonl"] = breadcrumbs or []
+        return h
+
+    def test_seeded_state_not_flagged(self):
+        """state.json exists but is seeded → no state.json criterion in results."""
+        from tests.eval.session_judge import _check_harness_absent
+        harness = self._make_harness(has_state=True)
+        rubric = {"seed_files": {".harness/state.json": "{}"}}
+        results = _check_harness_absent(harness, rubric)
+        criteria = [r["criterion"] for r in results]
+        assert not any("state.json" in c for c in criteria), (
+            "state.json criterion should be skipped when seeded"
+        )
+
+    def test_unseeded_state_still_flagged(self):
+        """state.json exists and NOT seeded → FAIL criterion present."""
+        from tests.eval.session_judge import _check_harness_absent
+        harness = self._make_harness(has_state=True)
+        results = _check_harness_absent(harness, {})
+        state_results = [r for r in results if "state.json" in r["criterion"]]
+        assert len(state_results) == 1
+        assert state_results[0]["result"] == "FAIL"
+
+    def test_absent_state_passes(self):
+        """state.json absent and not seeded → PASS."""
+        from tests.eval.session_judge import _check_harness_absent
+        harness = self._make_harness(has_state=False)
+        results = _check_harness_absent(harness, {})
+        state_results = [r for r in results if "state.json" in r["criterion"]]
+        assert len(state_results) == 1
+        assert state_results[0]["result"] == "PASS"
+
+    def test_seeded_breadcrumbs_excluded_from_activity_check(self):
+        """Pre-seeded breadcrumbs with 'plan' type not counted as agent harness activity."""
+        from tests.eval.session_judge import _check_harness_absent
+        seeded_crumbs = [{"ts": "T", "role": "planner", "type": "plan", "msg": "seeded"}]
+        harness = self._make_harness(has_state=True, breadcrumbs=seeded_crumbs)
+        rubric = {
+            "seed_files": {
+                ".harness/state.json": "{}",
+                ".harness/breadcrumbs.jsonl": '{"ts":"T","role":"planner","type":"plan","msg":"seeded"}\n',
+            }
+        }
+        results = _check_harness_absent(harness, rubric)
+        activity = next(r for r in results if "workflow activity" in r["criterion"])
+        assert activity["result"] == "PASS", (
+            "Seeded 'plan' breadcrumb should not count as agent harness activity"
+        )
