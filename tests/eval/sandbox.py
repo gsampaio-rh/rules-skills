@@ -84,7 +84,13 @@ class CaptureWorkspace:
 
     def __exit__(self, *exc):
         if self._tmpdir:
-            self._tmpdir.cleanup()
+            # TemporaryDirectory.cleanup() can raise OSError on macOS when
+            # the sandbox agent leaves open file handles (Errno 66: Directory
+            # not empty). Fall back to shutil.rmtree with ignore_errors.
+            try:
+                self._tmpdir.cleanup()
+            except OSError:
+                shutil.rmtree(self._tmpdir.name, ignore_errors=True)
 
     def _setup_cursor_config(self):
         """Copy library/cursor/ into .cursor/ so rules/skills/hooks/agents are active.
