@@ -321,7 +321,7 @@
       "id": "chore-v2-debt-docs",
       "name": "V2 tech debt: doc-trust and internal doc consistency fixes",
       "type": "chore",
-      "status": "verified",
+      "status": "committed",
       "priority": "P2",
       "scope": "Includes: replace all capture_eval_baseline.py references (EVAL_GUIDE.md, state.json, any other docs) with eval_regression_check.py --update-baseline; fix EVAL_GUIDE.md scenario counts (28\u219231, 30 standard + 1 long), Tier 1 table (add acam-score.py as 4th script), nightly CI judge tier claim (--tier structural only); fix AGENTS.md ACAM table (remove unsubstantiated ablation-running claim, correct hooks count to 8 for lean profile); add llm-skeptic to README skills table (14 skills); fix direction field 243/243\u2192270/270 tests; add 8 missing always-on/agent-requested rules to RULES_CHANGELOG.md; fix .harness/docs/research/phase-3-configuration.md (AGENTS.md exists) and phase-4-workflows.md (3 skill activation scenarios exist); fix vision 41 scenario evals\u219231. Excludes: harness-internal state.json direction/open_questions/archive work (chore-v2-debt-harness); dead script removal (spike_hooks.py, clean-harness.sh)."
     },
