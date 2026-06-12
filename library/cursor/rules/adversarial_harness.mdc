@@ -11,11 +11,10 @@ alwaysApply: true
 
 | Complexity | Approach |
 |---|---|
-| Simple (1-2 files, no architectural impact) | Just do it. No ceremony. |
+| Simple (1-2 files, no architectural impact) | Just do it. |
 | Non-trivial (3+ files, user-facing, architectural) | **Launch `/planner` FIRST.** |
 
-**Cold start:** No `.harness/state.json`? Launch `/planner` — do not code.
-**Existing state:** state.json exists? Resume next pending task, don't re-launch planner.
+**No `state.json`:** Launch `/planner`. **Has `state.json`:** Resume next pending task.
 
 **Non-trivial (any ONE):** 3+ files, user-facing, architectural, vague/ambiguous, visual/UI
 
@@ -23,9 +22,9 @@ User says "skip harness" to opt out.
 
 ## Three Roles
 
-1. **`/planner`** — Produces `state.json` (vision, direction, tasks). No code.
-2. **You (builder)** — Proposes contracts, negotiates with evaluator, implements one task at a time.
-3. **`/evaluator`** — Negotiates contracts AND tests the live app. Never modifies source.
+- `/planner` — Produces `state.json` (vision, tasks). No code.
+- Builder — contracts, negotiates with evaluator, implements one task at a time.
+- `/evaluator` — Negotiates contracts, tests live app. Never modifies source.
 
 ## Flow
 
@@ -33,15 +32,16 @@ User says "skip harness" to opt out.
 Non-trivial prompt → /planner → state.json → user confirms
 → propose contract → /evaluator negotiates (max 3 rounds)
 → build → sensors (lint, test) → /evaluator tests against contract
-→ PASS → commit → next task | FAIL → fix → retest (max 2x)
+→ PASS → commit → next task
+→ FAIL → write `eval:fail` breadcrumb → fix root cause → retest sensors → /evaluator → PASS → `verified:true`
 ```
 
 ## Contract Gate
 
 **Before any implementation Write when `state.json` has a building task:**
 
-1. Check `.harness/contract.json` — if missing, **write it first** (`feature`, `acceptance_criteria`, `edge_cases`, `verification_method`)
-2. Launch evaluator for negotiation → then implement
+1. If no `.harness/contract.json`: write it first (`feature`, `acceptance_criteria`, `edge_cases`, `verification_method`)
+2. Negotiate with `/evaluator` → then implement
 
 Self-check: "Building task + no contract? → stop, write contract."
-Full workflow: read `adversarial-harness` skill.
+**All tasks done + user requests new work?** → Launch `/planner`. Do not write `state.json` directly.

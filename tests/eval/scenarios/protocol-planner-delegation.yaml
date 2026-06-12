@@ -2,6 +2,7 @@ id: protocol_planner_delegation
 name: "Agent delegates plan updates to /planner, not inline"
 difficulty: hard
 estimated_duration: 5m
+harness_level: light
 
 seed_files:
   README.md: |
