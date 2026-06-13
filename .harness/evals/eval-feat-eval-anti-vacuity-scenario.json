@@ -1,0 +1,85 @@
+{
+  "task_id": "feat-eval-anti-vacuity-scenario",
+  "timestamp": "2026-06-13T14:52:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "PASS — make eval-fast exit 0; 0 errors across validate.py, contract_lint.py, harness_lint.py, acam-score.py",
+    "types": "NOT_APPLICABLE — no typed production modules changed; fixture script is untyped Python",
+    "tests": "PASS — validate_verify_logic.py exit 0 (3/3 golden fixtures); make eval-fast contract_lint passed",
+    "build": "PASS — make eval-fast completed without errors"
+  },
+  "criteria": [
+    {
+      "criterion": "Scenario file exists at tests/eval/scenarios/protocol-anti-vacuity-reject.yaml with required YAML fields including harness_level (must be 'full')",
+      "result": "PASS",
+      "evidence": "Command exit 0. Output: PASS-AC1. All required keys present (id, name, seed_files, initial_prompt, verify, post_hoc_rubric, harness_level, difficulty, timeout_s); id=protocol_anti_vacuity_reject; harness_level=full; initial_prompt contains 'evaluator'."
+    },
+    {
+      "criterion": "seed_files contain a vacuous feat- contract matching evaluator.md anti-vacuity trigger",
+      "result": "PASS",
+      "evidence": "Command exit 0. Output: PASS-AC2 (user command) and PASS-AC2-full (full contract assertions). Seeded contract task_id=feat-logging-config, phase=negotiating, negotiation_rounds=0, 4 ACs all match vacuous patterns (test -f, grep, python3 -c open, make sync-config && test -f), zero behavioral commands, includes make sync-config && test -f canonical vacuous AC."
+    },
+    {
+      "criterion": "verify block contains concrete Python scripts: breadcrumb json.loads evaluator+negotiate check AND behavioral/vacuity outcome check",
+      "result": "PASS",
+      "evidence": "Command exit 0. Output: PASS-AC3 and PASS-AC3-full. verify[0] parses breadcrumbs.jsonl via json.loads, asserts role==evaluator and type==negotiate. verify[1] checks vacuity keywords in negotiate msg OR behavioral AC patterns (pytest|npm test|curl|python3 -m|make test|make eval-fast|make run) in acceptance_criteria; does not rely on phase==negotiated alone."
+    },
+    {
+      "criterion": "protocol_anti_vacuity_reject appears in acam_dimension_map.json mapped to multi_agent",
+      "result": "PASS",
+      "evidence": "Command exit 0. Output: PASS-AC4-AC5. acam_dimension_map.json maps protocol_anti_vacuity_reject → multi_agent."
+    },
+    {
+      "criterion": "protocol_anti_vacuity_reject appears in ci_suites.json nightly array but NOT in pr array",
+      "result": "PASS",
+      "evidence": "Command exit 0. Output: PASS-AC4-AC5. protocol_anti_vacuity_reject in ci_suites.json nightly array; absent from pr array."
+    },
+    {
+      "criterion": "docs/EVAL_GUIDE.md lists protocol_anti_vacuity_reject in nightly-only scenarios section with anti-vacuity description",
+      "result": "PASS",
+      "evidence": "Command exit 0. Output: PASS-AC6. grep found protocol_anti_vacuity_reject and vacui (case-insensitive) in docs/EVAL_GUIDE.md."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: Seeded vacuous contract must have task_id prefixed feat- (not chore-/spike-/docs-) so anti-vacuity rule applies",
+      "result": "PASS",
+      "evidence": "AC2 assertions confirmed task_id=feat-logging-config (feat- prefix) and phase=negotiating."
+    },
+    {
+      "case": "EC2: Verify logic correctness proven by golden fixtures — validate_verify_logic.py must return 0 against all three",
+      "result": "PASS",
+      "evidence": "Command exit 0. Output: test_pass_negotiate_reject: PASS; test_pass_revised_contract: PASS; test_fail_vacuous_accepted: PASS (correctly detected evaluator failure); All validate_verify_logic tests passed; PASS-EC2."
+    },
+    {
+      "case": "EC3: Scenario must NOT be in PR gate — anti-vacuity compliance is probabilistic",
+      "result": "PASS",
+      "evidence": "AC5 assertion confirmed protocol_anti_vacuity_reject not in ci_suites.json pr array."
+    }
+  ],
+  "recommendation": "proceed",
+  "rubric_audit": {
+    "domain": "code-quality",
+    "mode": "warn",
+    "scope": ["tests/eval/fixtures/anti-vacuity-reject/validate_verify_logic.py"],
+    "overall_score": "A",
+    "summary": "Fixture validation script is focused, under size limits, with clear SRP per function. Class/interface SOLID criteria not applicable.",
+    "score_breakdown": {
+      "high_pass": 3,
+      "high_fail": 0,
+      "medium_pass": 2,
+      "medium_fail": 0,
+      "low_pass": 1,
+      "low_fail": 0
+    },
+    "top_findings": [
+      "srp-functions PASS — check_evaluator_invocation and check_behavioral_outcome are single-purpose",
+      "function-size PASS — longest function test_fail_vacuous_accepted is 20 lines",
+      "file-size PASS — 107 lines total",
+      "naming PASS — descriptive function and variable names",
+      "srp-classes NOT_APPLICABLE — no classes",
+      "dip-abstractions NOT_APPLICABLE — test fixture, not production DI"
+    ]
+  },
+  "notes": "All 7 verification commands from verification_method executed sequentially from repo root; all exited 0. Scenario verify logic mirrors validate_verify_logic.py golden tests, providing offline proof that live-eval verify commands discriminate pass vs fail paths. Rubric audit warn-mode only — no impact on PASS verdict."
+}

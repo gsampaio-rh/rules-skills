@@ -44,6 +44,7 @@
     "skill_activation_code_quality_audit",
     "skill_activation_code_review",
     "skill_activation_llm_skeptic",
-    "long_full_harness_cycle"
+    "long_full_harness_cycle",
+    "protocol_anti_vacuity_reject"
   ]
 }

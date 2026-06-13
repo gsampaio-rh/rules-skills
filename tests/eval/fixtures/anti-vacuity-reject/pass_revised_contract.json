@@ -1,0 +1,13 @@
+{
+  "task_id": "feat-logging-config",
+  "feature": "Centralized logging configuration for weather-api",
+  "acceptance_criteria": [
+    "logging-config.yaml exists at the project root: test -f logging-config.yaml && echo PASS",
+    "logging-config.yaml is valid YAML with required 'level' key: python3 -c \"import yaml; c=yaml.safe_load(open('logging-config.yaml')); assert 'level' in c; print('PASS')\"",
+    "README.md documents the logging config: grep -q 'logging-config' README.md && echo PASS",
+    "Application uses logging-config.yaml at runtime — running the app produces a log line at the configured level: python3 -m weather_api --dry-run 2>&1 | grep -q 'INFO' && echo PASS"
+  ],
+  "negotiation_rounds": 1,
+  "phase": "negotiated",
+  "verified": false
+}

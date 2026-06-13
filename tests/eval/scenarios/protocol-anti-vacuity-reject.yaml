@@ -1,0 +1,103 @@
+id: protocol_anti_vacuity_reject
+name: "Evaluator rejects vacuous feature contract during negotiation"
+harness_level: full
+difficulty: hard
+estimated_duration: 6m
+timeout_s: 480
+
+seed_files:
+  README.md: |
+    # weather-api
+    A simple weather data aggregator API. Collects weather data from
+    multiple sources and exposes it via a unified REST endpoint.
+  .harness/state.json: |
+    {
+      "project": "weather-api",
+      "tasks": [
+        {
+          "id": "feat-logging-config",
+          "type": "feature",
+          "name": "Add centralized logging configuration",
+          "status": "building"
+        }
+      ]
+    }
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-01-01T00:00:00Z","role":"system","type":"session_start","feat":null,"msg":"Session started for weather-api","result":"pass"}
+    {"ts":"2026-01-01T00:01:00Z","role":"builder","type":"negotiate","feat":"feat-logging-config","msg":"Proposed contract: 4 criteria for centralized logging configuration.","result":null}
+  .harness/contract.json: |
+    {
+      "task_id": "feat-logging-config",
+      "feature": "Centralized logging configuration for weather-api",
+      "problem": "Logging settings are scattered across modules with inconsistent levels and formats.",
+      "proposed_solution": "Add a logging-config.yaml that centralizes all logging settings. The app reads this at startup.",
+      "acceptance_criteria": [
+        "logging-config.yaml exists at the project root: test -f logging-config.yaml && echo PASS",
+        "logging-config.yaml is valid YAML with required 'level' key: python3 -c \"import yaml; c=yaml.safe_load(open('logging-config.yaml')); assert 'level' in c; print('PASS')\"",
+        "README.md documents the logging config: grep -q 'logging-config' README.md && echo PASS",
+        "make sync-config distributes config to modules and file exists: make sync-config && test -f src/config/logging.yaml && echo PASS"
+      ],
+      "edge_cases": [
+        "Missing level key should fail validation",
+        "sync-config with missing source file should error gracefully"
+      ],
+      "negotiation_rounds": 0,
+      "phase": "negotiating",
+      "verified": false
+    }
+
+initial_prompt: >
+  The contract at .harness/contract.json for feat-logging-config is
+  ready for evaluator review before implementation begins. Launch
+  /evaluator to negotiate the contract and push back on any weak
+  criteria. Do not start building until the evaluator has reviewed
+  and the contract phase is negotiated.
+
+follow_up_prompts:
+  - "The evaluator has finished. What did it find?"
+
+verify:
+  - command: >
+      python3 -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      eval_negotiate = [l for l in lines if l.get('role') == 'evaluator' and l.get('type') == 'negotiate']
+      assert len(eval_negotiate) >= 1, f'No evaluator+negotiate breadcrumb. Roles seen: {list(set(l.get(\"role\") for l in lines))}'
+      print('PASS: evaluator negotiate breadcrumb found')
+      "
+    timeout_s: 5
+  - command: >
+      python3 -c "
+      import json, re
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      eval_negotiate = [l for l in lines if l.get('role') == 'evaluator' and l.get('type') == 'negotiate']
+      eval_msgs = ' '.join(l.get('msg', '') for l in eval_negotiate).lower()
+      vacuity_caught = any(p in eval_msgs for p in ['vacuit', 'vacuous', 'file structure', 'file-only', 'chore', 'behavioral', 'reject'])
+      if vacuity_caught:
+          print('PASS: evaluator caught vacuity in negotiate breadcrumb')
+      else:
+          c = json.load(open('.harness/contract.json'))
+          acs = c.get('acceptance_criteria', [])
+          behavioral_re = re.compile(r'pytest|npm test|curl |python3 -m |make test|make eval-fast|make run')
+          behavioral_acs = [a for a in acs if behavioral_re.search(a)]
+          assert len(behavioral_acs) >= 1, f'Evaluator did not catch vacuity and contract still has no behavioral ACs. Evaluator msgs: {eval_msgs[:200]}'
+          print('PASS: contract revised with behavioral AC after evaluator push')
+      "
+    timeout_s: 5
+  - command: "test -f .harness/breadcrumbs.jsonl && echo PASS || echo FAIL"
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Evaluator was launched (evaluator role in breadcrumbs with negotiate type)"
+    - "Evaluator produced a negotiate-type breadcrumb for feat-logging-config"
+    - "Evaluator did not immediately accept the vacuous all-file-interrogation contract"
+  behavioral:
+    - "Evaluator identified that all 4 ACs test only file structure (vacuous feature)"
+    - "Evaluator either REJECTed with remediation language OR added behavioral ACs to contract"
+    - "Evaluator cited the feat- prefix and/or anti-vacuity rule from evaluator.md"
+    - "No apologies or unnecessary summaries from builder"
+  anti_vacuity_compliance:
+    - "Evaluator flagged the make sync-config && test -f pattern as file side-effect not behavioral change"
+    - "Evaluator distinguished file-interrogation ACs from behavioral ACs"
+    - "Evaluator proposed or required at least one AC that tests the application logs something"

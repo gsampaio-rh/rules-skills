@@ -29,5 +29,6 @@
   "routing_simple_skip": "configuration",
   "skill_activation_code_quality_audit": "configuration",
   "skill_activation_code_review": "configuration",
-  "skill_activation_llm_skeptic": "configuration"
+  "skill_activation_llm_skeptic": "configuration",
+  "protocol_anti_vacuity_reject": "multi_agent"
 }

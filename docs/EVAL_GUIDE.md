@@ -445,6 +445,16 @@ The **11 protocol scenarios** in `tests/eval/fixtures/ci_suites.json` (`ci_tier:
 
 Any scenario set that covers all 5 problems is sufficient for a consumer project. Target: 12–15 scenarios maximum (adding back `protocol_replan_mid_build`, `protocol_eval_fail_retest`, `protocol_contract_gate_denied_recovery` from the nightly-only list covers recovery paths).
 
+### Nightly-only scenarios (probabilistic LLM behavior)
+
+Some scenarios test prompt-instruction compliance rather than deterministic harness mechanics. These run **nightly only** — a flaky PR gate trains teams to ignore red CI.
+
+| Scenario | What it tests | Why nightly-only |
+|----------|---------------|-----------------|
+| `protocol_anti_vacuity_reject` | Evaluator rejects a `feat-` contract where every AC is file-interrogation only (vacuous feature detection) | Anti-vacuity rule is a prompt instruction in `evaluator.md` — LLM compliance is probabilistic; single-run PR gates would be flaky |
+
+Golden fixtures for `protocol_anti_vacuity_reject` live at `tests/eval/fixtures/anti-vacuity-reject/`. Run `validate_verify_logic.py` in that directory to unit-test the scenario's verify logic without a live session.
+
 ### Baseline refresh policy
 
 `tests/eval/fixtures/eval_baseline.json` is the regression gate. Rules:

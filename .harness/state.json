@@ -158,7 +158,7 @@
     {
       "decision": "protocol_anti_vacuity_reject in nightly CI only, not PR gate",
       "alternative": "Add to PR gate (eval-ci-pr) alongside other protocol_* scenarios",
-      "reasoning": "The anti-vacuity rule is a prompt-only instruction in evaluator.md; whether the evaluator applies it in a given session is probabilistic LLM behavior, not a deterministic file-system check. A flaky PR gate is worse than no gate — it trains the team to ignore red CI. Nightly CI provides regression signal over multiple runs, smoothing out stochastic variance without blocking every merge."
+      "reasoning": "The anti-vacuity rule is a prompt-only instruction in evaluator.md; whether the evaluator applies it in a given session is probabilistic LLM behavior, not a deterministic file-system check. A flaky PR gate is worse than no gate \u2014 it trains the team to ignore red CI. Nightly CI provides regression signal over multiple runs, smoothing out stochastic variance without blocking every merge."
     }
   ],
   "open_questions": [
@@ -265,9 +265,9 @@
       "id": "feat-eval-anti-vacuity-scenario",
       "name": "Live eval scenario: protocol_anti_vacuity_reject",
       "type": "feature",
-      "status": "pending",
+      "status": "committed",
       "priority": "P2",
-      "scope": "Includes: create tests/eval/scenarios/protocol-anti-vacuity-reject.yaml — a scenario that seeds a realistic vacuous feat- contract (all ACs are grep/test -f/python3 file-open checks), prompts the evaluator to negotiate, and verifies via shell commands that the evaluator produces a REJECT response (not phase: negotiated); add protocol_anti_vacuity_reject entry to tests/eval/fixtures/acam_dimension_map.json (dimension: multi_agent); add to nightly array in tests/eval/fixtures/ci_suites.json (not PR gate — probabilistic LLM behavior); add a brief mention in docs/EVAL_GUIDE.md under the protocol scenario listing. Excludes: PR gate inclusion; harness_lint.py static check (Phase 2 per feat-vacuous-detection-impl scope); scenario for chore/spike exemption paths. Depends on: feat-vacuous-detection-impl.",
+      "scope": "Includes: create tests/eval/scenarios/protocol-anti-vacuity-reject.yaml \u2014 a scenario that seeds a realistic vacuous feat- contract (all ACs are grep/test -f/python3 file-open checks), prompts the evaluator to negotiate, and verifies via shell commands that the evaluator produces a REJECT response (not phase: negotiated); add protocol_anti_vacuity_reject entry to tests/eval/fixtures/acam_dimension_map.json (dimension: multi_agent); add to nightly array in tests/eval/fixtures/ci_suites.json (not PR gate \u2014 probabilistic LLM behavior); add a brief mention in docs/EVAL_GUIDE.md under the protocol scenario listing. Excludes: PR gate inclusion; harness_lint.py static check (Phase 2 per feat-vacuous-detection-impl scope); scenario for chore/spike exemption paths. Depends on: feat-vacuous-detection-impl.",
       "deliverable": "tests/eval/scenarios/protocol-anti-vacuity-reject.yaml + acam_dimension_map.json entry + ci_suites.json nightly entry + EVAL_GUIDE.md mention"
     }
   ]
