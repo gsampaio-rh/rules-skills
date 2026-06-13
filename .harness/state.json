@@ -154,6 +154,11 @@
       "decision": "eval-model-matrix runs as manual Makefile target + nightly CI, not PR gate",
       "alternative": "PR gate for model matrix (blocks every PR on slow matrix run)",
       "reasoning": "Matrix runs across 2-4 models x ~4 scenarios; sequential live sessions add significant wall time. Nightly CI provides regression detection without blocking every PR. Matches the precedent set by eval-ci-nightly (31 scenarios) vs eval-ci-pr (11 protocol scenarios)."
+    },
+    {
+      "decision": "protocol_anti_vacuity_reject in nightly CI only, not PR gate",
+      "alternative": "Add to PR gate (eval-ci-pr) alongside other protocol_* scenarios",
+      "reasoning": "The anti-vacuity rule is a prompt-only instruction in evaluator.md; whether the evaluator applies it in a given session is probabilistic LLM behavior, not a deterministic file-system check. A flaky PR gate is worse than no gate — it trains the team to ignore red CI. Nightly CI provides regression signal over multiple runs, smoothing out stochastic variance without blocking every merge."
     }
   ],
   "open_questions": [
@@ -255,6 +260,15 @@
       "priority": "P2",
       "scope": "Includes: add anti-vacuity rule to evaluator.md Mode 1 (Contract Negotiation) under 'What to challenge' \u2014 if contract task_id is prefixed feat- and every AC is a file-interrogation command (grep, test -f, python3 -c open(), make + test -f), evaluator must REJECT and ask builder to add a behavioral AC or retype as chore. Rule text must include worked example (make sync-local && test -f pattern) and explicit exempt types (chore/spike/docs). Excludes: harness_lint.py static check (Phase 2, separate task). Depends on: spike-vacuous-feature-detection.",
       "deliverable": "Updated library/cursor/agents/evaluator.md with anti-vacuity rule in Mode 1 negotiation section"
+    },
+    {
+      "id": "feat-eval-anti-vacuity-scenario",
+      "name": "Live eval scenario: protocol_anti_vacuity_reject",
+      "type": "feature",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Includes: create tests/eval/scenarios/protocol-anti-vacuity-reject.yaml — a scenario that seeds a realistic vacuous feat- contract (all ACs are grep/test -f/python3 file-open checks), prompts the evaluator to negotiate, and verifies via shell commands that the evaluator produces a REJECT response (not phase: negotiated); add protocol_anti_vacuity_reject entry to tests/eval/fixtures/acam_dimension_map.json (dimension: multi_agent); add to nightly array in tests/eval/fixtures/ci_suites.json (not PR gate — probabilistic LLM behavior); add a brief mention in docs/EVAL_GUIDE.md under the protocol scenario listing. Excludes: PR gate inclusion; harness_lint.py static check (Phase 2 per feat-vacuous-detection-impl scope); scenario for chore/spike exemption paths. Depends on: feat-vacuous-detection-impl.",
+      "deliverable": "tests/eval/scenarios/protocol-anti-vacuity-reject.yaml + acam_dimension_map.json entry + ci_suites.json nightly entry + EVAL_GUIDE.md mention"
     }
   ]
 }
