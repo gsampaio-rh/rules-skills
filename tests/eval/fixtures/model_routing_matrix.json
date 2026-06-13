@@ -1,0 +1,82 @@
+{
+  "_comment": "Machine-readable role routing matrix. Uses tier labels, not specific model IDs, to avoid hardcoding volatile names. See .harness/docs/research/model-selection.md for full rationale.",
+  "version": "2026-06-13",
+  "tiers": {
+    "fast": {
+      "description": "Small/fast model optimized for speed and low cost. Good for structured output and simple instruction-following.",
+      "example_models": ["composer-2.5-fast"]
+    },
+    "balanced": {
+      "description": "Mid-tier model balancing quality and cost. Good code generation and instruction following.",
+      "example_models": ["composer-2.5"]
+    },
+    "reasoning": {
+      "description": "Frontier model with extended thinking. Higher cost, best adversarial resistance and complex decomposition.",
+      "example_models": ["auto"]
+    },
+    "user_controlled": {
+      "description": "The user's IDE session model. Not configurable via frontmatter — builder is the main agent, not a subagent.",
+      "example_models": []
+    }
+  },
+  "roles": {
+    "planner": {
+      "recommended_tier": "balanced",
+      "fallback_tier": "fast",
+      "primary_failure_mode": "scope_creep_to_implementation_details",
+      "routing_signal": "task_complexity",
+      "routing_details": "Static balanced default. For architectural/vague tasks (3+ files), a reasoning tier improves decomposition quality. For simple tasks, harness-gate.sh bypass path avoids the planner entirely.",
+      "subagent_or_skill": "subagent",
+      "subagent_rationale": "Context hygiene: clean context prevents anchoring to builder's prior implementation attempts. A skill would inherit the builder's contaminated context in mid-session restart scenarios.",
+      "frontmatter_settable": true,
+      "agent_file": ".cursor/agents/planner.md",
+      "current_value": "inherit",
+      "scenarios_to_validate": [
+        "protocol-fresh-repo-bootstrap",
+        "behavioral-plan-adherence-multi-task",
+        "behavioral-focused-opener"
+      ]
+    },
+    "builder": {
+      "recommended_tier": "user_controlled",
+      "fallback_tier": "balanced",
+      "primary_failure_mode": "protocol_skip_under_tool_pressure",
+      "routing_signal": "user_ide_session_model",
+      "routing_details": "Builder model is the user's IDE chat session model. Not settable via frontmatter — builder is the main agent. Harness compliance improves with stronger models but is driven primarily by rule-following, not model tier.",
+      "subagent_or_skill": "not_applicable",
+      "subagent_rationale": "Builder is the main agent. No subagent frontmatter applies. Programmatic routing (SDK Agent.create with explicit model=) is feat-13b territory.",
+      "frontmatter_settable": false,
+      "agent_file": null,
+      "current_value": "n/a",
+      "scenarios_to_validate": [
+        "protocol-contract-gate-denied-recovery",
+        "protocol-no-post-hoc-contracts",
+        "protocol-breadcrumbs-format",
+        "protocol-eval-fail-retest"
+      ]
+    },
+    "evaluator": {
+      "recommended_tier": "reasoning",
+      "fallback_tier": "balanced",
+      "primary_failure_mode": "sycophancy_partial_credit",
+      "routing_signal": "always_adversarial_mode",
+      "routing_details": "No signal-based routing — evaluator is always adversarial. Static reasoning tier override recommended. Cost bounded: evaluator runs once per build task, not per turn.",
+      "subagent_or_skill": "subagent",
+      "subagent_rationale": "Structural conflict-of-interest justification (Phase 5 §5.3): model that proposes acceptance criteria cannot objectively judge whether they are met. Separate context also isolates evaluator from builder's reasoning history. Independent of model capability tier.",
+      "frontmatter_settable": true,
+      "agent_file": ".cursor/agents/evaluator.md",
+      "current_value": "inherit",
+      "scenarios_to_validate": [
+        "protocol-evaluator-launch",
+        "protocol-eval-fail-retest",
+        "contract-binary-criteria",
+        "contract-edge-cases"
+      ]
+    }
+  },
+  "open_questions": [
+    "Does the Cursor IDE surface which model a subagent ran on? SDK does not expose this in run transcript.",
+    "How to protect .cursor/agents/ model: overrides from make sync-local overwrites?",
+    "Can session_runner.py support --model-role-override flag to enable parametric eval sweeps without manual frontmatter edits?"
+  ]
+}

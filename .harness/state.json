@@ -177,7 +177,7 @@
       "id": "spike-model-selection",
       "name": "Role-based model routing research (planner / builder / evaluator)",
       "type": "spike",
-      "status": "pending",
+      "status": "verified",
       "priority": "P1",
       "scope": "Research + decision artifacts only — no implementation. Covers: (1) per-role capability requirements and failure modes (planner needs decomposition quality, builder needs code gen, evaluator needs adversarial testing); (2) routing signals (task type, complexity, token footprint from spike-token-estimation, negotiation vs eval mode); (3) platform constraints — Cursor agent frontmatter model: field, inherit behavior, whether subagent Task invocations honor per-agent model, SDK Agent.create(model=) limits, what hooks cannot do; (4) cost/quality trade-offs. Excludes: changing agent files, eval runner code, programmatic auto-dispatch. Soft depends on: spike-token-estimation, spike-subagent-model-mechanics.",
       "research_question": "For each harness role (planner, builder, evaluator), which model tier optimizes outcome-per-cost? What observable signals should drive tier selection, and what does the Cursor platform actually allow?",
