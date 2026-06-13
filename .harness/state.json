@@ -179,9 +179,9 @@
       "type": "spike",
       "status": "verified",
       "priority": "P1",
-      "scope": "Research + decision artifacts only — no implementation. Covers: (1) per-role capability requirements and failure modes (planner needs decomposition quality, builder needs code gen, evaluator needs adversarial testing); (2) routing signals (task type, complexity, token footprint from spike-token-estimation, negotiation vs eval mode); (3) platform constraints — Cursor agent frontmatter model: field, inherit behavior, whether subagent Task invocations honor per-agent model, SDK Agent.create(model=) limits, what hooks cannot do; (4) cost/quality trade-offs. Excludes: changing agent files, eval runner code, programmatic auto-dispatch. Soft depends on: spike-token-estimation, spike-subagent-model-mechanics.",
+      "scope": "Research + decision artifacts only \u2014 no implementation. Covers: (1) per-role capability requirements and failure modes (planner needs decomposition quality, builder needs code gen, evaluator needs adversarial testing); (2) routing signals (task type, complexity, token footprint from spike-token-estimation, negotiation vs eval mode); (3) platform constraints \u2014 Cursor agent frontmatter model: field, inherit behavior, whether subagent Task invocations honor per-agent model, SDK Agent.create(model=) limits, what hooks cannot do; (4) cost/quality trade-offs. Excludes: changing agent files, eval runner code, programmatic auto-dispatch. Soft depends on: spike-token-estimation, spike-subagent-model-mechanics.",
       "research_question": "For each harness role (planner, builder, evaluator), which model tier optimizes outcome-per-cost? What observable signals should drive tier selection, and what does the Cursor platform actually allow?",
-      "deliverable": ".harness/docs/research/model-selection.md (narrative + role×tier matrix + anti-patterns) and tests/eval/fixtures/model_routing_matrix.json (machine-readable: role, recommended_tier, fallback_tier, signals, scenarios_to_validate)"
+      "deliverable": ".harness/docs/research/model-selection.md (narrative + role\u00d7tier matrix + anti-patterns) and tests/eval/fixtures/model_routing_matrix.json (machine-readable: role, recommended_tier, fallback_tier, signals, scenarios_to_validate)"
     },
     {
       "id": "spike-subagent-model-mechanics",
@@ -189,7 +189,7 @@
       "type": "spike",
       "status": "verified",
       "priority": "P2",
-      "scope": "Empirical platform test only. When builder at model A invokes /planner or /evaluator, which model actually runs? Can eval scenarios meaningfully test role-specific routing, or only builder-model proxy? Document findings for feat-eval-role-model-matrix scope boundaries. Excludes: implementation. Depends on: nothing — can run first.",
+      "scope": "Empirical platform test only. When builder at model A invokes /planner or /evaluator, which model actually runs? Can eval scenarios meaningfully test role-specific routing, or only builder-model proxy? Document findings for feat-eval-role-model-matrix scope boundaries. Excludes: implementation. Depends on: nothing \u2014 can run first.",
       "research_question": "Does Cursor honor per-agent model: on subagent Task invocations, and can our eval sandbox observe it?",
       "deliverable": "Section in model-selection.md + minimal repro notes (transcript evidence from 2-3 manual or scripted sessions)"
     },
@@ -197,10 +197,10 @@
       "id": "spike-vacuous-feature-detection",
       "name": "Investigate: detecting features with zero behavioral change at contract time",
       "type": "spike",
-      "status": "pending",
+      "status": "verified",
       "priority": "P2",
-      "scope": "Research + recommendation only — no implementation. Investigate the best mechanism to prevent 'documentation disguised as feature' contracts from passing evaluator negotiation. Root cause: feat-role-model-config was accepted as a feature even though no AC tested changed behavior (model: inherit unchanged). Three candidate approaches to evaluate: (1) Prompt-only — add anti-vacuity rule to evaluator.md ('if no AC tests that something works differently, reject as chore'); (2) Structural/heuristic — a pre-commit or contract-lint check that flags feature contracts where all ACs test file existence/content but none test runtime behavior change; (3) Hybrid — evaluator rule + harness_lint.py static check for feature contracts with only grep/python3 file-existence ACs. Evaluate each on: reliability, false positive rate, implementation cost, whether it degrades valid feature contracts (e.g. doc-only features that are legitimately chores). Depends on: nothing.",
-      "research_question": "What is the most reliable and lowest-false-positive mechanism to detect a 'feature' contract where all ACs test file structure rather than behavioral change — at contract negotiation time, before implementation?",
+      "scope": "Research + recommendation only \u2014 no implementation. Investigate the best mechanism to prevent 'documentation disguised as feature' contracts from passing evaluator negotiation. Root cause: feat-role-model-config was accepted as a feature even though no AC tested changed behavior (model: inherit unchanged). Three candidate approaches to evaluate: (1) Prompt-only \u2014 add anti-vacuity rule to evaluator.md ('if no AC tests that something works differently, reject as chore'); (2) Structural/heuristic \u2014 a pre-commit or contract-lint check that flags feature contracts where all ACs test file existence/content but none test runtime behavior change; (3) Hybrid \u2014 evaluator rule + harness_lint.py static check for feature contracts with only grep/python3 file-existence ACs. Evaluate each on: reliability, false positive rate, implementation cost, whether it degrades valid feature contracts (e.g. doc-only features that are legitimately chores). Depends on: nothing.",
+      "research_question": "What is the most reliable and lowest-false-positive mechanism to detect a 'feature' contract where all ACs test file structure rather than behavioral change \u2014 at contract negotiation time, before implementation?",
       "deliverable": ".harness/docs/research/vacuous-feature-detection.md with: root cause analysis of feat-role-model-config failure, evaluation of the three candidate approaches, recommendation (prompt / structural / hybrid), and a concrete spec for whichever approach is recommended"
     },
     {
@@ -227,7 +227,7 @@
       "type": "feature",
       "status": "verified",
       "priority": "P2",
-      "scope": "Includes: update library/cursor/agents/planner.md and evaluator.md model: fields per research recommendations; add a single source of truth config (library/cursor/harness-model-routing.json mapping role → model_id → rationale); document override path in AGENTS.md section 'Role model routing' (env var / Makefile MODEL= for builder eval runs); ensure make sync-local distributes config. Optional: harness-context.sh emits one-line advisory when active routing differs from defaults. Excludes: hook-enforced automatic model switching (platform may not support, per spike-subagent-model-mechanics findings); SDK programmatic subagent dispatch; builder default model (IDE/user setting). Depends on: spike-model-selection.",
+      "scope": "Includes: update library/cursor/agents/planner.md and evaluator.md model: fields per research recommendations; add a single source of truth config (library/cursor/harness-model-routing.json mapping role \u2192 model_id \u2192 rationale); document override path in AGENTS.md section 'Role model routing' (env var / Makefile MODEL= for builder eval runs); ensure make sync-local distributes config. Optional: harness-context.sh emits one-line advisory when active routing differs from defaults. Excludes: hook-enforced automatic model switching (platform may not support, per spike-subagent-model-mechanics findings); SDK programmatic subagent dispatch; builder default model (IDE/user setting). Depends on: spike-model-selection.",
       "deliverable": "library/cursor/harness-model-routing.json + updated agent definitions + AGENTS.md section"
     },
     {

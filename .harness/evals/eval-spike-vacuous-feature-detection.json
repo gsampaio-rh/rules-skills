@@ -1,0 +1,67 @@
+{
+  "task_id": "spike-vacuous-feature-detection",
+  "timestamp": "2026-06-13T13:26:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "PASS — make eval-fast completed with 0 errors (1 always-on budget WARN, 1 contract rubrics WARN, 17 breadcrumb INFOs; all non-blocking)",
+    "types": "NOT_APPLICABLE — research spike, no typed source code",
+    "tests": "PASS — make eval-fast includes validate.py, contract_lint.py, harness_lint.py; all PASSED",
+    "build": "NOT_APPLICABLE — no build artifact"
+  },
+  "criteria": [
+    {
+      "criterion": "Deliverable exists at .harness/docs/research/vacuous-feature-detection.md with spike metadata (task id spike-vacuous-feature-detection and Status line)",
+      "result": "PASS",
+      "evidence": "Command output: PASS-AC0. File exists; contains 'spike-vacuous-feature-detection'; **Status:** line present at line 4."
+    },
+    {
+      "criterion": "Root cause section (## Root Cause) references feat-role-model-config at least twice, names vacuous-feature failure mode, states detection must fire at negotiation time, attributes root cause to insufficient ACs — not evaluator sycophancy",
+      "result": "PASS",
+      "evidence": "Command output: PASS-AC1. Root Cause section (lines 11–36) references feat-role-model-config 4 times, defines 'Vacuous feature' failure mode, states 'Detection must fire at contract negotiation time', attributes failure to 'AC set was accepted' with grep/file-existence-only ACs; explicitly states 'The evaluator was not at fault'; bad-pattern guard found no 'evaluator sycophancy' phrases."
+    },
+    {
+      "criterion": "Candidate A section evaluates prompt-only approach on reliability, false-positive rate, and implementation cost — all three dimension labels inside that section",
+      "result": "PASS",
+      "evidence": "Command output: PASS-AC2. ## Candidate A section (lines 39–64) contains ### Reliability, ### False-positive rate, ### Implementation cost subsections and references evaluator.md."
+    },
+    {
+      "criterion": "Candidate B section evaluates structural/heuristic approach on three dimensions and defines concrete detection signal",
+      "result": "PASS",
+      "evidence": "Command output: PASS-AC3. ## Candidate B section (lines 67–111) contains reliability/false-positive/implementation cost dimensions, harness_lint.py static check, grep/file-existence/python3 -c patterns, and ### Detection signal with trigger pattern."
+    },
+    {
+      "criterion": "Candidate C section evaluates hybrid approach and states what prompt layer catches vs static/lint layer independently",
+      "result": "PASS",
+      "evidence": "Command output: PASS-AC4. ## Candidate C section (lines 114–147) contains 'hybrid', prompt+static division under '### What each layer catches independently' with 'Static layer catches', 'Prompt layer catches', 'Cannot catch', and 'Division of responsibility'."
+    },
+    {
+      "criterion": "Comparison section ranks or scores all three candidates on reliability, false-positive rate, implementation cost with comparative analysis",
+      "result": "PASS",
+      "evidence": "Command output: PASS-AC5. ## Comparison section (lines 150–165) has comparison table across all three candidates on reliability, false-positive rate, implementation cost; includes 'Ranking' lines and comparative summary."
+    },
+    {
+      "criterion": "Recommendation section names one primary approach with detection signal, emit artifact, exempt task types, and follow-on implementation task",
+      "result": "PASS",
+      "evidence": "Command output: PASS-AC6. ## Recommendation section (lines 168–224) names Hybrid (Candidate C), defines detection signal, emits REJECT/WARN with breadcrumb, exempts chore/spike/docs scoped to feat- only, cites feat-vacuous-detection-impl follow-on task."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: Recommendation spec must cite docs-eval-measurement-runbook as task that must NOT be flagged vacuous",
+      "result": "PASS",
+      "evidence": "Command output: PASS-EC1. Recommendation line 182 cites docs-eval-measurement-runbook with 'must not be flagged'; line 223 repeats with 'correctly not flagged'."
+    },
+    {
+      "case": "EC2: Root cause attributes failure to insufficient ACs at negotiation time, not evaluator sycophancy",
+      "result": "PASS",
+      "evidence": "Command output: PASS-EC2. Root Cause section contains 'acceptance criteria'/'negotiation' attribution; no 'evaluator sycophancy' or 'evaluator was wrong' phrases."
+    },
+    {
+      "case": "EC3: If hybrid recommended, Recommendation must divide prompt vs static responsibility (conditional)",
+      "result": "PASS",
+      "evidence": "Hybrid is recommended (line 170). EC3 command exited 0 (no PASS-EC3-SKIP printed). Recommendation section contains 'hybrid', 'prompt', 'static'; 'miss' (line 215 'misses') and 'catch' (line 219 'catches') satisfy division assertion. Phase 1/2 structure further separates prompt rule from harness_lint static check."
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "All 7 acceptance-criteria verification commands and 3 edge-case commands (EC3 conditional on hybrid — hybrid recommended, assertion passed) produced exit code 0. Section-scoped regex fix ([^\\n]*\\n) correctly isolates section content. make eval-fast PASSED with 0 errors."
+}
