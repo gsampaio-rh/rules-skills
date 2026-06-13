@@ -139,6 +139,21 @@
       "decision": "Defer unified scorecard export to runbook scope (convention + Makefile target) rather than separate feature task",
       "alternative": "Dedicated feat-eval-scorecard-export task with new JSON schema and history directory",
       "reasoning": "Trend comparison needs a documented snapshot procedure more than a new artifact type. Static ACAM JSON + session summary.json + eval_baseline.json already contain comparable fields once mapping exists; runbook defines how to archive and diff them."
+    },
+    {
+      "decision": "Keep spike-subagent-model-mechanics separate from spike-model-selection",
+      "alternative": "Fold platform mechanics research into the routing matrix spike",
+      "reasoning": "Platform mechanics is empirical (needs actual subagent invocations with transcript evidence); routing matrix is desk research + cost analysis. Keeping them separate allows mechanics to run first and feed hard constraints into the matrix, preventing the matrix from making promises the platform cannot keep."
+    },
+    {
+      "decision": "v1 model routing: config + docs only (model: fields in agent files + AGENTS.md), not SDK programmatic dispatch",
+      "alternative": "SDK-based programmatic role dispatch (feat-13b successor) or hook-enforced automatic switching",
+      "reasoning": "Config defaults are independently shippable and useful without SDK complexity. Programmatic dispatch requires spike-subagent-model-mechanics to confirm platform support first; hook-enforced switching may not be possible if Cursor does not expose model override APIs at hook time. Ship the known-feasible value first."
+    },
+    {
+      "decision": "eval-model-matrix runs as manual Makefile target + nightly CI, not PR gate",
+      "alternative": "PR gate for model matrix (blocks every PR on slow matrix run)",
+      "reasoning": "Matrix runs across 2-4 models x ~4 scenarios; sequential live sessions add significant wall time. Nightly CI provides regression detection without blocking every PR. Matches the precedent set by eval-ci-nightly (31 scenarios) vs eval-ci-pr (11 protocol scenarios)."
     }
   ],
   "open_questions": [
@@ -160,13 +175,23 @@
     },
     {
       "id": "spike-model-selection",
-      "name": "Model routing matrix for harness workflow",
+      "name": "Role-based model routing research (planner / builder / evaluator)",
       "type": "spike",
       "status": "pending",
+      "priority": "P1",
+      "scope": "Research + decision artifacts only — no implementation. Covers: (1) per-role capability requirements and failure modes (planner needs decomposition quality, builder needs code gen, evaluator needs adversarial testing); (2) routing signals (task type, complexity, token footprint from spike-token-estimation, negotiation vs eval mode); (3) platform constraints — Cursor agent frontmatter model: field, inherit behavior, whether subagent Task invocations honor per-agent model, SDK Agent.create(model=) limits, what hooks cannot do; (4) cost/quality trade-offs. Excludes: changing agent files, eval runner code, programmatic auto-dispatch. Soft depends on: spike-token-estimation, spike-subagent-model-mechanics.",
+      "research_question": "For each harness role (planner, builder, evaluator), which model tier optimizes outcome-per-cost? What observable signals should drive tier selection, and what does the Cursor platform actually allow?",
+      "deliverable": ".harness/docs/research/model-selection.md (narrative + role×tier matrix + anti-patterns) and tests/eval/fixtures/model_routing_matrix.json (machine-readable: role, recommended_tier, fallback_tier, signals, scenarios_to_validate)"
+    },
+    {
+      "id": "spike-subagent-model-mechanics",
+      "name": "Platform spike: subagent model inheritance and eval fidelity",
+      "type": "spike",
+      "status": "verified",
       "priority": "P2",
-      "scope": "Research + decision doc only \u2014 no implementation. Identify which harness phases benefit from model routing and define signals for tier selection.",
-      "research_question": "Which tasks in the harness workflow benefit from model routing? What signals (task type, complexity, token budget) should drive model selection?",
-      "deliverable": ".harness/docs/research/model-selection.md with a proposed routing matrix (task type \u2192 model tier)"
+      "scope": "Empirical platform test only. When builder at model A invokes /planner or /evaluator, which model actually runs? Can eval scenarios meaningfully test role-specific routing, or only builder-model proxy? Document findings for feat-eval-role-model-matrix scope boundaries. Excludes: implementation. Depends on: nothing — can run first.",
+      "research_question": "Does Cursor honor per-agent model: on subagent Task invocations, and can our eval sandbox observe it?",
+      "deliverable": "Section in model-selection.md + minimal repro notes (transcript evidence from 2-3 manual or scripted sessions)"
     },
     {
       "id": "spike-token-budget",
@@ -185,6 +210,24 @@
       "status": "pending",
       "priority": "P2",
       "scope": "Includes: Makefile target (e.g. eval-measure) that runs eval-fast (static ACAM scorer + Tier 1 lints), optionally eval-ci-pr when CURSOR_API_KEY set, and writes a dated combined scorecard JSON to a documented location for runbook trend comparison; graceful skip messaging when API key absent. Excludes: new eval scenarios; nightly full suite in default pass; external metrics service integration. Depends on feat-acam-static-scorer and feat-acam-scenario-mapping."
+    },
+    {
+      "id": "feat-role-model-config",
+      "name": "Per-role model defaults in distributable harness config",
+      "type": "feature",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Includes: update library/cursor/agents/planner.md and evaluator.md model: fields per research recommendations; add a single source of truth config (library/cursor/harness-model-routing.json mapping role → model_id → rationale); document override path in AGENTS.md section 'Role model routing' (env var / Makefile MODEL= for builder eval runs); ensure make sync-local distributes config. Optional: harness-context.sh emits one-line advisory when active routing differs from defaults. Excludes: hook-enforced automatic model switching (platform may not support, per spike-subagent-model-mechanics findings); SDK programmatic subagent dispatch; builder default model (IDE/user setting). Depends on: spike-model-selection.",
+      "deliverable": "library/cursor/harness-model-routing.json + updated agent definitions + AGENTS.md section"
+    },
+    {
+      "id": "feat-eval-role-model-matrix",
+      "name": "Eval matrix to measure harness outcomes across model assignments",
+      "type": "feature",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Includes: extend eval pipeline (pattern: existing --ablate-rule dual-run) to run a fixed subset of role-relevant protocol scenarios (protocol_planner_delegation, protocol_evaluator_launch, protocol_eval-fail-retest, protocol_no_post_hoc_contracts) across 2-4 models from model_routing_matrix.json; aggregate harness_compliance pass rates, cost proxy (duration/token if available), regression vs eval_baseline.json; Makefile target eval-model-matrix; dated report JSON for runbook trend comparison; nightly CI workflow. Excludes: PR gate (manual/nightly only); proving per-subagent isolated models if platform research says impossible (document as BLOCKED). Depends on: spike-model-selection, feat-eval-measurement-pass.",
+      "deliverable": "tests/eval/model_matrix.py (or session_runner.py extension) + make eval-model-matrix + report schema under tests/eval/fixtures/ + nightly CI workflow"
     },
     {
       "id": "chore-v2-debt-harness",
