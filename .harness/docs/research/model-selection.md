@@ -2,7 +2,7 @@
 
 **Spike:** spike-subagent-model-mechanics + spike-model-selection
 **Date started:** 2026-06-13
-**Status:** Platform Mechanics complete (spike-subagent-model-mechanics). Role routing matrix pending (spike-model-selection).
+**Status:** Complete (both spikes verified).
 
 ---
 
@@ -195,14 +195,210 @@ Per Cursor SDK skill (`@cursor/sdk`): `composer-2.5` is the current default for 
 
 ---
 
-## Open Questions (unresolved after this spike)
+## Role × Tier Matrix
 
-1. **Does the Cursor IDE surface which model a subagent actually ran on?** The SDK does not expose this in `run.conversation()` or the agent transcript. Manual verification requires checking the Cursor UI session history during an IDE session. This requires an empirical IDE test session to confirm.
+### Tier definitions
 
-2. **Does changing `evaluator.md` frontmatter affect evaluator sessions launched via `/evaluator` in the IDE?** The platform docs describe `.cursor/agents/` (project-local) as the lookup path — `library/cursor/agents/` is the distributable source; `make sync-local` copies to `.cursor/agents/`. This means the frontmatter change must be in `.cursor/agents/evaluator.md` (after sync) to take effect. The sync step is documented but easy to miss.
+| Tier | Characteristics | When to use | Example models |
+|---|---|---|---|
+| **fast** | Small, low latency, low cost. Good for structured output and simple instruction-following. | Simple tasks with clear scope, no architectural reasoning required. | `composer-2.5` in fast mode |
+| **balanced** | Mid-tier quality and cost. Good code generation + instruction following. | Default for most harness phases. | `composer-2.5` |
+| **reasoning** | Frontier model with extended thinking. Highest cost, best adversarial resistance and complex decomposition. | Adversarial evaluation, architectural planning. | `auto` (server-resolved frontier) |
+| **user_controlled** | The user's IDE session model. Not configurable via frontmatter. | Builder (main agent — not a subagent). | Varies |
 
-3. **Can eval scenarios parametrically vary subagent model?** Current answer: only indirectly (change frontmatter, re-run). A `--model-role-override evaluator=gpt-5.5` flag would require `session_runner.py` to patch the agent file before launch — possible but not in scope for this spike.
+Tier labels are stable; specific model IDs evolve. The `model_routing_matrix.json` machine-readable artifact uses tier labels, not model IDs, to avoid hardcoding volatile names.
+
+### Matrix
+
+| Role | Recommended tier | Fallback tier | Primary failure mode | Routing signal | Frontmatter-settable? |
+|---|---|---|---|---|---|
+| **Planner** | `balanced` | `fast` | Scope creep into implementation details; duplicate task proposals | Task complexity (simple → fast, architectural → reasoning) | Yes — `.cursor/agents/planner.md` |
+| **Builder** | `user_controlled` | `balanced` | Protocol skip under tool pressure (no contract, self-grading, missing breadcrumbs) | User's IDE session model | No — builder is the main agent |
+| **Evaluator** | `reasoning` | `balanced` | Sycophancy, partial credit, deferring failures | Always adversarial — no signal-based routing needed | Yes — `.cursor/agents/evaluator.md` |
+
+### Per-role reasoning
+
+**Planner — balanced default, routing on complexity**
+
+The planner's job is decomposition, not code generation. A `balanced` model handles the primary output (state.json as structured JSON) well. The failure modes (scope creep, boundary under-specification, duplicate tasks) correlate with instruction-following quality more than raw reasoning. For simple tasks (harness-gate.sh bypass path), a `fast` model is adequate. For architectural/vague prompts (3+ files, cross-system impact), the reasoning model's superior decomposition quality is worth the cost.
+
+The routing signal already exists: harness-gate.sh uses word count + pattern matching as a complexity proxy. If this were wired to model selection, it would be: short simple prompts → `fast`; long complex prompts → `reasoning`. For now, `balanced` as a static default is a reasonable middle ground.
+
+**Builder — user_controlled, not harness-routable (yet)**
+
+The builder is the main agent, not a subagent. Its model is the user's IDE session choice. Harness compliance scores from the eval suite show the primary failure modes are protocol-related (skipping contract gate, self-grading, missing breadcrumbs). These failure modes are not strongly model-gated — a `fast` model that is well-prompted follows protocol better than a `reasoning` model given ambiguous instructions.
+
+This is the one role where model routing via frontmatter does not apply. Programmatic routing (feat-13b, SDK-based orchestration) is the only path to builder model control. Not in scope for `feat-role-model-config`.
+
+**Evaluator — reasoning, always adversarial**
+
+The evaluator's failure mode is sycophancy — approving work it should reject. The anti-sycophancy rules in `evaluator.md` are explicit, but their effectiveness depends on the model's tendency toward approval bias. Stronger reasoning models are empirically less sycophantic: they are more willing to produce FAIL with specific evidence rather than "mostly works."
+
+Unlike the planner, there is no signal-based routing for the evaluator — it is always in adversarial mode. The recommendation is a static `reasoning` tier override, not a conditional signal. Cost justification: the evaluator runs once per build task (not per turn), so the per-session cost delta is bounded.
 
 ---
 
-*Next: spike-model-selection extends this doc with a role×tier matrix and cost/quality trade-off analysis. feat-role-model-config uses §Recommendations above as its implementation spec.*
+## Subagent vs Skill
+
+The question applies primarily to the **planner** — Phase 5 §5.4 (S4 counter-evidence) explicitly challenges the planner as a separate subagent and validates only the evaluator unconditionally.
+
+### S4's argument against the planner as subagent
+
+S4 ("Fewer agents with more skills wins"): a `decompose-task` skill could produce the same `state.json` artifact without the overhead of a separate subagent invocation. Skills don't require a clean context window, don't have startup overhead, and don't consume separate tokens for context-gathering. S4 names the evaluator as the exception (structural conflict-of-interest justifies a separate agent) but challenges the planner.
+
+### The counterargument: context hygiene
+
+The planner's value as a subagent is not capability — it is **context hygiene**. When a user invokes `/planner` mid-session (after failed implementation attempts, partial code, a confusing conversation), the planner starts from a clean context. It reads `state.json` and the user's prompt without being contaminated by the builder's prior reasoning, failed approaches, and half-formed decisions.
+
+If the planner were a skill, it would execute in the same conversation context as the builder session — contaminated by everything that came before. The decomposition output would be anchored to the builder's failed approaches rather than starting from first principles.
+
+This is a real benefit when `/planner` is invoked to restart a session that went wrong. It is not a real benefit when invoked at cold start (no contamination to avoid).
+
+### Verdict: keep as subagent, conditional on use case
+
+| Invocation context | Subagent justified? | Reason |
+|---|---|---|
+| Cold start, simple task (harness-gate bypass) | No | No contamination to avoid; skill overhead is lower |
+| Cold start, complex architectural task | Yes | Clean context + reasoning model benefit for decomposition |
+| Mid-session restart (failed implementation) | **Yes — primary use case** | Context hygiene is the primary value; a skill cannot provide this |
+| Session recovery (reading state.json after long gap) | Marginal | state.json already encodes scope; clean context adds little |
+
+**Recommendation:** Keep planner as subagent. The mid-session restart case is the most common explicit trigger for `/planner` — that's when context hygiene matters. For cold-start simple tasks, harness-gate.sh already provides a bypass. S4's argument applies to the bypass case (already handled), not the mid-session restart case.
+
+**What would falsify this:** eval data showing no harness compliance difference between planner-as-subagent and planner-as-skill across session recovery scenarios. That data doesn't exist — it's a gap for `feat-eval-role-model-matrix`.
+
+### Evaluator: subagent — unconditional
+
+Phase 5 §5.3 (S3 counter-evidence): the evaluator's justification is structural conflict-of-interest, not model capability. A model that proposes acceptance criteria AND judges whether they are met cannot be objective regardless of capability tier. This argument is independent of model selection and does not change with stronger models.
+
+**Recommendation:** Keep evaluator as subagent. No signal-based condition applies.
+
+---
+
+## Workflow Integration
+
+The harness workflow is **unchanged** by model routing. What changes is which model executes at each role invocation.
+
+### Current flow (with model tier annotations)
+
+```
+vague prompt
+  → harness-gate.sh advisory (simple bypass path)
+  → /planner  ← [model: balanced — or reasoning for complex architectural tasks]
+  → state.json confirmed by user
+  → builder proposes contract.json  ← [model: user_controlled]
+  → /evaluator negotiates (max 3 rounds)  ← [model: reasoning]
+  → builder implements  ← [model: user_controlled]
+  → /evaluator tests against contract  ← [model: reasoning, same as negotiation]
+  → PASS → commit → next task
+```
+
+### Model routing is a one-time configuration, not a per-session action
+
+1. On first setup (`make sync-local`), `.cursor/agents/planner.md` and `evaluator.md` are created with `model: inherit`.
+2. Practitioner optionally overrides `model:` in `.cursor/agents/` (see IDE Configuration below).
+3. Every subsequent `/planner` and `/evaluator` invocation silently uses the configured tier — zero per-session friction.
+
+### What does NOT change
+
+- The `/planner` and `/evaluator` invocation syntax
+- Contract negotiation flow and breadcrumb lifecycle
+- evaluator-guard.sh write restriction
+- Eval scenario suite (scenarios test harness compliance, not model identity)
+
+### What improves with recommended tier assignment
+
+| Phase | Current risk (inherit on weak model) | With recommended tier |
+|---|---|---|
+| Planning — complex architectural tasks | Scope creep to implementation details | `reasoning` tier produces clean task boundaries with explicit scope |
+| Evaluation — adversarial testing | Sycophancy on weak evidence | `reasoning` tier resists approval bias, requires specific command output as evidence |
+| Building | Protocol skip under tool pressure | No change — builder model is user-controlled |
+
+### sync-local overwrite risk
+
+`make sync-local` copies `library/cursor/agents/` → `.cursor/agents/` and **overwrites** customized files. This is the one friction point. Mitigations documented in IDE Configuration §Step 5.
+
+---
+
+## IDE Configuration
+
+### Step-by-step: setting per-role models
+
+**Prerequisites:** Cursor IDE, harness installed, `make sync-local` run at least once.
+
+**Step 1 — Verify agent files exist**
+
+```bash
+ls .cursor/agents/
+# Expected: planner.md  evaluator.md
+# If missing: run make sync-local
+```
+
+**Step 2 — Edit the evaluator's model (highest-value change)**
+
+Open `.cursor/agents/evaluator.md` and change the `model:` field:
+
+```yaml
+# Before (distributable default):
+---
+name: evaluator
+description: Adversarial QA critic...
+model: inherit
+---
+
+# After (reasoning tier — recommended for adversarial evaluation):
+---
+name: evaluator
+description: Adversarial QA critic...
+model: auto
+---
+```
+
+`auto` lets Cursor resolve the best available frontier model for your plan. Avoids hardcoding a volatile model ID.
+
+**Step 3 — Edit the planner's model (optional)**
+
+For architectural decomposition work, override to a reasoning model:
+
+```yaml
+---
+name: planner
+description: Turns vague prompts into high-level specs...
+model: auto
+---
+```
+
+For a dedicated fast model on simple tasks, leave as `inherit` — the harness-gate.sh bypass path handles simple tasks without the planner.
+
+**Step 4 — Protect against sync overwrite**
+
+`make sync-local` will overwrite `.cursor/agents/` on next run. Three options:
+
+| Option | When to use |
+|---|---|
+| **Edit `library/cursor/agents/` directly** | Team default — everyone who syncs gets the routing. Best for team deployments. |
+| **Accept overwrite, re-apply after sync** | Personal preference only — you remember to re-apply. Simplest. |
+| **Skip syncing agent files** | Advanced — modify `make sync-local` to exclude agent files with non-inherit model values. Not yet implemented. |
+
+**Recommended for this repo:** edit `library/cursor/agents/evaluator.md` model field once the team agrees on a default. Personal routing preferences that differ from the team default use the accept-overwrite pattern.
+
+**Step 5 — Verify in Cursor**
+
+After saving, open a new Cursor chat. Type `/evaluator`. The model the subagent uses will be the one in its frontmatter. To confirm empirically, ask the evaluator at the start of a session: `What model are you running on?` — most frontier models report this.
+
+### Reference: `harness-model-routing.json`
+
+Machine-readable routing config, to be created by `feat-role-model-config` at `library/cursor/harness-model-routing.json`. The eval-facing companion created by this spike is `tests/eval/fixtures/model_routing_matrix.json`.
+
+---
+
+## Open Questions (after both spikes)
+
+1. **Does the Cursor IDE surface which model a subagent ran on?** SDK does not expose this in the run transcript. Manual verification via IDE session history UI. An empirical test session is needed to confirm the frontmatter change takes effect.
+
+2. **sync-local overwrite protection** — how to preserve local `model:` overrides across `make sync-local` runs without coupling the sync script to file content. Unresolved.
+
+3. **Parametric eval sweep** — `feat-eval-role-model-matrix` needs a way to vary subagent model without manually editing frontmatter per run. A `--model-role-override` flag for `session_runner.py` would enable this. Deferred to that task.
+
+4. **Empirical validation gap** — tier recommendations are based on failure mode analysis and platform docs, not measured A/B data. The recommendations are informed hypotheses. `feat-eval-role-model-matrix` closes this gap.
+

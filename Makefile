@@ -53,6 +53,7 @@ sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents,
 	@cp library/cursor/hooks.lean.json .cursor/hooks.lean.json
 	@cp library/cursor/hooks.lean.json .cursor/hooks.json
 	@echo "lean" > .cursor/.hooks-profile
+	@cp library/cursor/harness-model-routing.json .cursor/harness-model-routing.json
 	@echo "Done. Profile: lean (run scripts/hooks-profile.sh full to switch)"
 
 validate: ## Validate rules and skills against authoring standards

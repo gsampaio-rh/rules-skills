@@ -82,6 +82,28 @@ These rules load in every session. Token budget enforced by `harness_lint.py`.
 
 ---
 
+## Role model routing
+
+Each role has a recommended model tier based on its failure modes. Config lives at `library/cursor/harness-model-routing.json` (distributed to `.cursor/harness-model-routing.json` via `make sync-local`).
+
+| Role | Default | Recommended override | Why |
+|---|---|---|---|
+| Planner | `inherit` | `auto` (complex tasks) | Reasoning models produce cleaner task boundaries for architectural/vague prompts |
+| Builder | user's IDE model | n/a — not frontmatter-settable | Builder is the main agent, not a subagent |
+| Evaluator | `inherit` | `auto` (always recommended) | Stronger models resist sycophancy; evaluator runs once per task so cost is bounded |
+
+**Three-step override path:**
+
+1. Run `make sync-local` — creates `.cursor/agents/planner.md` and `evaluator.md`
+2. Open `.cursor/agents/evaluator.md`, change `model: inherit` → `model: auto`
+3. For team defaults: edit `library/cursor/agents/evaluator.md` directly so everyone who syncs inherits the routing
+
+**Warning:** `make sync-local` overwrites `.cursor/agents/`. Personal `model:` overrides in `.cursor/agents/` do not survive sync unless `library/cursor/agents/` is also changed.
+
+Full rationale and platform constraints: `.harness/docs/research/model-selection.md`
+
+---
+
 ## Hooks
 
 Pre-configured hooks in `library/cursor/hooks/`. Copy to `.cursor/hooks/` to activate.

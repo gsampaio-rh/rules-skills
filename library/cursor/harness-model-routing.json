@@ -1,0 +1,45 @@
+{
+  "_comment": "Single source of truth for per-role model defaults in the adversarial harness. Distributable via make sync-local → .cursor/harness-model-routing.json. See .harness/docs/research/model-selection.md for full rationale.",
+  "version": "2026-06-13",
+  "distribution": {
+    "source": "library/cursor/harness-model-routing.json",
+    "target": ".cursor/harness-model-routing.json",
+    "sync_command": "make sync-local"
+  },
+  "roles": {
+    "planner": {
+      "default_model": "inherit",
+      "recommended_override": "auto",
+      "rationale": "Planner task length is moderate; inherit keeps cost proportional to the user's chosen builder model. Override to 'auto' (server-resolved frontier) for architectural decomposition work with 3+ files or vague scope — reasoning models produce cleaner task boundaries with explicit scope inclusions/exclusions.",
+      "primary_failure_mode": "scope_creep_to_implementation_details",
+      "when_to_override": "Complex architectural tasks (3+ files, vague scope). Leave as inherit for simple tasks — harness-gate.sh bypass path handles those without the planner.",
+      "agent_file": ".cursor/agents/planner.md"
+    },
+    "builder": {
+      "default_model": "user_controlled",
+      "recommended_override": "n/a",
+      "rationale": "Builder is the main agent, not a subagent. Its model is the user's IDE session choice. Not settable via frontmatter. Programmatic routing (SDK Agent.create with model=) is the only path to builder model control — see feat-13b in the backlog.",
+      "primary_failure_mode": "protocol_skip_under_tool_pressure",
+      "when_to_override": "Not applicable. Use the strongest model available in your IDE session for complex implementation tasks.",
+      "agent_file": null
+    },
+    "evaluator": {
+      "default_model": "auto",
+      "recommended_override": "auto",
+      "rationale": "Evaluator's primary failure mode is sycophancy — approving work it should reject. Stronger reasoning models resist approval bias and are more willing to produce FAIL with specific command-output evidence. 'auto' lets Cursor resolve the best available frontier model for the account plan. Cost is bounded: evaluator runs once per build task, not per turn.",
+      "primary_failure_mode": "sycophancy_partial_credit",
+      "when_to_override": "No override needed — auto is the default. Downgrade to a specific model ID only if cost is a concern.",
+      "agent_file": ".cursor/agents/evaluator.md"
+    }
+  },
+  "override_path": {
+    "personal": "Edit .cursor/agents/[role].md (after make sync-local). Change model: inherit to model: auto. Note: make sync-local overwrites .cursor/agents/ — re-apply after each sync.",
+    "team_default": "Edit library/cursor/agents/[role].md directly. Everyone who runs make sync-local inherits the routing. This is the recommended path for team deployments.",
+    "warning": "Distributable defaults in library/cursor/agents/ stay as model: inherit. Do not change them without team agreement — consumers on restricted plans may hit silent model fallbacks."
+  },
+  "platform_constraints": {
+    "silent_fallback": "Cursor overrides model: field without error when: (1) team admin has blocked the model, (2) Max Mode required but not enabled, (3) model not on current plan. Use 'auto' instead of specific model IDs to minimize fallback risk.",
+    "builder_not_settable": "Builder model is not configurable via frontmatter — builder is the main agent. Only planner and evaluator (subagents) have agent files with model: fields.",
+    "sync_overwrite": "make sync-local copies library/cursor/agents/ to .cursor/agents/ and overwrites customized files. Personal model: overrides in .cursor/agents/ do not survive sync unless the library source is also changed."
+  }
+}

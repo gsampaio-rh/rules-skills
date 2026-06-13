@@ -194,6 +194,16 @@
       "deliverable": "Section in model-selection.md + minimal repro notes (transcript evidence from 2-3 manual or scripted sessions)"
     },
     {
+      "id": "spike-vacuous-feature-detection",
+      "name": "Investigate: detecting features with zero behavioral change at contract time",
+      "type": "spike",
+      "status": "pending",
+      "priority": "P2",
+      "scope": "Research + recommendation only — no implementation. Investigate the best mechanism to prevent 'documentation disguised as feature' contracts from passing evaluator negotiation. Root cause: feat-role-model-config was accepted as a feature even though no AC tested changed behavior (model: inherit unchanged). Three candidate approaches to evaluate: (1) Prompt-only — add anti-vacuity rule to evaluator.md ('if no AC tests that something works differently, reject as chore'); (2) Structural/heuristic — a pre-commit or contract-lint check that flags feature contracts where all ACs test file existence/content but none test runtime behavior change; (3) Hybrid — evaluator rule + harness_lint.py static check for feature contracts with only grep/python3 file-existence ACs. Evaluate each on: reliability, false positive rate, implementation cost, whether it degrades valid feature contracts (e.g. doc-only features that are legitimately chores). Depends on: nothing.",
+      "research_question": "What is the most reliable and lowest-false-positive mechanism to detect a 'feature' contract where all ACs test file structure rather than behavioral change — at contract negotiation time, before implementation?",
+      "deliverable": ".harness/docs/research/vacuous-feature-detection.md with: root cause analysis of feat-role-model-config failure, evaluation of the three candidate approaches, recommendation (prompt / structural / hybrid), and a concrete spec for whichever approach is recommended"
+    },
+    {
       "id": "spike-token-budget",
       "name": "Per-task token budget thresholds and enforcement",
       "type": "spike",
@@ -215,7 +225,7 @@
       "id": "feat-role-model-config",
       "name": "Per-role model defaults in distributable harness config",
       "type": "feature",
-      "status": "pending",
+      "status": "verified",
       "priority": "P2",
       "scope": "Includes: update library/cursor/agents/planner.md and evaluator.md model: fields per research recommendations; add a single source of truth config (library/cursor/harness-model-routing.json mapping role → model_id → rationale); document override path in AGENTS.md section 'Role model routing' (env var / Makefile MODEL= for builder eval runs); ensure make sync-local distributes config. Optional: harness-context.sh emits one-line advisory when active routing differs from defaults. Excludes: hook-enforced automatic model switching (platform may not support, per spike-subagent-model-mechanics findings); SDK programmatic subagent dispatch; builder default model (IDE/user setting). Depends on: spike-model-selection.",
       "deliverable": "library/cursor/harness-model-routing.json + updated agent definitions + AGENTS.md section"
