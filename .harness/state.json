@@ -197,7 +197,7 @@
       "id": "spike-vacuous-feature-detection",
       "name": "Investigate: detecting features with zero behavioral change at contract time",
       "type": "spike",
-      "status": "verified",
+      "status": "committed",
       "priority": "P2",
       "scope": "Research + recommendation only \u2014 no implementation. Investigate the best mechanism to prevent 'documentation disguised as feature' contracts from passing evaluator negotiation. Root cause: feat-role-model-config was accepted as a feature even though no AC tested changed behavior (model: inherit unchanged). Three candidate approaches to evaluate: (1) Prompt-only \u2014 add anti-vacuity rule to evaluator.md ('if no AC tests that something works differently, reject as chore'); (2) Structural/heuristic \u2014 a pre-commit or contract-lint check that flags feature contracts where all ACs test file existence/content but none test runtime behavior change; (3) Hybrid \u2014 evaluator rule + harness_lint.py static check for feature contracts with only grep/python3 file-existence ACs. Evaluate each on: reliability, false positive rate, implementation cost, whether it degrades valid feature contracts (e.g. doc-only features that are legitimately chores). Depends on: nothing.",
       "research_question": "What is the most reliable and lowest-false-positive mechanism to detect a 'feature' contract where all ACs test file structure rather than behavioral change \u2014 at contract negotiation time, before implementation?",
@@ -225,7 +225,7 @@
       "id": "feat-role-model-config",
       "name": "Per-role model defaults in distributable harness config",
       "type": "feature",
-      "status": "verified",
+      "status": "committed",
       "priority": "P2",
       "scope": "Includes: update library/cursor/agents/planner.md and evaluator.md model: fields per research recommendations; add a single source of truth config (library/cursor/harness-model-routing.json mapping role \u2192 model_id \u2192 rationale); document override path in AGENTS.md section 'Role model routing' (env var / Makefile MODEL= for builder eval runs); ensure make sync-local distributes config. Optional: harness-context.sh emits one-line advisory when active routing differs from defaults. Excludes: hook-enforced automatic model switching (platform may not support, per spike-subagent-model-mechanics findings); SDK programmatic subagent dispatch; builder default model (IDE/user setting). Depends on: spike-model-selection.",
       "deliverable": "library/cursor/harness-model-routing.json + updated agent definitions + AGENTS.md section"
@@ -246,6 +246,15 @@
       "status": "committed",
       "priority": "P2",
       "scope": "Includes: update state.json direction to post-v2 reality (pending: spike-token-estimation, feat-eval-measurement-pass; measurement loop complete); prune 2 RESOLVED open_questions from active list to questions_archive.jsonl; archive/clear committed docs-eval-measurement-runbook contract.json; archive chore-breadcrumb-timestamps and chore-eval-baseline-update from tasks[] (verified\u2192archived via archive-tasks.py); fix feat-16 ID collision in .harness/.archive/tasks.jsonl; fix scripts/session-metrics.py docstring (remove ACAM Advanced Criterion 2 claim until scorer implements it); run make harness-prune on 97-line breadcrumbs.jsonl; note in direction that tests/eval/spike_hooks.py and scripts/clean-harness.sh are known acceptable dead code (no removal). Excludes: consumer-facing doc fixes (chore-v2-debt-docs); stale research scorecard JSON and spike-eval-research backlog cleanup (low priority, optional follow-up)."
+    },
+    {
+      "id": "feat-vacuous-detection-impl",
+      "name": "Implement Phase 1 vacuous feature detection: anti-vacuity rule in evaluator.md",
+      "type": "feature",
+      "status": "committed",
+      "priority": "P2",
+      "scope": "Includes: add anti-vacuity rule to evaluator.md Mode 1 (Contract Negotiation) under 'What to challenge' \u2014 if contract task_id is prefixed feat- and every AC is a file-interrogation command (grep, test -f, python3 -c open(), make + test -f), evaluator must REJECT and ask builder to add a behavioral AC or retype as chore. Rule text must include worked example (make sync-local && test -f pattern) and explicit exempt types (chore/spike/docs). Excludes: harness_lint.py static check (Phase 2, separate task). Depends on: spike-vacuous-feature-detection.",
+      "deliverable": "Updated library/cursor/agents/evaluator.md with anti-vacuity rule in Mode 1 negotiation section"
     }
   ]
 }

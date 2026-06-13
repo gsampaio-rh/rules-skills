@@ -1,0 +1,62 @@
+{
+  "task_id": "feat-vacuous-detection-impl",
+  "timestamp": "2026-06-13T13:45:30Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "PASS — make eval-fast: 0 errors (1 token-budget WARN, 1 contract rubric WARN)",
+    "types": "NOT_APPLICABLE — prompt-engineering deliverable",
+    "tests": "PASS — make eval-fast: validate.py, contract_lint.py, harness_lint.py all passed",
+    "build": "PASS — make sync-local completed without errors"
+  },
+  "criteria": [
+    {
+      "criterion": "AC1: Mode 1 'What to challenge' contains anti-vacuity rule with vacuity term and feat- scoping",
+      "result": "PASS",
+      "evidence": "Section-scoped grep on library/cursor/agents/evaluator.md: found 'Vacuous feature contracts' and 'feat-' prefix scoping (line 40). Command output: PASS-AC1."
+    },
+    {
+      "criterion": "AC2: Rule names all four file-interrogation pattern categories (grep, test -f, python3 -c open(), make+side-effect)",
+      "result": "PASS",
+      "evidence": "Section contains `grep -c`, `test -f`, `python3 -c \"open(...).read()\"`, and `make <target> && test -f` with 'file side-effects' label (line 40). Command output: PASS-AC2."
+    },
+    {
+      "criterion": "AC3: Rule positively defines behavioral AC (system works differently before vs after)",
+      "result": "PASS",
+      "evidence": "Section states 'at least one AC must test that the system **works differently** before vs. after the change — a runtime behavioral change' (line 40). Command output: PASS-AC3."
+    },
+    {
+      "criterion": "AC4: Rule includes explicit REJECT instruction plus retype-as-chore remediation",
+      "result": "PASS",
+      "evidence": "Section contains '**REJECT**' and 'retype the task as `chore`' remediation (line 40). Command output: PASS-AC4."
+    },
+    {
+      "criterion": "AC5: Rule lists chore, spike, docs as exempt with explicit exemption language",
+      "result": "PASS",
+      "evidence": "Section states 'does not apply to `chore-`, `spike-`, or `docs-`-prefixed contracts, which are exempt' (line 40). Command output: PASS-AC5."
+    },
+    {
+      "criterion": "AC6: make sync-local propagates anti-vacuity rule to .cursor/agents/evaluator.md",
+      "result": "PASS",
+      "evidence": "make sync-local → 'Syncing library/cursor/ → .cursor/ ... Done.'; section-scoped grep on .cursor/agents/evaluator.md found 'vacuous' in What to challenge section. Command output: PASS-AC6."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: Rule scoped to feat- prefix only with explicit chore/spike/docs exemption phrasing",
+      "result": "PASS",
+      "evidence": "Proximity regex matched feat- scoping ('feat-' prefix only) and exemption ('does not apply to ... which are exempt'). Command output: PASS-EC1."
+    },
+    {
+      "case": "EC2: evaluator.md line count stays under 300",
+      "result": "PASS",
+      "evidence": "289 lines total. Command output: PASS-EC2 (289 lines)."
+    },
+    {
+      "case": "EC3: Worked example covers sync-local + test -f + make labeled as non-behavioral",
+      "result": "PASS",
+      "evidence": "Example on line 40: `make sync-local && test -f .cursor/harness-model-routing.json` with 'file side-effects, not behavioral change' label. Command output: PASS-EC3."
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "Single-bullet addition at library/cursor/agents/evaluator.md line 40. All 9 contract verification commands and make eval-fast passed on first evaluation attempt."
+}

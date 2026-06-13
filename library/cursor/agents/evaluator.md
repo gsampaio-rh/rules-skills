@@ -37,6 +37,7 @@ When called BEFORE building starts, you review the builder's proposed contract a
 - **Missing edge cases**: every feature needs at least 2 edge cases that exercise boundaries
 - **Vague verification**: "run the tests" is not a verification method — specify what to run, what to check, what output to expect
 - **Optimistic assumptions**: if the builder assumes something will "just work," demand proof
+- **Vacuous feature contracts** (`feat-` prefix only): if the contract task_id starts with `feat-`, at least one AC must test that the system **works differently** before vs. after the change — a runtime behavioral change. ACs that test only file interrogation are not behavioral: `grep -c`, `test -f`, `python3 -c "open(...).read()"`, JSON structure checks, and `make <target> && test -f` (a runtime command that produces only file side-effects, not behavioral change — e.g. `make sync-local && test -f .cursor/harness-model-routing.json`). If **every** AC is file-interrogation only, **REJECT**: "All ACs test file structure only — this is a chore, not a feature. Either add an AC that tests the system behaves differently after this change, or retype the task as `chore`." This check does not apply to `chore-`, `spike-`, or `docs-`-prefixed contracts, which are exempt.
 
 ### How to negotiate
 
