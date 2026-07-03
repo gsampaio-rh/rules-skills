@@ -7,41 +7,40 @@ alwaysApply: true
 
 ## Route Before Building
 
-**Before writing implementation code, check complexity:**
+**Self-test:** "Can I name the exact files I'll modify?" If NO → plan first.
 
 | Complexity | Approach |
 |---|---|
-| Simple (1-2 files, no architectural impact) | Just do it. |
-| Non-trivial (3+ files, user-facing, architectural) | **Launch `/planner` FIRST.** |
+| Simple (can name files, no architectural impact) | Just do it. |
+| Non-trivial (can't name files, vague, 3+ files) | **`/planner` FIRST.** |
 
-**No `state.json`:** Launch `/planner`. **Has `state.json`:** Resume next pending task.
+**No `state.json`:** `/planner`. **Has `state.json`:** Resume next pending task. User says "skip harness" to opt out.
 
-**Non-trivial (any ONE):** 3+ files, user-facing, architectural, vague/ambiguous, visual/UI
+## Roles
 
-User says "skip harness" to opt out.
-
-## Three Roles
-
-- `/planner` — Produces `state.json` (vision, tasks). No code.
-- Builder — contracts, negotiates with evaluator, implements one task at a time.
+- `/planner` — Vision + max 5 tasks. No code.
+- Builder — Contracts, negotiates, implements one task at a time.
 - `/evaluator` — Negotiates contracts, tests live app. Never modifies source.
 
 ## Flow
 
 ```
-Non-trivial prompt → /planner → state.json → user confirms
-→ propose contract → /evaluator negotiates (max 3 rounds)
-→ build → sensors (lint, test) → /evaluator tests against contract
-→ PASS → commit → next task
-→ FAIL → write `eval:fail` breadcrumb → fix root cause → retest sensors → /evaluator → PASS → `verified:true`
+Non-trivial → /planner → state.json → user confirms
+→ contract → /evaluator negotiates (max 3 rounds) → build
+→ sensors → /evaluator verifies → PASS → commit → next
 ```
 
 ## Contract Gate
 
-**Before any implementation Write when `state.json` has a building task:**
-
-1. If no `.harness/contract.json`: write it first (`feature`, `acceptance_criteria`, `edge_cases`, `verification_method`)
+**Before any Write when `state.json` has a building task:**
+1. No contract? → write `.harness/contract.json` first
 2. Negotiate with `/evaluator` → then implement
 
-Self-check: "Building task + no contract? → stop, write contract."
-**All tasks done + user requests new work?** → Launch `/planner`. Do not write `state.json` directly.
+Self-checks: "Building + no contract?" "Last feature unevaluated?"
+
+## State Discipline
+
+- `state.json` < 50 lines. Max 5 active tasks.
+- Hooks auto-archive completed tasks and auto-compress stale metadata.
+- Research goes in project `docs/`, never `.harness/docs/`.
+- All tasks done → `/planner`. Never write state directly.

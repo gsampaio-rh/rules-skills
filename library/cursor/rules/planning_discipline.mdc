@@ -14,24 +14,28 @@ For multi-step tasks (3+ distinct steps):
 ## Thread Hygiene
 
 Long conversations degrade context quality:
-- Suggest a fresh thread when a task is complete (feature shipped, bug fixed, research done)
-- After 30+ turns on different topics, rely on reading files fresh rather than conversation memory
+- Suggest fresh thread when a task is complete
+- After 30+ turns, read files fresh rather than relying on memory
 - Persist constraints in `.cursor/rules/`, not conversation repetition
 
 ## Session Boundaries
 
-**Primary trigger:** When `harness-context` injects SESSION BOUNDARY ADVISORY (`session_tasks_completed >= 3`):
-1. Checkpoint uncommitted work — `git status`, stage changes
-2. Write handoff breadcrumb: `{"ts":"...","role":"builder","type":"checkpoint","msg":"Handoff: <summary>"}`
-3. Suggest a fresh thread before continuing
+**Primary:** SESSION BOUNDARY ADVISORY from `harness-context` (`session_tasks_completed >= 3`):
+1. Checkpoint uncommitted work
+2. Write handoff breadcrumb
+3. Suggest fresh thread
 
-**Fallback (no harness context):** After 3+ distinct tasks OR 4+ scope-expanding follow-ups in one session — same steps above.
+**Time:** 60min=warn, 2h=strong, 3h+=critical. **Always:** commit before new feature.
 
-**Always:** commit before starting a new feature; commit uncommitted work before new work.
+## Replanning
+
+When direction changes: **archive and replace, don't patch.**
+- Current state auto-archives to `.harness/archive.jsonl`
+- Launch `/planner` → fresh `state.json`
+- Never accumulate tasks across initiatives
+
+Ops/infra (3+ manifests, production) is non-trivial → `/planner`.
 
 ## One Objective Per Prompt
 
-When receiving a multi-objective request, address them sequentially:
-- Acknowledge all objectives
-- Work through them one at a time
-- Verify each before moving to the next
+Multi-objective requests → address sequentially, verify each before the next.

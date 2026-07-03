@@ -136,7 +136,21 @@ except Exception:
 fi
 
 mkdir -p "$(dirname "$BREADCRUMBS")" 2>/dev/null
-echo "{\"ts\":\"$TS\",\"role\":\"builder\",\"type\":\"checkpoint\",\"feat\":$FEAT,\"msg\":\"Commit: $COMMIT_MSG ($STAGED_COUNT files)\"}" >> "$BREADCRUMBS" 2>/dev/null
+
+# Sanitize: strip newlines and excess whitespace from git outputs to prevent
+# malformed JSON breadcrumbs like "(0\n0 files)".
+STAGED_COUNT=$(echo "$STAGED_COUNT" | tr -d '\n\r' | tr -s ' ')
+COMMIT_MSG=$(echo "$COMMIT_MSG" | tr '\n\r' ' ' | tr -s ' ')
+
+python3 -c "
+import json, sys
+ts, feat_raw, msg, count = '$TS', '$FEAT', '''$COMMIT_MSG''', '''$STAGED_COUNT'''
+msg = ' '.join(msg.split())
+count = ''.join(c for c in count if c.isdigit()) or '0'
+feat = None if feat_raw in ('null', '') else feat_raw.strip('\"')
+entry = {'ts': ts, 'role': 'builder', 'type': 'checkpoint', 'feat': feat, 'msg': f'Commit: {msg} ({count} files)'}
+print(json.dumps(entry, ensure_ascii=True))
+" >> "$BREADCRUMBS" 2>/dev/null
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: breadcrumb recorded" >> "$HOOK_LOG" 2>/dev/null
 

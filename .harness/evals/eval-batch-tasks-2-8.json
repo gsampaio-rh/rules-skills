@@ -1,0 +1,213 @@
+{
+  "batch_evaluation": true,
+  "timestamp": "2026-06-26T11:38:50Z",
+  "tasks": [
+    {
+      "task_id": "feat-contract-gate-expand",
+      "overall": "FAIL",
+      "criteria": [
+        {
+          "criterion": "contract-gate.sh — gatable concept in place and type-based skip logic removed",
+          "result": "PASS",
+          "evidence": "Lines 83-85: comment explicitly states 'ALL tasks with status=building require a contract, regardless of type (feature, chore, spike, etc.)'. Python block (lines 87-104) checks building_id/pending_id without any type filtering. GATE_ACTION='GATE' for any building/pending task, 'SKIP' only when no tasks are active. No references to task type, spike, or chore in gating logic."
+        },
+        {
+          "criterion": "Any task with status=building in state.json triggers the gate",
+          "result": "PASS",
+          "evidence": "Lines 96-97: 'if bid: print(f\"GATE|{bname or bid}\")'. Lines 98-99: 'elif pid: print(f\"GATE|{pname or pid}\")'. Only falls through to SKIP when neither building nor pending task exists (line 101)."
+        },
+        {
+          "criterion": "adversarial_harness.mdc includes '3+ infra manifests' and 'ops touching production' in non-trivial definition",
+          "result": "PASS",
+          "evidence": "Line 19: '**Non-trivial (any ONE):** 3+ files, user-facing, architectural, vague/ambiguous, visual/UI, 3+ infra manifests, ops touching production'"
+        },
+        {
+          "criterion": "planning_discipline.mdc mentions operational work",
+          "result": "FAIL",
+          "evidence": "Searched for 'operational', 'ops', 'production', 'infra', 'deploy' in planning_discipline.mdc — zero matches. The file was modified to add time-based escalation (line 28: '90min=warn, 3h=strong, 4h+=critical') but contains no mention of operational work. The ops-planning clause from audit finding #8 was placed in adversarial_harness.mdc but not in planning_discipline.mdc as required by the task scope.",
+          "fix_suggestion": "Add an operational work clause to planning_discipline.mdc's Session Boundaries or a new subsection. Example: add to the Fallback line or a new bullet: 'Operational/infrastructure work (3+ manifests, production ops) follows the same planning discipline — launch /planner first.'"
+        },
+        {
+          "criterion": "bash -n library/cursor/hooks/contract-gate.sh exits 0",
+          "result": "PASS",
+          "evidence": "bash -n returned exit code 0, output: SYNTAX_OK"
+        }
+      ],
+      "recommendation": "fix_and_retest"
+    },
+    {
+      "task_id": "feat-session-circuit-breaker",
+      "overall": "PASS",
+      "criteria": [
+        {
+          "criterion": "Three tiers: WARNING (90min), STRONG (180min), CRITICAL (240min)",
+          "result": "PASS",
+          "evidence": "context-health.sh lines 93-104: >=240 → CRITICAL (session_duration_critical), >=180 → STRONG (session_duration_strong), >90 → WARNING (session_duration). Three distinct tiers with correct thresholds."
+        },
+        {
+          "criterion": "At CRITICAL, handoff template injected in followup_message",
+          "result": "PASS",
+          "evidence": "context-health.sh lines 256-260: 'if has_critical_duration:' block injects 'HANDOFF TEMPLATE (copy and adapt):' followed by a JSON checkpoint breadcrumb template with active feature substitution."
+        },
+        {
+          "criterion": "session_duration_hours field in result JSON",
+          "result": "PASS",
+          "evidence": "Line 173: \"'session_duration_hours': round(session_duration_min / 60, 1)\". Field present in result dict, computed from session_duration_min."
+        },
+        {
+          "criterion": "planning_discipline.mdc has time-based escalation: 90min=warn, 3h=strong, 4h+=critical",
+          "result": "PASS",
+          "evidence": "Line 28: '**Fallback:** 3+ tasks or 4+ scope-expanding follow-ups → same steps. Time: 90min=warn, 3h=strong, 4h+=critical.'"
+        },
+        {
+          "criterion": "bash -n exits 0",
+          "result": "PASS",
+          "evidence": "bash -n returned exit code 0, output: SYNTAX_OK"
+        }
+      ],
+      "recommendation": "proceed"
+    },
+    {
+      "task_id": "feat-incremental-eval-gate",
+      "overall": "PASS",
+      "criteria": [
+        {
+          "criterion": "context-health.sh has Signal 6 detecting 2+ features built without intermediate evaluate",
+          "result": "PASS",
+          "evidence": "Lines 148-164: Comment '# --- Signal 6: Incremental eval gap (2+ features built without evaluation) ---'. Logic tracks built_feats_since_eval, resets on evaluator breadcrumbs, appends on builder build+pass breadcrumbs. Triggers when len >= 2."
+        },
+        {
+          "criterion": "adversarial_harness.mdc has self-check about evaluating last feature",
+          "result": "PASS",
+          "evidence": "Line 46: 'Self-checks: \"Building + no contract? → write contract.\" \"Last feature unevaluated? → run `/evaluator` first.\"'"
+        },
+        {
+          "criterion": "Signal name is incremental_eval_gap",
+          "result": "PASS",
+          "evidence": "Line 160: signals.append('incremental_eval_gap')"
+        }
+      ],
+      "recommendation": "proceed"
+    },
+    {
+      "task_id": "feat-skill-experiment-report",
+      "overall": "PASS",
+      "criteria": [
+        {
+          "criterion": "File exists with valid YAML frontmatter (name, description, disable-model-invocation)",
+          "result": "PASS",
+          "evidence": "library/cursor/skills/experiment-report/SKILL.md exists. Frontmatter: name: experiment-report, description: (with Use when triggers), disable-model-invocation: false. validate.py confirms: '✅ library/cursor/skills/experiment-report/SKILL.md'"
+        },
+        {
+          "criterion": "6 mandatory sections: Executive Summary, Methodology, Results, Cross-Verification, Limitations, Reproducibility",
+          "result": "PASS",
+          "evidence": "Lines 33-68: ### 1. Executive Summary (L33), ### 2. Methodology (L37), ### 3. Results (L44), ### 4. Cross-Verification (L51), ### 5. Limitations (L57), ### 6. Reproducibility (L63). All 6 present in order."
+        },
+        {
+          "criterion": "Has validation rules table",
+          "result": "PASS",
+          "evidence": "Lines 73-80: Table with 6 rules: Consistent rounding, Arithmetic consistency, Source citation, Baseline comparison, Statistical significance, Units and precision. Each has Check and Action on Violation columns."
+        },
+        {
+          "criterion": "Trigger keywords include: write report, summarize results, benchmark report, findings",
+          "result": "PASS",
+          "evidence": "Line 3: 'Use when: write report, summarize results, benchmark report, findings, experiment results, write findings, performance report.' All 4 required triggers present."
+        },
+        {
+          "criterion": "python tests/validate.py passes",
+          "result": "PASS",
+          "evidence": "validate.py output: '✅ library/cursor/skills/experiment-report/SKILL.md', overall: 'PASSED'"
+        }
+      ],
+      "recommendation": "proceed"
+    },
+    {
+      "task_id": "feat-skill-structured-presentation",
+      "overall": "PASS",
+      "criteria": [
+        {
+          "criterion": "File exists with valid YAML frontmatter",
+          "result": "PASS",
+          "evidence": "library/cursor/skills/structured-presentation/SKILL.md exists. Frontmatter: name: structured-presentation, description: (with Use when triggers), disable-model-invocation: false. validate.py: '✅'"
+        },
+        {
+          "criterion": "Enforces: structural template, length guard (>200 lines → TOC), number precision, cross-reference, data provenance",
+          "result": "PASS",
+          "evidence": "Structural template: lines 28-57 (full skeleton). Length guard: line 14 '>200 lines → TOC', line 77 'Documents >200 lines MUST have a table of contents'. Number precision: lines 62-64 'Same metric = same decimal places'. Cross-reference: lines 67-69 'same number in multiple places MUST match'. Data provenance: lines 72-74 'Every data point must cite its source'."
+        },
+        {
+          "criterion": "Trigger keywords: write presentation, create report, format findings, write analysis",
+          "result": "PASS",
+          "evidence": "Line 3: 'Use when: write presentation, create report, format findings, write analysis, structure document, analytical report, format results.' All 4 present."
+        }
+      ],
+      "recommendation": "proceed"
+    },
+    {
+      "task_id": "feat-skill-infra-deploy-checklist",
+      "overall": "PASS",
+      "criteria": [
+        {
+          "criterion": "File exists with valid YAML frontmatter",
+          "result": "PASS",
+          "evidence": "library/cursor/skills/infra-deploy-checklist/SKILL.md exists. Frontmatter: name: infra-deploy-checklist, description: (with Use when triggers), disable-model-invocation: false. validate.py: '✅'"
+        },
+        {
+          "criterion": "VRAM budget formula with example calculation",
+          "result": "PASS",
+          "evidence": "Lines 43-65: Formula for VRAM_required = model_size_GB + KV_cache_GB + overhead_GB with sub-formulas for each. Example calculation (lines 61-65): Golf 70B crash scenario with FP16 (140GB no fit), INT8 (70GB no room for KV), INT4 (35+2+3=~40GB fits A100 80GB)."
+        },
+        {
+          "criterion": "Health gates with readiness/liveness/startup/smoke",
+          "result": "PASS",
+          "evidence": "Lines 69-78: Table with all 4 gates — Readiness probe (HTTP/gRPC 200, 30-300s), Liveness probe (200, 10s), Startup probe (slow-starting, 600s), Smoke test (one real request). Line 78: 'No readiness probe = no deploy.'"
+        },
+        {
+          "criterion": "Rollback plan requirements",
+          "result": "PASS",
+          "evidence": "Lines 82-89: 5 requirements — Previous version (image tag/commit), Rollback command (exact command), Rollback trigger (error rate/latency/OOM), Rollback time, Data safety."
+        },
+        {
+          "criterion": "Dry-run section",
+          "result": "PASS",
+          "evidence": "Lines 91-103: Section with kubectl --dry-run=server, helm --dry-run --debug, and resource quota check commands."
+        },
+        {
+          "criterion": "Trigger keywords: deploy, rollout, scale up, serve model",
+          "result": "PASS",
+          "evidence": "Line 3: 'Use when: deploy, rollout, scale up, serve model, inference server, GPU deploy, pre-deploy check, launch service.' All 4 required triggers present."
+        }
+      ],
+      "recommendation": "proceed"
+    },
+    {
+      "task_id": "chore-breadcrumb-commit-parse",
+      "overall": "PASS",
+      "criteria": [
+        {
+          "criterion": "Breadcrumb writing uses Python json.dumps instead of raw string interpolation",
+          "result": "PASS",
+          "evidence": "Lines 145-153: python3 -c block imports json, constructs entry dict, writes via 'print(json.dumps(entry, ensure_ascii=True))'. No raw string interpolation for JSON construction."
+        },
+        {
+          "criterion": "STAGED_COUNT and COMMIT_MSG sanitized (strip newlines)",
+          "result": "PASS",
+          "evidence": "Line 142: STAGED_COUNT=$(echo \"$STAGED_COUNT\" | tr -d '\\n\\r' | tr -s ' '). Line 143: COMMIT_MSG=$(echo \"$COMMIT_MSG\" | tr '\\n\\r' ' ' | tr -s ' '). Both strip newline/carriage-return characters. Python further sanitizes: msg = ' '.join(msg.split()) and count = ''.join(c for c in count if c.isdigit())."
+        },
+        {
+          "criterion": "bash -n exits 0",
+          "result": "PASS",
+          "evidence": "bash -n returned exit code 0, output: SYNTAX_OK"
+        }
+      ],
+      "recommendation": "proceed"
+    }
+  ],
+  "cross_cutting": {
+    "make_eval_fast": "PASS — exit 0, 0 errors, 1 warning (always-on budget ~1991/2000)",
+    "pytest": "PASS — 36/36 tests passed (26 test_skill_suggest + 10 test_harness_context_hook)",
+    "token_budget": "PASS — 1991/2000 tokens (≤2000)"
+  },
+  "overall": "FAIL",
+  "summary": "6/7 tasks PASS. 1 FAIL: feat-contract-gate-expand criterion 4 — planning_discipline.mdc does not mention operational work (ops-planning clause placed in adversarial_harness.mdc only, not in planning_discipline.mdc as required)."
+}

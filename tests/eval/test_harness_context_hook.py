@@ -134,29 +134,31 @@ class TestSessionBoundaryAdvisory:
 
 # --- Prune advisory (>40 non-empty lines) ---
 
-class TestPruneAdvisory:
-    def test_41_lines_triggers_prune_advisory(self, tmp_path):
-        """Seed 40 entries → hook appends 1 session_start → 41 non-empty lines → advisory fires."""
+class TestAutoTruncation:
+    def test_41_lines_gets_truncated_to_30(self, tmp_path):
+        """Seed 40 entries → hook auto-truncates to last 30 + appends session_start."""
         _write_state(tmp_path, tasks=[])
         entries = [{"ts": f"2026-01-01T00:00:00Z", "role": "builder",
                     "type": "build", "msg": f"entry {i}", "result": "pass"}
                    for i in range(40)]
         _write_breadcrumbs(tmp_path, entries)
         d = run_hook(tmp_path)
-        ctx = d["additional_context"]
-        assert "harness-prune" in ctx
+        # After hook runs, breadcrumbs should be truncated (30 kept + 1 new session_start)
+        bc_path = tmp_path / ".harness" / "breadcrumbs.jsonl"
+        lines = [l for l in bc_path.read_text().splitlines() if l.strip()]
+        assert len(lines) <= 31, f"Expected <=31 lines after truncation, got {len(lines)}"
 
-    def test_40_lines_no_prune_advisory(self, tmp_path):
-        """The hook appends 1 session_start line, so seed 39 lines → 40 total after hook → no advisory."""
+    def test_30_lines_no_truncation(self, tmp_path):
+        """Seed 29 lines → hook appends 1 session_start → 30 total → no truncation needed."""
         _write_state(tmp_path, tasks=[])
-        # 39 entries → hook appends 1 session_start → 40 non-empty lines total → no advisory
         entries = [{"ts": f"2026-01-01T00:00:00Z", "role": "builder",
                     "type": "build", "msg": f"entry {i}", "result": "pass"}
-                   for i in range(39)]
+                   for i in range(29)]
         _write_breadcrumbs(tmp_path, entries)
         d = run_hook(tmp_path)
-        ctx = d["additional_context"]
-        assert "harness-prune" not in ctx
+        bc_path = tmp_path / ".harness" / "breadcrumbs.jsonl"
+        lines = [l for l in bc_path.read_text().splitlines() if l.strip()]
+        assert len(lines) == 30, f"Expected 30 lines (29 + session_start), got {len(lines)}"
 
 
 # --- Fallback / robustness ---

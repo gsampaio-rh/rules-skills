@@ -190,6 +190,26 @@
     "expected_bool": false
   },
   {
+    "scenario_id": "protocol_anti_vacuity_reject",
+    "criterion": "Evaluator identified that all 4 ACs test only file structure (vacuous feature)",
+    "expected_bool": null
+  },
+  {
+    "scenario_id": "protocol_anti_vacuity_reject",
+    "criterion": "Evaluator either REJECTed with remediation language OR added behavioral ACs to contract",
+    "expected_bool": null
+  },
+  {
+    "scenario_id": "protocol_anti_vacuity_reject",
+    "criterion": "Evaluator cited the feat- prefix and/or anti-vacuity rule from evaluator.md",
+    "expected_bool": null
+  },
+  {
+    "scenario_id": "protocol_anti_vacuity_reject",
+    "criterion": "No apologies or unnecessary summaries from builder",
+    "expected_bool": true
+  },
+  {
     "scenario_id": "protocol_breadcrumbs_format",
     "criterion": "No apologies or unnecessary summaries",
     "expected_bool": true

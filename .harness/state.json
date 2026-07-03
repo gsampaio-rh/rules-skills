@@ -1,274 +1,114 @@
 {
   "project": "rules-skills",
   "created": "2026-05-27T14:00:00Z",
+  "updated": "2026-06-26T11:14:00Z",
   "schema_version": 2,
-  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. THE HARNESS IS: a durable, file-system task system that keeps AI agents honest across sessions. It solves five problems the owner identified: (1) repository scope \u2014 vision, direction, trade-offs in state.json; (2) task definition \u2014 discrete tasks with type and scope; (3) task grouping \u2014 flat tasks[] array filtered by status at read time; (4) task status tracking \u2014 lifecycle enum + append-only breadcrumbs.jsonl for session recovery; (5) acceptance criteria \u2014 contract.json with binary-testable criteria negotiated before implementation. For whom: teams using Cursor/Claude Code on non-trivial multi-file work who need agents to stop self-grading and stop losing context between sessions. Why each component exists: state.json = scope + backlog; contract.json = definition of done; breadcrumbs = audit trail; planner subagent = decompose vague requests; evaluator subagent = adversarial QA separate from builder context; hooks (lean) = enforce contract-before-code structurally; eval pipeline = regression test that agents follow the workflow. HONEST ASSESSMENT: the core five-problem harness is sound and ~40 lines of JSON + rules. Everything layered on top \u2014 negotiations/ JSON schemas, 11 hooks (full profile), metrics dashboard, 31 scenario evals with 5 judge tiers, multi-agent orchestration, UI dashboard \u2014 has grown organically and now obscures the value proposition. 47 verified tasks prove the core works; pending tasks are now reprioritized around measurement gaps, not harness failures. ACAM RESEARCH (2026-06-11, COMMITTED): spike-research-agents verified rules-skills as Intermediate on all 4 ACAM dimensions at Tier 3 (~top 0.5% of n\u22483,200 public repos). Reaching Advanced requires quantitative effectiveness data \u2014 per-rule ablation scores, skill activation eval, CI-integrated eval regression, and measured interaction patterns \u2014 not more rules, hooks, or documentation.",
-  "direction": "STABLE (2026-06-12, updated post-v2): All infrastructure migrations complete. context-package.py and prune-harness.py colocated in library/cursor/hooks/ distributed via make sync-local. harness-context.sh resolves $SCRIPT_DIR/context-package.py. Archive at .harness/.archive/ (gitignored). 270/270 tests + 53/53 hook tests passing, harness_lint 0 errors. ACAM v2 snapshot (2026-06-12): configuration=intermediate, workflows=ADVANCED, multi_agent=intermediate, interaction=intermediate. Tier 3 (~top 0.5%, n=3,200 repos). Measurement loop COMPLETE: feat-acam-static-scorer, chore-eval-baseline-seed, feat-acam-scenario-mapping, docs-eval-measurement-runbook \u2014 all committed. v2 tech debt addressed: chore-v2-debt-docs committed, chore-v2-debt-harness in progress. Known acceptable dead code: tests/eval/spike_hooks.py (one-off spike), scripts/clean-harness.sh (nuclear reset, no CI caller). Pending P2: feat-eval-measurement-pass (eval-measure Makefile target), spike-token-estimation, spike-model-selection, spike-token-budget.",
+  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. The harness solves five problems: (1) scope via state.json, (2) task definition, (3) task tracking, (4) session recovery via breadcrumbs.jsonl, (5) acceptance criteria via contract.json. AUDIT-DRIVEN IMPROVEMENT (2026-06-26): An interaction quality audit of agents-arena-event-final (18 sessions, 180 breadcrumbs, 5 days) exposed that the harness's structural enforcement works (contract-gate, evaluator-guard) but its behavioral activation doesn't: 14 configured skills saw 0 invocations, contracts were skipped for non-feature work, and long sessions ran unchecked despite advisory-only warnings. The next improvement cycle targets: (1) closing the skill auto-activation gap via a sessionStart prompt-matching hook, (2) widening contract-gate to all multi-file work (not just feat-*), (3) escalating session-length warnings to hard-suggest-split enforcement, and (4) filling the skills library with structured-reporting and pre-deploy-checklist skills. Priority: structural enforcement > new skills > bug fixes.",
+  "direction": "POST-AUDIT (2026-06-26): All prior measurement tasks (ACAM scorer, baseline seed, scenario mapping, runbook) committed. Model routing research + implementation committed. Anti-vacuity detection committed. The binding constraint is now BEHAVIORAL ACTIVATION \u2014 the harness rules exist but don't trigger at the right times. Focus: Group 1 (auto-activation + contract-gate expansion) unblocks everything; Group 2 (session quality) prevents marathon sessions; Group 3 (new skills) adds capabilities. Infrastructure is stable. ACAM status: Intermediate on all 4 dimensions, Tier 3 (~top 0.5%).",
   "trade_offs": [
     {
-      "decision": "Flat tasks array, not grouped buckets",
-      "alternative": "Group by phase: {backlog, active, done}",
-      "reasoning": "Hooks and agents iterate one list today; grouped buckets duplicate items and drift. harness-context.sh can filter by status at read time."
+      "decision": "Skill auto-activation via sessionStart hook injection, not runtime prompt interception",
+      "alternative": "preToolUse hook that intercepts every agent action and pattern-matches against skill triggers",
+      "reasoning": "sessionStart runs once per session (low overhead, simple). preToolUse runs on every Write/Shell/etc (expensive, noisy false positives). The audit gap is session-level \u2014 agent never considers skills at all \u2014 so one-time injection at session start is the right granularity."
     },
     {
-      "decision": "Keep lifecycle statuses (pending/building/evaluating/verified/committed)",
-      "alternative": "User-suggested done/doing",
-      "reasoning": "Eight lean hooks, harness_lint.py, and 20 eval scenarios already encode this lifecycle. done conflates verified and committed; doing conflates building and evaluating."
+      "decision": "Widen contract-gate to multi-file work by type, not by counting actual file writes",
+      "alternative": "Dynamic file-count gate that blocks after Nth distinct file write without contract",
+      "reasoning": "Dynamic counting requires stateful tracking across hook invocations. Type-based gating (any task in state.json with building status triggers contract requirement regardless of type) is deterministic and matches the existing hook model."
     },
     {
-      "decision": "Explicit type enum on every task",
-      "alternative": "Infer type from id prefix only (feat-/gap-/spike-)",
-      "reasoning": "Id prefixes are convention not validation; explicit type enables lint enforcement and clearer planner output."
+      "decision": "Session circuit breaker uses escalating severity (warn 90min, hard-suggest 3h, insist 4h+) not hard block",
+      "alternative": "Hard-block all agent actions after 4 hours",
+      "reasoning": "Cursor hooks cannot hard-block stop events \u2014 they can only inject followup_message. Escalating severity language + breadcrumb audit trail makes non-compliance visible in post-session analysis."
     },
     {
-      "decision": "Transitional features alias (read-only fallback)",
-      "alternative": "Big-bang rename in one commit",
-      "reasoning": "22+ eval scenario seeds and 6 shell hooks read features today; alias prevents eval regression during phased rollout."
-    },
-    {
-      "decision": "Add cancelled status",
-      "alternative": "Delete abandoned tasks from array",
-      "reasoning": "Preserves audit trail; metrics exclude cancelled from backlog counts."
-    },
-    {
-      "decision": "Gitignore entire .cursor/",
-      "alternative": "Keep symlinks tracked, gitignore only transient files",
-      "reasoning": "Matches how consumer projects treat IDE config; library/cursor/ is the distributable artifact"
-    },
-    {
-      "decision": "Kill spec.md, consolidate into state.json",
-      "alternative": "Keep spec.md with coherence lint",
-      "reasoning": "spec.md was read once (plan gate) then became stale. Single file eliminates drift by design."
-    },
-    {
-      "decision": "Cancel feat-13 multi-agent orchestration (2026-06-03) \u2014 revisit deferred to feat-13b",
-      "alternative": "Build evaluator chaining and parallel evaluators",
-      "reasoning": "At cancellation: manual /evaluator launch works; orchestration adds complexity; no user demand. Revisit triggered (2026-06-11): owner expressed intent to return to programmatic orchestration. feat-13b added to backlog at P3. Pre-requisite: feat-16 ablation data and eval CI (feat-17) should exist first \u2014 orchestration without measurement makes it harder to know if it helps."
-    },
-    {
-      "decision": "Cancel spike-2 UI dashboard",
-      "alternative": "Build canvas/TUI for .harness/ visualization",
-      "reasoning": "state.json and breadcrumbs are human-readable JSON. Dashboard solves a problem that doesn't exist yet. metrics.json is broken anyway (gap-21)."
-    },
-    {
-      "decision": "Defer feat-14 LLM-as-judge until after schema consolidation",
-      "alternative": "Build LLM judge now to fix UNCERTAIN verdicts",
-      "reasoning": "89.8% mean is acceptable. Many UNCERTAIN/FAIL are judge bugs (gap-20 harness_level placement, gap-19 heuristics), not agent failures. Fix tooling before adding LLM cost."
-    },
-    {
-      "decision": "Merge spike-3 into spike-audit-1 simplification",
-      "alternative": "Separate eval accuracy improvement track",
-      "reasoning": "Eval accuracy issues are symptoms of schema drift and inconsistent harness_level placement across 41 scenarios. Consolidation fixes root cause."
+      "decision": "experiment-report and structured-presentation as separate skills, not one combined skill",
+      "alternative": "Single 'structured-reporting' skill covering experiments, benchmarks, and analysis docs",
+      "reasoning": "Experiment reports have domain-specific concerns (hypothesis, methodology, statistical measures) that don't apply to general presentations. Combined skill would be 200+ lines and conflate two trigger patterns."
     },
     {
       "decision": "Keep lean hook profile as default; demote full profile",
       "alternative": "Maintain 11 hooks at equal priority",
-      "reasoning": "Lean (4 hooks) enforces the five-problem core. Full profile adds dedup-server, context-health, evaluator-guard, harness-gate LLM routing \u2014 valuable for this repo's dogfooding, optional for consumers."
-    },
-    {
-      "decision": "Make negotiations/ optional, not required",
-      "alternative": "Enforce structured negotiation JSON per HARNESS_STANDARD.md",
-      "reasoning": "negotiations/ directory is rarely populated in practice. Breadcrumbs with type=negotiate capture the same signal with less schema burden. HARNESS_STANDARD over-specifies this artifact."
-    },
-    {
-      "decision": "Decompose spike-eval-research into 6 sequential research phases",
-      "alternative": "Single monolithic research task",
-      "reasoning": "Four distinct eval dimensions (rules, skills, trajectory, LLM judge) plus baseline inventory and synthesis need focused research passes. Sequential phases produce partial notes that roll into one spike doc without scope creep into implementation."
-    },
-    {
-      "decision": "Consolidate 6 research dimensions into 4 (Configuration, Workflows, Multi-agent, Interaction) + add data collection phase",
-      "alternative": "Keep 6 separate dimensions (rules, skills, loops, subagents, prompts, system prompts)",
-      "reasoning": "Builder review identified heavy overlap: rules ARE system prompts; prompts and system prompts are one dimension with sub-layers; skills define workflows within loops. 4 dimensions allow deeper analysis per phase. Separate data collection phase (GitHub scraping, comparable setups) prevents the spike from being pure desk-research opinion."
-    },
-    {
-      "decision": "ACAM uses 3 levels (Basic/Intermediate/Advanced) not 5 (L0-L4)",
-      "alternative": "5-level maturity model (L0 Default \u2192 L4 Measured)",
-      "reasoning": "5-level maturity models (CMMI-style) are notorious for hair-splitting between adjacent levels. 3 levels with clear behavioral markers per dimension are more practical and adoptable. Each level has observable signals, not abstract capability descriptions."
-    },
-    {
-      "decision": "Target: practitioner reference guide, not academic paper",
-      "alternative": "Aim for academic publication (requires IRB, statistical framework, peer review)",
-      "reasoning": "The plan has zero empirical data collection methodology, no IRB, no statistical framework. Most impactful AI tooling content is practitioner-oriented. Blog series + conference talk format reaches the target audience directly. Academic rigor can come later with feat-16 ablation data."
-    },
-    {
-      "decision": "Research outputs live in .harness/docs/research/ not docs/",
-      "alternative": "Publish directly to docs/ for consumer visibility",
-      "reasoning": "Research is in-progress spike artifacts with bibliography and scorecard JSON; docs/ is consumer-facing standards. Move to docs/ only after synthesis phase validates ACAM and owner approves publication."
-    },
-    {
-      "decision": "Reprioritize measurement infrastructure over new features post-ACAM",
-      "alternative": "Continue feature development (orchestration, dashboard, new rules)",
-      "reasoning": "ACAM research confirmed Intermediate on all dimensions with binding constraint: no quantitative effectiveness data. feat-16, chore-skill-scenarios, and feat-17 CI integration unblock Advanced criteria. Adding features without measurement perpetuates the gap the research identified."
-    },
-    {
-      "decision": "Defer context package delivery and prompt versioning to open questions",
-      "alternative": "Add immediate tasks for structured state bundles and rule changelogs",
-      "reasoning": "Both are Medium-severity Multi-agent/Interaction gaps. Measurement tasks (ablation, skill eval, CI) are higher leverage and unblock multiple dimensions. Context packages and prompt versioning need design decisions before implementation."
-    },
-    {
-      "decision": "feat-17 tiered CI: 11-scenario protocol PR gate + nightly full suite (31 scenarios)",
-      "alternative": "Full 27+ scenario suite on every PR",
-      "reasoning": "Sequential live sessions run ~5\u201315 min each; full suite is ~4\u20136 hours and blocks every PR. Protocol-prefix subset (~90\u2013120 min sequential) protects the five-problem harness core; nightly runs all standard + long scenarios with LLM judge tier."
-    },
-    {
-      "decision": "Separate JSONL archives for pruned breadcrumbs and open_questions (not archive.jsonl)",
-      "alternative": "Append all pruned records to .harness/archive.jsonl with a record_type discriminator",
-      "reasoning": "archive.jsonl is task-shaped (id, name, status, archived_at) and is read by harness_lint cross-consistency checks. Mixing breadcrumb and question records would break lint assumptions and archive-tasks.py consumers. Dedicated breadcrumbs_archive.jsonl and questions_archive.jsonl keep schemas stable."
-    },
-    {
-      "decision": "Prune is manual or explicit --apply; sessionStart hook emits advisory only",
-      "alternative": "Auto-prune stale breadcrumbs and resolved questions on every sessionStart",
-      "reasoning": "Mutating harness state inside sessionStart hooks risks race conditions with concurrent sessions and silent data loss. Matches archive-tasks.py (--dry-run first) pattern. harness-context.sh should surface PRUNE ADVISORY with counts and the command to run, not delete records automatically."
-    },
-    {
-      "decision": "Context package: JSON canonical schema, compact markdown for hook injection",
-      "alternative": "Markdown-only package or inject raw state.json + contract.json slices",
-      "reasoning": "JSON is machine-testable (pytest, eval scenarios) and composable for evaluator Task prompts. Markdown is a derived view for token-efficient sessionStart injection. Avoids dumping full builder history while giving evaluator structured task + AC + recent trace."
-    },
-    {
-      "decision": "Colocate hook helper scripts in library/cursor/hooks/ (not scripts/)",
-      "alternative": "Extend make sync-local to copy scripts/ subset; or add make sync-hooks",
-      "reasoning": "make sync-local copies library/cursor/hooks/ \u2192 .cursor/hooks/ as the only distribution path. Scripts called at sessionStart must live beside the hook that invokes them so $SCRIPT_DIR resolves identically in source and synced copies. Repo-internal tools (archive-tasks.py, migrate-state-schema.py) stay in scripts/."
-    },
-    {
-      "decision": "Four-task measurement loop plan (scorer, baseline seed, scenario mapping, runbook) before P2 token spikes",
-      "alternative": "Single monolithic 'eval runbook' task covering all deliverables",
-      "reasoning": "Static ACAM scorer and baseline seeding are independently shippable and unblock regression detection without waiting on live-session mapping or documentation. Runbook comes last so it documents working artifacts, not aspirational procedures."
-    },
-    {
-      "decision": "Defer unified scorecard export to runbook scope (convention + Makefile target) rather than separate feature task",
-      "alternative": "Dedicated feat-eval-scorecard-export task with new JSON schema and history directory",
-      "reasoning": "Trend comparison needs a documented snapshot procedure more than a new artifact type. Static ACAM JSON + session summary.json + eval_baseline.json already contain comparable fields once mapping exists; runbook defines how to archive and diff them."
-    },
-    {
-      "decision": "Keep spike-subagent-model-mechanics separate from spike-model-selection",
-      "alternative": "Fold platform mechanics research into the routing matrix spike",
-      "reasoning": "Platform mechanics is empirical (needs actual subagent invocations with transcript evidence); routing matrix is desk research + cost analysis. Keeping them separate allows mechanics to run first and feed hard constraints into the matrix, preventing the matrix from making promises the platform cannot keep."
-    },
-    {
-      "decision": "v1 model routing: config + docs only (model: fields in agent files + AGENTS.md), not SDK programmatic dispatch",
-      "alternative": "SDK-based programmatic role dispatch (feat-13b successor) or hook-enforced automatic switching",
-      "reasoning": "Config defaults are independently shippable and useful without SDK complexity. Programmatic dispatch requires spike-subagent-model-mechanics to confirm platform support first; hook-enforced switching may not be possible if Cursor does not expose model override APIs at hook time. Ship the known-feasible value first."
-    },
-    {
-      "decision": "eval-model-matrix runs as manual Makefile target + nightly CI, not PR gate",
-      "alternative": "PR gate for model matrix (blocks every PR on slow matrix run)",
-      "reasoning": "Matrix runs across 2-4 models x ~4 scenarios; sequential live sessions add significant wall time. Nightly CI provides regression detection without blocking every PR. Matches the precedent set by eval-ci-nightly (31 scenarios) vs eval-ci-pr (11 protocol scenarios)."
-    },
-    {
-      "decision": "protocol_anti_vacuity_reject in nightly CI only, not PR gate",
-      "alternative": "Add to PR gate (eval-ci-pr) alongside other protocol_* scenarios",
-      "reasoning": "The anti-vacuity rule is a prompt-only instruction in evaluator.md; whether the evaluator applies it in a given session is probabilistic LLM behavior, not a deterministic file-system check. A flaky PR gate is worse than no gate \u2014 it trains the team to ignore red CI. Nightly CI provides regression signal over multiple runs, smoothing out stochastic variance without blocking every merge."
+      "reasoning": "Lean (4 hooks) enforces the five-problem core. Full profile adds dedup-server, context-health, evaluator-guard, harness-gate LLM routing \u2014 valuable for dogfooding, optional for consumers."
     }
   ],
   "open_questions": [
-    "Unresolved: breadcrumb retention policy \u2014 keep last N entries (default 50), entries newer than D days (default 7), or whichever retains more? Affects prune-harness defaults and context-health stale-thread thresholds.",
-    "Unresolved: vision/direction trim threshold \u2014 character limit (e.g. 2000 chars each) vs approximate token budget? prune-harness should preserve first paragraph + last update stamp if trimming.",
-    "Unresolved: eval history storage \u2014 git-tracked dated snapshots under .harness/eval-history/ vs CI artifacts only vs external dashboard. Runbook should pick one default; implementation can stay manual initially.",
-    "Unresolved: PR-tier baseline seed timing \u2014 seed eval_baseline.json from first available green run (accepting known behavioral failures in behavioral_baseline) vs wait until skill_activation and session_boundary scores improve. Seeding with known failures enables regression detection on what already passes."
+    "Skill auto-activation: should the hook inject the full SKILL.md content or just a one-line suggestion that the agent then reads? Full injection is more reliable but costs tokens; suggestion relies on agent compliance.",
+    "Contract-gate expansion: should spike-type tasks require contracts? Spikes are research-only (no code output) but can still be multi-session. The audit showed research sessions benefiting from planning but not necessarily contracts.",
+    "Session circuit breaker: what's the right first-tier threshold \u2014 90 min or 120 min? The audit showed productive sessions up to ~90 min and degradation after ~150 min."
   ],
   "tasks": [
     {
-      "id": "spike-token-estimation",
-      "name": "Token footprint audit for harness context",
-      "type": "spike",
-      "status": "pending",
-      "priority": "P2",
-      "scope": "Measure only \u2014 no optimization. Audit token counts for always-on rules, context package output, breadcrumbs, and sessionStart injection using tiktoken or equivalent.",
-      "research_question": "How many tokens does the current harness context inject at session start? What's the per-rule, per-breadcrumb, per-context-package token footprint?",
-      "deliverable": "scripts/token-audit.py that measures token counts for key artifacts (always-on rules, context package, typical breadcrumbs) using tiktoken or similar"
-    },
-    {
-      "id": "spike-model-selection",
-      "name": "Role-based model routing research (planner / builder / evaluator)",
-      "type": "spike",
+      "id": "feat-skill-auto-activation",
+      "name": "SessionStart hook that matches prompt patterns to skill triggers",
+      "type": "feature",
       "status": "verified",
       "priority": "P1",
-      "scope": "Research + decision artifacts only \u2014 no implementation. Covers: (1) per-role capability requirements and failure modes (planner needs decomposition quality, builder needs code gen, evaluator needs adversarial testing); (2) routing signals (task type, complexity, token footprint from spike-token-estimation, negotiation vs eval mode); (3) platform constraints \u2014 Cursor agent frontmatter model: field, inherit behavior, whether subagent Task invocations honor per-agent model, SDK Agent.create(model=) limits, what hooks cannot do; (4) cost/quality trade-offs. Excludes: changing agent files, eval runner code, programmatic auto-dispatch. Soft depends on: spike-token-estimation, spike-subagent-model-mechanics.",
-      "research_question": "For each harness role (planner, builder, evaluator), which model tier optimizes outcome-per-cost? What observable signals should drive tier selection, and what does the Cursor platform actually allow?",
-      "deliverable": ".harness/docs/research/model-selection.md (narrative + role\u00d7tier matrix + anti-patterns) and tests/eval/fixtures/model_routing_matrix.json (machine-readable: role, recommended_tier, fallback_tier, signals, scenarios_to_validate)"
+      "scope": "CRITICAL gap: 14 skills configured, 0 invoked across 18 sessions. Build a sessionStart hook (library/cursor/hooks/skill-suggest.py) that: (1) reads all SKILL.md files from the skills directory, (2) extracts trigger keywords from each skill's description/metadata, (3) pattern-matches initial prompt against skill triggers, (4) injects matched skill suggestions into additional_context (top 3 by relevance). Must handle: zero matches (no injection), multiple matches (ranked list), skills directory not found (graceful skip). Excludes: changing IDE skill loading behavior; runtime mid-session re-matching. Depends on: nothing.",
+      "deliverable": "library/cursor/hooks/skill-suggest.py + hook config entry + integration test"
     },
     {
-      "id": "spike-subagent-model-mechanics",
-      "name": "Platform spike: subagent model inheritance and eval fidelity",
-      "type": "spike",
+      "id": "feat-contract-gate-expand",
+      "name": "Widen contract-gate to enforce contracts on all multi-file harness work",
+      "type": "feature",
       "status": "verified",
       "priority": "P2",
-      "scope": "Empirical platform test only. When builder at model A invokes /planner or /evaluator, which model actually runs? Can eval scenarios meaningfully test role-specific routing, or only builder-model proxy? Document findings for feat-eval-role-model-matrix scope boundaries. Excludes: implementation. Depends on: nothing \u2014 can run first.",
-      "research_question": "Does Cursor honor per-agent model: on subagent Task invocations, and can our eval sandbox observe it?",
-      "deliverable": "Section in model-selection.md + minimal repro notes (transcript evidence from 2-3 manual or scripted sessions)"
+      "scope": "Audit found 33% contract coverage. Currently contract-gate.sh bypasses spike/chore tasks. Expand: (1) any task with status=building requires contract regardless of type, (2) update adversarial_harness.mdc to explicitly list operational/infrastructure work (3+ manifests) as non-trivial, (3) keep fast-exit for no-state.json (simple ungated work). Also folds in ops-planning clause from audit finding #8. Excludes: dynamic file-count tracking. Depends on: nothing.",
+      "deliverable": "Updated library/cursor/hooks/contract-gate.sh + updated library/cursor/rules/adversarial_harness.mdc + updated library/cursor/rules/planning_discipline.mdc"
     },
     {
-      "id": "spike-vacuous-feature-detection",
-      "name": "Investigate: detecting features with zero behavioral change at contract time",
-      "type": "spike",
-      "status": "committed",
-      "priority": "P2",
-      "scope": "Research + recommendation only \u2014 no implementation. Investigate the best mechanism to prevent 'documentation disguised as feature' contracts from passing evaluator negotiation. Root cause: feat-role-model-config was accepted as a feature even though no AC tested changed behavior (model: inherit unchanged). Three candidate approaches to evaluate: (1) Prompt-only \u2014 add anti-vacuity rule to evaluator.md ('if no AC tests that something works differently, reject as chore'); (2) Structural/heuristic \u2014 a pre-commit or contract-lint check that flags feature contracts where all ACs test file existence/content but none test runtime behavior change; (3) Hybrid \u2014 evaluator rule + harness_lint.py static check for feature contracts with only grep/python3 file-existence ACs. Evaluate each on: reliability, false positive rate, implementation cost, whether it degrades valid feature contracts (e.g. doc-only features that are legitimately chores). Depends on: nothing.",
-      "research_question": "What is the most reliable and lowest-false-positive mechanism to detect a 'feature' contract where all ACs test file structure rather than behavioral change \u2014 at contract negotiation time, before implementation?",
-      "deliverable": ".harness/docs/research/vacuous-feature-detection.md with: root cause analysis of feat-role-model-config failure, evaluation of the three candidate approaches, recommendation (prompt / structural / hybrid), and a concrete spec for whichever approach is recommended"
-    },
-    {
-      "id": "spike-token-budget",
-      "name": "Per-task token budget thresholds and enforcement",
-      "type": "spike",
-      "status": "pending",
-      "priority": "P2",
-      "scope": "Research + proposed spec only \u2014 implementation is a separate feature task. Define practical budgets per harness phase and enforcement mechanism.",
-      "research_question": "Can we enforce per-task token budgets? What is a practical budget for each harness phase (planning, building, evaluating)?",
-      "deliverable": ".harness/docs/research/token-budget.md with proposed budget thresholds and enforcement mechanism"
-    },
-    {
-      "id": "feat-eval-measurement-pass",
-      "name": "Single-command full measurement pass combining static and live tiers",
+      "id": "feat-session-circuit-breaker",
+      "name": "Escalate context-health from advisory to tiered enforcement with time-based severity",
       "type": "feature",
-      "status": "pending",
+      "status": "verified",
       "priority": "P2",
-      "scope": "Includes: Makefile target (e.g. eval-measure) that runs eval-fast (static ACAM scorer + Tier 1 lints), optionally eval-ci-pr when CURSOR_API_KEY set, and writes a dated combined scorecard JSON to a documented location for runbook trend comparison; graceful skip messaging when API key absent. Excludes: new eval scenarios; nightly full suite in default pass; external metrics service integration. Depends on feat-acam-static-scorer and feat-acam-scenario-mapping."
+      "scope": "4 sessions exceeded 4h (one ran 10h). Changes: (1) add elapsed-time tiers to context-health.sh: WARNING at 90min, STRONG WARNING at 3h, CRITICAL at 4h+, (2) at CRITICAL, inject handoff template into followup_message, (3) add session_duration_hours field to result JSON, (4) update planning_discipline.mdc Session Boundaries. Does NOT hard-block (hooks can only inject messages). Depends on: nothing.",
+      "deliverable": "Updated library/cursor/hooks/context-health.sh + updated library/cursor/rules/planning_discipline.mdc"
     },
     {
-      "id": "feat-role-model-config",
-      "name": "Per-role model defaults in distributable harness config",
+      "id": "feat-incremental-eval-gate",
+      "name": "Rule clause enforcing evaluator run after each feature in a multi-feature sequence",
       "type": "feature",
-      "status": "committed",
+      "status": "verified",
       "priority": "P2",
-      "scope": "Includes: update library/cursor/agents/planner.md and evaluator.md model: fields per research recommendations; add a single source of truth config (library/cursor/harness-model-routing.json mapping role \u2192 model_id \u2192 rationale); document override path in AGENTS.md section 'Role model routing' (env var / Makefile MODEL= for builder eval runs); ensure make sync-local distributes config. Optional: harness-context.sh emits one-line advisory when active routing differs from defaults. Excludes: hook-enforced automatic model switching (platform may not support, per spike-subagent-model-mechanics findings); SDK programmatic subagent dispatch; builder default model (IDE/user setting). Depends on: spike-model-selection.",
-      "deliverable": "library/cursor/harness-model-routing.json + updated agent definitions + AGENTS.md section"
+      "scope": "Phase 11 had 5 features implemented before any evaluation \u2014 11.3 caused -40pp regression undetected for 60 runs. Changes: (1) add clause to adversarial_harness.mdc: run evaluator after EACH feature before starting next, (2) add check to context-health.sh: if 2+ consecutive build breadcrumbs have different feat values without intervening evaluate, emit WARNING. Excludes: hard-blocking. Depends on: nothing.",
+      "deliverable": "Updated library/cursor/rules/adversarial_harness.mdc + updated library/cursor/hooks/context-health.sh"
     },
     {
-      "id": "feat-eval-role-model-matrix",
-      "name": "Eval matrix to measure harness outcomes across model assignments",
+      "id": "feat-skill-experiment-report",
+      "name": "Skill enforcing structured methodology for experiment results and benchmark reports",
       "type": "feature",
-      "status": "pending",
+      "status": "verified",
       "priority": "P2",
-      "scope": "Includes: extend eval pipeline (pattern: existing --ablate-rule dual-run) to run a fixed subset of role-relevant protocol scenarios (protocol_planner_delegation, protocol_evaluator_launch, protocol_eval-fail-retest, protocol_no_post_hoc_contracts) across 2-4 models from model_routing_matrix.json; aggregate harness_compliance pass rates, cost proxy (duration/token if available), regression vs eval_baseline.json; Makefile target eval-model-matrix; dated report JSON for runbook trend comparison; nightly CI workflow. Excludes: PR gate (manual/nightly only); proving per-subagent isolated models if platform research says impossible (document as BLOCKED). Depends on: spike-model-selection, feat-eval-measurement-pass.",
-      "deliverable": "tests/eval/model_matrix.py (or session_runner.py extension) + make eval-model-matrix + report schema under tests/eval/fixtures/ + nightly CI workflow"
+      "scope": "7 ad-hoc reports across sessions with arithmetic errors and missing methodology. Mandatory sections: Executive Summary, Methodology, Results (consistent rounding, error bars), Cross-verification, Limitations, Reproducibility. Validation: flag arithmetic inconsistencies, enforce consistent decimal places, require source citations. Triggers: 'write report', 'summarize results', 'benchmark report', 'findings'. Excludes: experiment design (that's experiment-workflow). Depends on: feat-skill-auto-activation (for activation to work).",
+      "deliverable": "library/cursor/skills/experiment-report/SKILL.md"
     },
     {
-      "id": "chore-v2-debt-harness",
-      "name": "V2 tech debt: harness artifact consistency and housekeeping",
+      "id": "feat-skill-structured-presentation",
+      "name": "Skill enforcing document structure, consistent numbers, and citations for analytical outputs",
+      "type": "feature",
+      "status": "verified",
+      "priority": "P2",
+      "scope": "612-line unformatted report with inconsistent rounding. Enforces: (1) title/date/scope/findings structure, (2) length guard (>200 lines \u2192 TOC), (3) number consistency (same metric = same precision throughout), (4) data provenance (cite source for each data point), (5) cross-reference verification (same metric in multiple places must match). Triggers: 'write presentation', 'create report', 'format findings', 'write analysis'. Excludes: experiment methodology. Depends on: feat-skill-auto-activation.",
+      "deliverable": "library/cursor/skills/structured-presentation/SKILL.md"
+    },
+    {
+      "id": "feat-skill-infra-deploy-checklist",
+      "name": "Skill enforcing pre-deploy validation: resource budget, health gates, rollback plan",
+      "type": "feature",
+      "status": "verified",
+      "priority": "P2",
+      "scope": "Golf 70B crashed with OOM (37GB + KV > 48GB VRAM) \u2014 preventable with budget check. Enforces: (1) resource budget computation (VRAM/RAM/disk vs capacity), (2) health gates (probes, startup time), (3) rollback plan, (4) dry-run step, (5) GPU workload math (model_size + KV + overhead < VRAM). Triggers: 'deploy', 'rollout', 'scale up', 'serve model', 'inference server'. Excludes: manifest generation (that's iac-templates). Depends on: feat-skill-auto-activation.",
+      "deliverable": "library/cursor/skills/infra-deploy-checklist/SKILL.md"
+    },
+    {
+      "id": "chore-breadcrumb-commit-parse",
+      "name": "Fix malformed breadcrumb commit messages with '(0\\n0 files)' file counts",
       "type": "chore",
-      "status": "committed",
-      "priority": "P2",
-      "scope": "Includes: update state.json direction to post-v2 reality (pending: spike-token-estimation, feat-eval-measurement-pass; measurement loop complete); prune 2 RESOLVED open_questions from active list to questions_archive.jsonl; archive/clear committed docs-eval-measurement-runbook contract.json; archive chore-breadcrumb-timestamps and chore-eval-baseline-update from tasks[] (verified\u2192archived via archive-tasks.py); fix feat-16 ID collision in .harness/.archive/tasks.jsonl; fix scripts/session-metrics.py docstring (remove ACAM Advanced Criterion 2 claim until scorer implements it); run make harness-prune on 97-line breadcrumbs.jsonl; note in direction that tests/eval/spike_hooks.py and scripts/clean-harness.sh are known acceptable dead code (no removal). Excludes: consumer-facing doc fixes (chore-v2-debt-docs); stale research scorecard JSON and spike-eval-research backlog cleanup (low priority, optional follow-up)."
-    },
-    {
-      "id": "feat-vacuous-detection-impl",
-      "name": "Implement Phase 1 vacuous feature detection: anti-vacuity rule in evaluator.md",
-      "type": "feature",
-      "status": "committed",
-      "priority": "P2",
-      "scope": "Includes: add anti-vacuity rule to evaluator.md Mode 1 (Contract Negotiation) under 'What to challenge' \u2014 if contract task_id is prefixed feat- and every AC is a file-interrogation command (grep, test -f, python3 -c open(), make + test -f), evaluator must REJECT and ask builder to add a behavioral AC or retype as chore. Rule text must include worked example (make sync-local && test -f pattern) and explicit exempt types (chore/spike/docs). Excludes: harness_lint.py static check (Phase 2, separate task). Depends on: spike-vacuous-feature-detection.",
-      "deliverable": "Updated library/cursor/agents/evaluator.md with anti-vacuity rule in Mode 1 negotiation section"
-    },
-    {
-      "id": "feat-eval-anti-vacuity-scenario",
-      "name": "Live eval scenario: protocol_anti_vacuity_reject",
-      "type": "feature",
-      "status": "committed",
-      "priority": "P2",
-      "scope": "Includes: create tests/eval/scenarios/protocol-anti-vacuity-reject.yaml \u2014 a scenario that seeds a realistic vacuous feat- contract (all ACs are grep/test -f/python3 file-open checks), prompts the evaluator to negotiate, and verifies via shell commands that the evaluator produces a REJECT response (not phase: negotiated); add protocol_anti_vacuity_reject entry to tests/eval/fixtures/acam_dimension_map.json (dimension: multi_agent); add to nightly array in tests/eval/fixtures/ci_suites.json (not PR gate \u2014 probabilistic LLM behavior); add a brief mention in docs/EVAL_GUIDE.md under the protocol scenario listing. Excludes: PR gate inclusion; harness_lint.py static check (Phase 2 per feat-vacuous-detection-impl scope); scenario for chore/spike exemption paths. Depends on: feat-vacuous-detection-impl.",
-      "deliverable": "tests/eval/scenarios/protocol-anti-vacuity-reject.yaml + acam_dimension_map.json entry + ci_suites.json nightly entry + EVAL_GUIDE.md mention"
+      "status": "verified",
+      "priority": "P3",
+      "scope": "23 entries with malformed file counts. Fix: (1) identify code path that writes commit breadcrumbs, (2) sanitize git output to strip newlines, (3) format as 'Commit: <hash> (<N> files)', (4) add test verifying no literal \\n in breadcrumb messages. Excludes: retroactively fixing existing entries. Depends on: nothing.",
+      "deliverable": "Updated library/cursor/hooks/pre-commit-harness.sh + test"
     }
   ]
 }

@@ -27,7 +27,7 @@ help: ## Show this help
 # ─── Local Setup ─────────────────────────────────────────────
 
 setup: sync-local ## Initial setup for fresh clone (populates .cursor/ from library/cursor/)
-	@mkdir -p .harness/evals .harness/audits
+	@mkdir -p .harness/evals
 
 sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents, references)
 	@echo "Syncing library/cursor/ → .cursor/ ..."
@@ -35,6 +35,8 @@ sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents,
 	@# Cleanup stale runtime artifacts
 	@rm -f .cursor/.DS_Store .cursor/hooks/.commit-approved
 	@rm -rf .cursor/hooks.bak
+	@# Cleanup deprecated harness dirs (v2 simplification: no more docs/ or audits/)
+	@rm -rf .harness/docs .harness/audits
 	@if [ -f .cursor/hooks.log ] && [ $$(wc -c < .cursor/hooks.log) -gt 102400 ]; then \
 		tail -200 .cursor/hooks.log > .cursor/hooks.log.tmp && \
 		mv .cursor/hooks.log.tmp .cursor/hooks.log; \

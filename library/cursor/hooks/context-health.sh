@@ -39,6 +39,7 @@ fi
 RESULT=$(python3 -c "
 import json, sys
 from datetime import datetime, timezone
+from collections import defaultdict
 
 breadcrumbs_path = '$BREADCRUMBS'
 
@@ -79,25 +80,40 @@ def parse_ts(ts_str):
             continue
     return None
 
-# --- Signal 1: Session duration (time since session_start) ---
+# --- Signal 1: Session duration with tiered severity ---
+# WARNING at 60min, STRONG at 120min, CRITICAL at 180min+
+session_duration_min = 0
+session_severity = None
 try:
     first_ts = entries[0].get('ts', '')
     last_ts = entries[-1].get('ts', '')
     t_first = parse_ts(first_ts)
     t_last = parse_ts(last_ts)
     if t_first and t_last:
-        duration_min = (t_last - t_first).total_seconds() / 60
-        if duration_min > 90:
+        session_duration_min = (t_last - t_first).total_seconds() / 60
+        if session_duration_min >= 180:
+            session_severity = 'CRITICAL'
+            signals.append('session_duration_critical')
+            details.append(f'Session running {int(session_duration_min)} min (CRITICAL: >3h). Write handoff and split NOW.')
+        elif session_duration_min >= 120:
+            session_severity = 'STRONG'
+            signals.append('session_duration_strong')
+            details.append(f'Session running {int(session_duration_min)} min (STRONG: >2h). Quality degrades. Split now.')
+        elif session_duration_min > 60:
+            session_severity = 'WARNING'
             signals.append('session_duration')
-            details.append(f'Session running for {int(duration_min)} minutes')
+            details.append(f'Session running {int(session_duration_min)} min — consider splitting')
 except Exception:
     pass
 
 # --- Signal 2: Breadcrumb volume (this session only) ---
 total = len(entries)
-if total > 25:
+if total > 30:
+    signals.append('breadcrumb_volume_critical')
+    details.append(f'{total} breadcrumbs in this session — context critically saturated')
+elif total > 20:
     signals.append('breadcrumb_volume')
-    details.append(f'{total} breadcrumbs in this session — context is likely saturated')
+    details.append(f'{total} breadcrumbs in this session — context is getting saturated')
 
 # --- Signal 3: Consecutive failures (this session) ---
 recent = entries[-8:]
@@ -133,13 +149,83 @@ if stuck_features:
     for feat, count in stuck_features.items():
         details.append(f'Feature \"{feat}\" failed evaluation {count} times')
 
+# --- Signal 6: Incremental eval gap (2+ features built without evaluation) ---
+built_feats_since_eval = []
+for e in entries:
+    if e.get('type') in ('evaluate', 'eval') and e.get('role') == 'evaluator':
+        built_feats_since_eval = []
+    elif (e.get('type') == 'build' and e.get('role') == 'builder'
+          and e.get('feat') and str(e.get('result', '')).lower() == 'pass'):
+        feat = e['feat']
+        if feat not in built_feats_since_eval:
+            built_feats_since_eval.append(feat)
+
+if len(built_feats_since_eval) >= 2:
+    signals.append('incremental_eval_gap')
+    details.append(
+        f'{len(built_feats_since_eval)} features built without intermediate evaluation: '
+        + ', '.join(built_feats_since_eval) + '. Run /evaluator before starting next feature.'
+    )
+
+# --- Signal 7: Duplicate breadcrumbs (same feat+type within 15 min) ---
+recent_keys = defaultdict(list)
+for e in entries:
+    key = (e.get('feat', ''), e.get('type', ''))
+    ts_parsed = parse_ts(e.get('ts', ''))
+    if ts_parsed:
+        recent_keys[key].append(ts_parsed)
+
+duplicate_count = 0
+for key, timestamps in recent_keys.items():
+    if len(timestamps) < 2:
+        continue
+    timestamps.sort()
+    for i in range(1, len(timestamps)):
+        if (timestamps[i] - timestamps[i-1]).total_seconds() < 900:
+            duplicate_count += 1
+
+if duplicate_count >= 2:
+    signals.append('duplicate_breadcrumbs')
+    details.append(f'{duplicate_count} near-duplicate breadcrumbs detected (same feat+type within 15 min)')
+
+# --- Signal 8: Scope amnesia (feat:null builds = lost track of task) ---
+null_builds = sum(1 for e in entries
+    if e.get('type') == 'build' and e.get('role') == 'builder'
+    and not e.get('feat'))
+if null_builds >= 3:
+    signals.append('scope_amnesia')
+    details.append(f'{null_builds} builds with feat:null — agent lost track of which task it is working on')
+
+# --- Signal 9: Decision churn (same feat replanned 3+ times) ---
+plan_counts = defaultdict(int)
+for e in entries:
+    if e.get('type') == 'plan' and e.get('feat'):
+        plan_counts[e['feat']] += 1
+
+churning = {f: c for f, c in plan_counts.items() if c >= 3}
+if churning:
+    signals.append('decision_churn')
+    for feat, count in churning.items():
+        details.append(f'Feature {feat} replanned {count} times — going in circles')
+
 # --- Compose result ---
+# Compute cognitive load score (0-10)
+cognitive_load = min(10,
+    2 * (1 if duplicate_count >= 2 else 0) +
+    3 * (1 if null_builds >= 3 else 0) +
+    3 * (1 if churning else 0) +
+    1 * (1 if total > 20 else 0) +
+    1 * (1 if session_duration_min > 60 else 0)
+)
+
 result = {
     'signals': len(signals),
     'signal_names': signals,
     'details': details,
     'session_breadcrumbs': total,
     'total_breadcrumbs': len(all_entries),
+    'session_duration_hours': round(session_duration_min / 60, 1),
+    'cognitive_load_score': cognitive_load,
 }
 
 if len(signals) >= 1:
@@ -189,12 +275,21 @@ details = data.get('details', [])
 recent = data.get('recent_context', [])
 active = data.get('active_feature')
 
-if signals == 1:
+# Severity escalation based on cognitive load score
+has_critical_duration = 'session_duration_critical' in names
+has_strong_duration = 'session_duration_strong' in names
+
+load_score = data.get('cognitive_load_score', 0)
+
+if has_critical_duration or load_score >= 7 or signals >= 4:
+    severity = 'CONTEXT HEALTH CRITICAL'
+    action = 'You MUST write a handoff breadcrumb and recommend the user start a fresh chat. Do NOT continue working on complex tasks in this session.'
+elif has_strong_duration or load_score >= 5 or signals >= 2:
+    severity = 'CONTEXT HEALTH STRONG WARNING'
+    action = 'You should strongly recommend the user start a fresh chat. Session quality degrades significantly.'
+else:
     severity = 'CONTEXT HEALTH WARNING'
     action = 'Consider suggesting the user start a fresh chat for better results.'
-else:
-    severity = 'CONTEXT HEALTH CRITICAL'
-    action = 'You MUST recommend the user start a fresh chat. Do NOT continue working on complex tasks in this session.'
 
 lines = [f'{severity}: {signals} fatigue signal(s) detected.']
 lines.append('')
@@ -214,6 +309,12 @@ else:
     lines.append('   \"Continue where I left off. Read .harness/breadcrumbs.jsonl for context.\"')
 
 lines.append('3. Do NOT attempt complex multi-step work in this degraded session')
+
+if has_critical_duration:
+    lines.append('')
+    lines.append('HANDOFF TEMPLATE (copy and adapt):')
+    active_str = active if active else '<feature>'
+    lines.append(f'{{\"ts\":\"...\",\"role\":\"builder\",\"type\":\"checkpoint\",\"feat\":\"{active_str}\",\"msg\":\"Handoff: <current state>. Next: <what to do>.\"}}')
 
 recent_str = '\\n'.join(f'  {r}' for r in recent)
 if recent_str:

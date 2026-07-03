@@ -15,6 +15,94 @@ CONTRACT=".harness/contract.json"
 STATE=".harness/state.json"
 BREADCRUMBS=".harness/breadcrumbs.jsonl"
 
+# ─── Path 0: Post-commit auto-advance ────────────────────────────────────────
+# If a commit breadcrumb was written this turn AND contract is verified,
+# auto-advance: task → committed, contract → archived, select next task.
+# This replaces the guidance message that agents ignored 30%+ of the time.
+
+if [ -f "$CONTRACT" ] && [ -f "$BREADCRUMBS" ] && [ -f "$STATE" ]; then
+  POST_COMMIT_ACTION=$(python3 -c "
+import json, os
+from datetime import datetime, timezone
+
+contract_path, breadcrumbs_path, state_path = '$CONTRACT', '$BREADCRUMBS', '$STATE'
+
+try:
+    contract = json.load(open(contract_path))
+    if not contract.get('verified'):
+        print('SKIP')
+        raise SystemExit(0)
+
+    # Check if a commit breadcrumb exists in last 3 entries
+    lines = [l.strip() for l in open(breadcrumbs_path).readlines() if l.strip()]
+    recent = []
+    for line in lines[-3:]:
+        try:
+            recent.append(json.loads(line))
+        except Exception:
+            pass
+
+    has_commit = any(
+        e.get('type') == 'checkpoint' and 'Commit:' in e.get('msg', '')
+        for e in recent
+    )
+
+    if not has_commit:
+        print('SKIP')
+        raise SystemExit(0)
+
+    # Auto-advance: mark task as committed in state.json
+    task_id = contract.get('task_id', contract.get('feature', ''))
+    state = json.load(open(state_path))
+    advanced = False
+    for t in state.get('tasks', []):
+        if t.get('id') == task_id and t.get('status') in ('verified', 'building', 'evaluating'):
+            t['status'] = 'committed'
+            advanced = True
+            break
+
+    if advanced:
+        with open(state_path, 'w') as f:
+            json.dump(state, f, indent=2)
+            f.write('\n')
+
+        # Archive contract (remove it so next task starts clean)
+        os.remove(contract_path)
+
+        # Find next pending task
+        pending = [t for t in state.get('tasks', []) if t.get('status') == 'pending']
+        next_task = pending[0]['id'] if pending else None
+        print(f'ADVANCE|{task_id}|{next_task or \"none\"}')
+    else:
+        print('SKIP')
+except Exception:
+    print('SKIP')
+" 2>/dev/null)
+
+  POST_ACTION=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f1)
+  COMMITTED_TASK=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f2)
+  NEXT_TASK=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f3)
+
+  if [ "$POST_ACTION" = "ADVANCE" ]; then
+    hooks_log "verify-harness" "post-commit: auto-advanced '$COMMITTED_TASK' to committed, contract archived"
+
+    if [ "$NEXT_TASK" != "none" ]; then
+      cat <<EOF
+{
+  "followup_message": "POST-COMMIT: Task \"$COMMITTED_TASK\" auto-advanced to committed. Contract archived.\n\nNext pending task: **$NEXT_TASK**. To continue:\n1. Propose a contract for $NEXT_TASK (write .harness/contract.json)\n2. Launch /evaluator for negotiation\n3. Implement against the agreed contract"
+}
+EOF
+    else
+      cat <<EOF
+{
+  "followup_message": "POST-COMMIT: Task \"$COMMITTED_TASK\" auto-advanced to committed. Contract archived.\n\nAll tasks complete. If the user has more work, launch /planner for the next initiative."
+}
+EOF
+    fi
+    exit 0
+  fi
+fi
+
 # ─── Path 1: Contract exists but unverified ───────────────────────────────────
 
 if [ -f "$CONTRACT" ]; then
@@ -86,6 +174,25 @@ except Exception:
 
     if [ "$EVAL_PASS" = "YES" ]; then
       hooks_log "verify-harness" "contract verified + evaluator PASS breadcrumb found, passing"
+
+      # Auto-update state.json: mark task as verified (saves agent from forgetting)
+      python3 -c "
+import json
+try:
+    task_id = '$TASK_ID'
+    with open('$STATE') as f:
+        state = json.load(f)
+    for t in state.get('tasks', []):
+        if t.get('id') == task_id and t.get('status') != 'verified':
+            t['status'] = 'verified'
+            break
+    with open('$STATE', 'w') as f:
+        json.dump(state, f, indent=2)
+        f.write('\n')
+except Exception:
+    pass
+" 2>/dev/null
+
       echo '{}'
       exit 0
     fi

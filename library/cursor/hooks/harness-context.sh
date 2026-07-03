@@ -27,11 +27,90 @@ fi
 # Temp files for safe multiline content composition.
 TMP_PKG=$(mktemp)
 TMP_SUFFIX=$(mktemp)
-trap 'rm -f "$TMP_PKG" "$TMP_SUFFIX"' EXIT
+TMP_SKILLS=$(mktemp)
+trap 'rm -f "$TMP_PKG" "$TMP_SUFFIX" "$TMP_SKILLS"' EXIT
 
 # Write session_start breadcrumb for session boundary tracking.
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "{\"ts\":\"$TS\",\"role\":\"system\",\"type\":\"session_start\",\"feat\":null,\"msg\":\"New chat session started\",\"result\":\"pass\"}" >> "$BREADCRUMBS" 2>/dev/null
+
+# ── Auto-maintenance on session start ─────────────────────────────────────────
+# 1. Archive completed tasks from state.json
+# 2. Truncate breadcrumbs.jsonl to rolling 30-line window
+# 3. Compress state.json if bloated (>50 lines, 0 active tasks)
+# 4. Truncate hooks.log to last 100 lines
+ARCHIVE="$HARNESS_ROOT/.harness/archive.jsonl"
+HOOK_LOG_FILE="$HARNESS_ROOT/.cursor/hooks.log"
+
+if [ -n "$PYTHON_BIN" ] && [ -f "$STATE" ]; then
+  "$PYTHON_BIN" - "$STATE" "$BREADCRUMBS" "$ARCHIVE" << 'MAINT_EOF' 2>/dev/null
+import json, os, sys
+from datetime import datetime, timezone
+
+state_path, breadcrumbs_path, archive_path = sys.argv[1], sys.argv[2], sys.argv[3]
+ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+# --- 1. Auto-archive completed tasks ---
+try:
+    state = json.load(open(state_path))
+    tasks = state.get('tasks', [])
+    done_statuses = {'verified', 'committed', 'cancelled'}
+    active = [t for t in tasks if t.get('status') not in done_statuses]
+    archived = [t for t in tasks if t.get('status') in done_statuses]
+
+    if archived:
+        with open(archive_path, 'a') as af:
+            for t in archived:
+                entry = {'ts': ts, 'type': 'task_archived', 'task': t}
+                af.write(json.dumps(entry) + '\n')
+        state['tasks'] = active
+        with open(state_path, 'w') as sf:
+            json.dump(state, sf, indent=2)
+            sf.write('\n')
+except Exception:
+    pass
+
+# --- 2. Truncate breadcrumbs to last 30 lines ---
+try:
+    if os.path.isfile(breadcrumbs_path):
+        lines = [l for l in open(breadcrumbs_path).readlines() if l.strip()]
+        if len(lines) > 30:
+            overflow = lines[:-30]
+            with open(archive_path, 'a') as af:
+                for line in overflow:
+                    af.write(line if line.endswith('\n') else line + '\n')
+            with open(breadcrumbs_path, 'w') as bf:
+                bf.writelines(lines[-30:])
+except Exception:
+    pass
+
+# --- 3. Compress state if bloated ---
+try:
+    state = json.load(open(state_path))
+    tasks = state.get('tasks', [])
+    active_tasks = [t for t in tasks if t.get('status') in ('pending', 'building', 'evaluating')]
+    state_size = os.path.getsize(state_path)
+
+    if len(active_tasks) == 0 and state_size > 2000:
+        keep_keys = {'project', 'schema_version', 'vision', 'tasks'}
+        compressed_fields = {k: v for k, v in state.items() if k not in keep_keys}
+        if compressed_fields:
+            with open(archive_path, 'a') as af:
+                entry = {'ts': ts, 'type': 'state_compressed', 'fields': compressed_fields}
+                af.write(json.dumps(entry) + '\n')
+            slim = {k: state[k] for k in keep_keys if k in state}
+            with open(state_path, 'w') as sf:
+                json.dump(slim, sf, indent=2)
+                sf.write('\n')
+except Exception:
+    pass
+MAINT_EOF
+fi
+
+# Truncate hooks.log to last 100 lines
+if [ -f "$HOOK_LOG_FILE" ] && [ "$(wc -l < "$HOOK_LOG_FILE" 2>/dev/null | tr -d ' ')" -gt 100 ]; then
+  tail -100 "$HOOK_LOG_FILE" > "$HOOK_LOG_FILE.tmp" && mv "$HOOK_LOG_FILE.tmp" "$HOOK_LOG_FILE" 2>/dev/null
+fi
 
 # Cold-start: no harness files at all.
 if [ ! -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
@@ -78,11 +157,12 @@ try:
     if os.path.isfile(state_path):
         state = json.load(open(state_path))
         tasks = state.get('tasks', [])
-        archivable = [t for t in tasks if t.get('status') in ('verified', 'committed', 'cancelled')]
         sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
         building = [t for t in sorted_tasks if t.get('status') == 'building']
-        if len(archivable) >= 10:
-            parts.append(f'ARCHIVE ADVISORY: {len(archivable)} completed/cancelled tasks in state.json. Run `python scripts/archive-tasks.py` (or --dry-run) to keep the backlog lean.')
+        # Warn if >5 active tasks (auto-archive already ran; these are genuinely active)
+        active = [t for t in tasks if t.get('status') in ('pending', 'building', 'evaluating')]
+        if len(active) > 5:
+            parts.append(f'TASK OVERLOAD: {len(active)} active tasks in state.json (max recommended: 5). Complete current work before adding more.')
     if not os.path.isfile(contract_path) and building:
         b = building[0]
         parts.append(f'CONTRACT REQUIRED: Task "{b.get("id","?")}" is building but no contract.json exists.')
@@ -129,26 +209,48 @@ if session_task_count >= 3:
 print('\n'.join(parts))
 PYEOF
 
-# ── Prune advisory (>40 non-empty breadcrumb lines) ──────────────────────────
+# ── Skill suggestions (match prompt against skill triggers) ───────────────────
+SKILL_SUGGEST="$SCRIPT_DIR/skill-suggest.py"
+
+if [ -n "$PYTHON_BIN" ] && [ -f "$SKILL_SUGGEST" ]; then
+  SKILLS_DIR="$HARNESS_ROOT/.cursor/skills"
+  if [ ! -d "$SKILLS_DIR" ]; then
+    SKILLS_DIR="$HARNESS_ROOT/library/cursor/skills"
+  fi
+  if [ -d "$SKILLS_DIR" ]; then
+    PROMPT_TEXT=$(echo "$HOOK_INPUT" | "$PYTHON_BIN" -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    print(data.get('prompt', data.get('message', data.get('input', ''))))
+except Exception:
+    print('')
+" 2>/dev/null)
+    "$PYTHON_BIN" "$SKILL_SUGGEST" --skills-dir "$SKILLS_DIR" --prompt "$PROMPT_TEXT" --format text > "$TMP_SKILLS" 2>/dev/null
+  fi
+fi
+
+# ── Prune advisory (>40 non-empty breadcrumb lines — shouldn't happen with auto-truncate)
 PRUNE_NOTE=""
 if [ -f "$BREADCRUMBS" ]; then
   BC_LINES=$(grep -c . "$BREADCRUMBS" 2>/dev/null || echo 0)
   if [ "$BC_LINES" -gt 40 ]; then
-    PRUNE_NOTE="PRUNE ADVISORY: breadcrumbs.jsonl has ${BC_LINES} lines. Run \`make harness-prune\` to archive old entries and keep context lean."
+    PRUNE_NOTE="PRUNE WARNING: breadcrumbs.jsonl has ${BC_LINES} lines despite auto-truncation. Check if session maintenance failed."
   fi
 fi
 
 # ── Compose final JSON output ─────────────────────────────────────────────────
-CONTEXT=$(${PYTHON_BIN:-python3} - "$TMP_PKG" "$TMP_SUFFIX" "$PRUNE_NOTE" << 'PYEOF'
+CONTEXT=$(${PYTHON_BIN:-python3} - "$TMP_PKG" "$TMP_SUFFIX" "$PRUNE_NOTE" "$TMP_SKILLS" << 'PYEOF'
 import json, sys
 
-pkg_path, suffix_path, prune_note = sys.argv[1], sys.argv[2], sys.argv[3]
+pkg_path, suffix_path, prune_note, skills_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 
 pkg_md = open(pkg_path).read().strip() if __import__('os').path.isfile(pkg_path) else ''
 suffix = open(suffix_path).read().strip() if __import__('os').path.isfile(suffix_path) else ''
 prune = prune_note.strip()
+skills = open(skills_path).read().strip() if __import__('os').path.isfile(skills_path) else ''
 
-parts = [p for p in [pkg_md, suffix, prune] if p]
+parts = [p for p in [pkg_md, skills, suffix, prune] if p]
 additional_context = '\n\n'.join(parts)
 print(json.dumps({'additional_context': additional_context}))
 PYEOF

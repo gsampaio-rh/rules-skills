@@ -79,44 +79,26 @@ if echo "$target_path" | grep -qE '\.harness/|\.cursor/hooks/'; then
   exit 0
 fi
 
-# Check if gate should be skipped for spike/chore tasks (type-aware bypass)
+# Determine the current task for the gate message.
+# Post-audit expansion: ALL tasks with status=building require a contract,
+# regardless of type (feature, chore, spike, etc.). The only bypass is
+# when no task is building or pending.
 STATE_DATA=$(hooks_read_state "$STATE")
 GATE_RESULT=$(echo "$STATE_DATA" | python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
     bid = data.get('building_id', '')
-    btype = data.get('building_type', '')
     bname = data.get('building_name', '')
     pid = data.get('pending_id', '')
-    ptype = data.get('pending_type', '')
     pname = data.get('pending_name', '')
-    has_gatable = data.get('has_gatable', False)
-    gatable = {'feature', 'bug', 'gap', 'fix'}
 
     if bid:
-        current_type = btype
-        current_name = bname or bid
+        print(f'GATE|{bname or bid}')
     elif pid:
-        current_type = ptype
-        current_name = pname or pid
+        print(f'GATE|{pname or pid}')
     else:
         print('SKIP|unknown')
-        raise SystemExit(0)
-
-    skip = (
-        current_type not in gatable
-        and (not bid or True)
-        and not has_gatable
-    )
-    # contract-gate specific: also skip if current is pending + non-gatable
-    if not bid and pid:
-        skip = (
-            current_type not in gatable
-            and ptype not in gatable
-            and not has_gatable
-        )
-    print(f\"{'SKIP' if skip else 'GATE'}|{current_name}\")
 except Exception:
     print('GATE|unknown')
 " 2>/dev/null)
@@ -125,12 +107,31 @@ GATE_ACTION=$(echo "$GATE_RESULT" | cut -d'|' -f1)
 CURRENT_FEATURE=$(echo "$GATE_RESULT" | cut -d'|' -f2)
 
 if [ "$GATE_ACTION" = "SKIP" ]; then
-  hooks_log "contract-gate" "type-aware bypass (spike/chore), allowing"
+  hooks_log "contract-gate" "no building/pending task, allowing"
   echo '{}'
   exit 0
 fi
 
 hooks_log "contract-gate" "DENIED write to $target_path (no contract, feature: $CURRENT_FEATURE)"
+
+# Auto-transition first pending task to 'building' status so the agent
+# doesn't have to remember. This was forgotten 40% of the time in arena.
+python3 -c "
+import json
+try:
+    with open('.harness/state.json') as f:
+        state = json.load(f)
+    tasks = state.get('tasks', [])
+    for t in tasks:
+        if t.get('status') == 'pending':
+            t['status'] = 'building'
+            break
+    with open('.harness/state.json', 'w') as f:
+        json.dump(state, f, indent=2)
+        f.write('\n')
+except Exception:
+    pass
+" 2>/dev/null
 
 cat <<EOF
 {
