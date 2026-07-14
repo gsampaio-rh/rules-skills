@@ -84,6 +84,18 @@ These rules load in every session. Token budget enforced by `harness_lint.py`.
 | Prompt Coaching | `prompt_coaching.mdc` | Vague or underspecified user requests |
 | Security | `security.mdc` | Auth, secrets, input validation, infra tasks |
 
+## Glob-Scoped Rules (5 files, auto-loaded by file pattern)
+
+These rules load automatically when files matching their glob pattern are open or edited. They are not always-on and do not count against the token budget.
+
+| Rule | File | Glob pattern |
+|---|---|---|
+| Architecture | `architecture.mdc` | `**/*.py, **/*.ts, **/*.tsx` |
+| Causal Rigor | `causal_rigor.mdc` | `experiments/**/*.{py,ipynb,md}` |
+| Python / ML | `python_ml.mdc` | `*.py, *.ipynb` |
+| Research Standards | `research_standards.mdc` | `experiments/**/*.{py,ipynb,md}, analysis/**/*.{py,ipynb,md}` |
+| Testing | `testing.mdc` | `**/test*.py, **/tests/**/*.py` |
+
 ---
 
 ## Named Agent Personas
@@ -128,10 +140,14 @@ Pre-configured hooks in `library/cursor/hooks/`. Copy to `.cursor/hooks/` to act
 | Hook | Event | Effect |
 |---|---|---|
 | `harness-context.sh` | sessionStart | Injects current task, open contract, session count, last 3 breadcrumbs |
+| `harness-gate.sh` | beforeSubmitPrompt | Detects non-trivial cold-start prompts; blocks impl writes until planner runs |
 | `contract-gate.sh` | preToolUse (Write) | Denies source file writes if no `contract.json` exists |
 | `evaluator-guard.sh` | preToolUse (Write) | Denies evaluator writes outside `.harness/` |
-| `chain-evaluator.sh` | stop | Advances phase to `evaluating`, creates `.evaluator-active` flag |
+| `dedup-server.sh` | beforeShellExecution | Prevents duplicate dev-server processes (npm, flask, uvicorn, etc.) |
+| `pre-commit-harness.sh` | beforeShellExecution | Writes a commit breadcrumb and enforces commit approval flag |
+| `chain-evaluator.sh` | subagentStop | Auto-advances phase to `evaluating`, creates `.evaluator-active` flag, injects /evaluator prompt |
 | `verify-harness.sh` | stop | Requires evaluator launch when contract is open and unverified |
+| `enforce-progress.sh` | stop | Warns when multi-file changes lack breadcrumbs |
 | `context-health.sh` | stop | Warns if breadcrumbs show no progress in current session |
 
 ---
@@ -178,13 +194,13 @@ CI: `.github/workflows/eval-fast.yml`, `eval-regression-pr.yml`, `eval-regressio
 
 ---
 
-## ACAM Status (2026-06-12)
+## ACAM Status (2026-07-14)
 
 | Dimension | Level | Key evidence |
 |---|---|---|
 | Configuration | Intermediate | 8 scoped rules; `per_rule_effectiveness` gap — ablation code exists (`make eval-ablation`), data artifact not yet committed |
 | Workflows | **Advanced** | contract-gate.sh + CI eval regression suite (feat-17) |
-| Multi-agent | Intermediate | evaluator-guard.sh blocks source writes; `programmatic_orchestration` gap — manual `/evaluator` only |
+| Multi-agent | Intermediate | evaluator-guard.sh blocks source writes; chain-evaluator.sh auto-dispatches `/evaluator` on subagentStop (programmatic_orchestration gap closed); harvest recommendation integrated into eval reports |
 | Interaction | Intermediate | harness-context.sh injects structured context; `measured_patterns` gap — `session-metrics.py` exists but lacks turns_to_completion/prompt_clarity |
 
 Population: Tier 3+ (~top 0.5% of n≈3,200 public repos, ACAM survey June 2026).

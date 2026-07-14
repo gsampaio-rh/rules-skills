@@ -1,23 +1,23 @@
 {
-  "task_id": "chore-register-missing-hooks",
-  "feature": "Register evaluator-guard.sh and chain-evaluator.sh in hooks.json",
-  "problem": "Two hooks exist in .cursor/hooks/ but are absent from hooks.json: evaluator-guard.sh (blocks evaluator source writes) and chain-evaluator.sh (auto-advances build phase). Without registration, the evaluator has no write protection and phase auto-advance is dead code.",
-  "proposed_solution": "Add one entry to preToolUse[] for evaluator-guard.sh (matcher: Write) and one entry to subagentStop[] for chain-evaluator.sh (new event key). No logic changes to the scripts themselves.",
+  "task_id": "chore-update-agents-md",
+  "feature": "Fix AGENTS.md: hooks table, glob-scoped rules section, ACAM date",
+  "problem": "AGENTS.md has three classes of staleness: (1) Hooks table lists 6 hooks but hooks.json has 10 registered; chain-evaluator.sh event is wrong (says 'stop', is actually 'subagentStop'); (2) 5 glob-scoped rules exist in .cursor/rules/ but are undocumented; (3) ACAM Status date is 2026-06-12 and Multi-agent row still says 'manual /evaluator only' despite chain-evaluator now auto-dispatching.",
+  "proposed_solution": "Edit AGENTS.md only. Three surgical edits: update hooks table to 10 rows with correct events; add a 'Glob-Scoped Rules' subsection after 'Agent-Requested Rules'; update ACAM date and Multi-agent evidence cell.",
   "acceptance_criteria": [
-    "hooks.json contains a 'subagentStop' key at the top level of 'hooks' with chain-evaluator.sh as its sole entry",
-    "hooks.json preToolUse[] contains evaluator-guard.sh with matcher 'Write' — appears after contract-gate.sh so contract-gate runs first",
-    "The JSON in hooks.json is valid (python3 -c 'import json; json.load(open(\".cursor/hooks.json\"))' exits 0)",
-    "All previously registered hooks are still present and unmodified in hooks.json",
-    "make eval-fast exits 0 with no new failures"
+    "AC1 [STRENGTHENED]: Hooks table in AGENTS.md contains exactly 10 hook script rows (header and separator excluded) \u2014 one for each of: harness-context.sh(sessionStart), harness-gate.sh(beforeSubmitPrompt), contract-gate.sh(preToolUse Write), evaluator-guard.sh(preToolUse Write), dedup-server.sh(beforeShellExecution), pre-commit-harness.sh(beforeShellExecution), chain-evaluator.sh(subagentStop), verify-harness.sh(stop), enforce-progress.sh(stop), context-health.sh(stop). Verification: awk '/## Hooks/,/^## [A-Z]/' AGENTS.md | grep -E '^\\|.*\\.sh' | wc -l \u2014 must output 10.",
+    "AC2 [ACCEPTED]: chain-evaluator.sh row shows event 'subagentStop' (not 'stop'). Verification: grep 'chain-evaluator' AGENTS.md | grep -c 'subagentStop' \u2014 must return 1.",
+    "AC3 [STRENGTHENED]: A 'Glob-Scoped Rules' section or subsection exists listing all 5 rules (architecture.mdc, causal_rigor.mdc, python_ml.mdc, research_standards.mdc, testing.mdc) AND each entry includes its glob pattern. Name check: grep -cE 'architecture\\.mdc|causal_rigor|python_ml|research_standards|testing\\.mdc' AGENTS.md \u2014 must return exactly 5 (one match per name). Glob check: awk '/Glob-Scoped/,/^## [A-Z]/' AGENTS.md | grep -cE '\\*\\*|\\{py|\\{py,ipynb' \u2014 must return \u22653 (at least 3 of the 5 entries expose a glob pattern with wildcard or brace syntax).",
+    "AC4 [STRENGTHENED]: ACAM Status date updated from 2026-06-12 to 2026-07-14 and old date removed. Verification (new date present): grep -c '2026-07-14' AGENTS.md \u2014 must return \u22651. Verification (old date absent): grep -c '2026-06-12' AGENTS.md \u2014 must return 0.",
+    "AC5 [STRENGTHENED]: ACAM Multi-agent row evidence updated to reflect chain-evaluator.sh auto-dispatch on subagentStop; the phrase 'manual /evaluator only' must no longer appear in that row. Verification (evidence present): grep -i 'Multi-agent' AGENTS.md | grep -icE 'auto-dispatch|chain-evaluator|subagentStop' \u2014 must return \u22651. Verification (stale text removed): grep -i 'Multi-agent' AGENTS.md | grep -c 'manual.*evaluator only' \u2014 must return 0."
   ],
   "edge_cases": [
-    "chain-evaluator.sh uses 'subagentStop' not 'stop' — wrong event key would silently not fire; evaluator verifies the key matches the hook's own header comment",
-    "evaluator-guard.sh order in preToolUse[] matters: contract-gate must run before evaluator-guard to avoid false denials"
+    "EC1 [ACCEPTED]: AGENTS.md line count stays under 250 after additions. Verification: wc -l AGENTS.md \u2014 reported count must be < 250.",
+    "EC2 [STRENGTHENED]: Hooks table note 'Copy to .cursor/hooks/ to activate' remains verbatim (must not be inadvertently removed during hooks table rewrite). Verification: grep -c 'Copy to .cursor/hooks/ to activate' AGENTS.md \u2014 must return 1."
   ],
-  "verification_method": "python3 -c 'import json; h=json.load(open(\".cursor/hooks.json\"))[\"hooks\"]; assert \"subagentStop\" in h; assert any(\"chain-evaluator\" in e[\"command\"] for e in h[\"subagentStop\"]); pt=h[\"preToolUse\"]; assert any(\"evaluator-guard\" in e[\"command\"] for e in pt); assert pt.index(next(e for e in pt if \"evaluator-guard\" in e[\"command\"])) > pt.index(next(e for e in pt if \"contract-gate\" in e[\"command\"])); print(\"PASS\")' && make eval-fast",
-  "rubrics": ["code-quality"],
+  "verification_method": "Run these commands from repo root in sequence:\n1. awk '/## Hooks/,/^## [A-Z]/' AGENTS.md | grep -E '^\\|.*\\.sh' | wc -l  # expect 10\n2. grep 'chain-evaluator' AGENTS.md | grep -c 'subagentStop'  # expect 1\n3. grep -cE 'architecture\\.mdc|causal_rigor|python_ml|research_standards|testing\\.mdc' AGENTS.md  # expect 5\n4. awk '/Glob-Scoped/,/^## [A-Z]/' AGENTS.md | grep -cE '\\*\\*|\\{py'  # expect \u22653\n5. grep -c '2026-07-14' AGENTS.md  # expect \u22651\n6. grep -c '2026-06-12' AGENTS.md  # expect 0\n7. grep -i 'Multi-agent' AGENTS.md | grep -icE 'auto-dispatch|chain-evaluator|subagentStop'  # expect \u22651\n8. grep -i 'Multi-agent' AGENTS.md | grep -c 'manual.*evaluator only'  # expect 0\n9. wc -l AGENTS.md  # expect < 250\n10. grep -c 'Copy to .cursor/hooks/ to activate' AGENTS.md  # expect 1",
+  "rubrics": [],
   "rubric_mode": "warn",
-  "negotiation_rounds": 0,
+  "negotiation_rounds": 1,
   "phase": "evaluating",
   "verified": true
 }

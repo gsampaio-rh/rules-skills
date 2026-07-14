@@ -1,7 +1,7 @@
 {
   "project": "rules-skills",
   "schema_version": 2,
-  "vision": "A distributable library of AI agent rules, skills, and hooks with a file-based adversarial harness — health audit cycle remediating two dead hooks, five undocumented rules, and a harness-gate blind spot for short prompts.",
+  "vision": "A distributable library of AI agent rules, skills, and hooks with a file-based adversarial harness \u2014 health audit cycle remediating two dead hooks, five undocumented rules, and a harness-gate blind spot for short prompts.",
   "tasks": [
     {
       "id": "chore-register-missing-hooks",
@@ -14,7 +14,7 @@
       "id": "chore-update-agents-md",
       "name": "Fix AGENTS.md: hooks table + glob-scoped rules + ACAM date",
       "type": "chore",
-      "status": "pending",
+      "status": "committed",
       "scope": "AGENTS.md only. Add 4 missing registered hooks (harness-gate, dedup-server, pre-commit-harness, enforce-progress); mark chain-evaluator/evaluator-guard as unregistered; add 5 glob-scoped rules (architecture, causal_rigor, python_ml, research_standards, testing); update ACAM Status date to 2026-07-14. Done when every hook.json entry has a row and 5 glob rules are documented."
     },
     {
@@ -29,7 +29,7 @@
       "name": "Fix harness-gate glue threshold to catch short feature prompts",
       "type": "chore",
       "status": "pending",
-      "scope": "library/cursor/hooks/harness-gate.sh + .cursor/hooks/harness-gate.sh. Raise glue threshold from 25 to 50 chars OR add word-count heuristic (>=4 words = non-glue). Done when 'refatora tudo', 'migra o banco', 'adiciona autenticação' each trigger routing advice in a unit test run."
+      "scope": "library/cursor/hooks/harness-gate.sh + .cursor/hooks/harness-gate.sh. Raise glue threshold from 25 to 50 chars OR add word-count heuristic (>=4 words = non-glue). Done when 'refatora tudo', 'migra o banco', 'adiciona autentica\u00e7\u00e3o' each trigger routing advice in a unit test run."
     },
     {
       "id": "chore-skill-suggest-mid-session",
