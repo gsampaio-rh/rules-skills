@@ -1,0 +1,27 @@
+# Seed manifest for a harness eval scenario.
+# Missing: resource limits, health probes, pinned image tag, revert-on-failure plan.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference-server
+  namespace: ml-serving
+  labels:
+    app: inference-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inference-server
+  template:
+    metadata:
+      labels:
+        app: inference-server
+    spec:
+      containers:
+        - name: inference-server
+          image: inference-server:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MODEL_PATH
+              value: /models/current

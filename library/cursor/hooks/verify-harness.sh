@@ -42,8 +42,10 @@ try:
         except Exception:
             pass
 
+    # Accept either a commit checkpoint OR an evaluator PASS breadcrumb (fix-3: less fragile trigger)
     has_commit = any(
-        e.get('type') == 'checkpoint' and 'Commit:' in e.get('msg', '')
+        (e.get('type') == 'checkpoint' and 'Commit:' in e.get('msg', ''))
+        or (e.get('role') == 'evaluator' and str(e.get('result', '')).lower() == 'pass')
         for e in recent
     )
 
@@ -69,10 +71,24 @@ try:
         # Archive contract (remove it so next task starts clean)
         os.remove(contract_path)
 
+        # Read harvest_recommendation from eval report (task_id-keyed path, not mtime)
+        harvest_type = 'none'
+        harvest_rationale = ''
+        eval_path = f'.harness/evals/eval-{task_id}.json'
+        try:
+            eval_report = json.load(open(eval_path))
+            hr = eval_report.get('harvest_recommendation', {})
+            harvest_type = hr.get('type', 'none')
+            harvest_rationale = hr.get('rationale', '')
+            if harvest_type not in ('skill', 'hook', 'none'):
+                harvest_type = 'none'
+        except Exception:
+            pass  # missing or malformed eval report — skip harvest silently
+
         # Find next pending task
         pending = [t for t in state.get('tasks', []) if t.get('status') == 'pending']
         next_task = pending[0]['id'] if pending else None
-        print(f'ADVANCE|{task_id}|{next_task or \"none\"}')
+        print(f'ADVANCE|{task_id}|{next_task or \"none\"}|{harvest_type}|{harvest_rationale}')
     else:
         print('SKIP')
 except Exception:
@@ -82,20 +98,28 @@ except Exception:
   POST_ACTION=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f1)
   COMMITTED_TASK=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f2)
   NEXT_TASK=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f3)
+  HARVEST_TYPE=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f4)
+  HARVEST_RATIONALE=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f5-)
 
   if [ "$POST_ACTION" = "ADVANCE" ]; then
-    hooks_log "verify-harness" "post-commit: auto-advanced '$COMMITTED_TASK' to committed, contract archived"
+    hooks_log "verify-harness" "post-commit: auto-advanced '$COMMITTED_TASK' to committed, contract archived, harvest=$HARVEST_TYPE"
+
+    # Build harvest block (only when type is skill or hook)
+    HARVEST_BLOCK=""
+    if [ "$HARVEST_TYPE" = "skill" ] || [ "$HARVEST_TYPE" = "hook" ]; then
+      HARVEST_BLOCK="\n\nHARVEST RECOMMENDATION: This task produced a reusable **${HARVEST_TYPE}** pattern.\n${HARVEST_RATIONALE}\nConsider extracting it to library/cursor/${HARVEST_TYPE}s/."
+    fi
 
     if [ "$NEXT_TASK" != "none" ]; then
       cat <<EOF
 {
-  "followup_message": "POST-COMMIT: Task \"$COMMITTED_TASK\" auto-advanced to committed. Contract archived.\n\nNext pending task: **$NEXT_TASK**. To continue:\n1. Propose a contract for $NEXT_TASK (write .harness/contract.json)\n2. Launch /evaluator for negotiation\n3. Implement against the agreed contract"
+  "followup_message": "POST-COMMIT: Task \"$COMMITTED_TASK\" auto-advanced to committed. Contract archived.\n\nNext pending task: **$NEXT_TASK**. To continue:\n1. Propose a contract for $NEXT_TASK (write .harness/contract.json)\n2. Launch /evaluator for negotiation\n3. Implement against the agreed contract${HARVEST_BLOCK}"
 }
 EOF
     else
       cat <<EOF
 {
-  "followup_message": "POST-COMMIT: Task \"$COMMITTED_TASK\" auto-advanced to committed. Contract archived.\n\nAll tasks complete. If the user has more work, launch /planner for the next initiative."
+  "followup_message": "POST-COMMIT: Task \"$COMMITTED_TASK\" auto-advanced to committed. Contract archived.\n\nAll tasks complete. If the user has more work, launch /planner for the next initiative.${HARVEST_BLOCK}"
 }
 EOF
     fi
@@ -106,6 +130,62 @@ fi
 # ─── Path 1: Contract exists but unverified ───────────────────────────────────
 
 if [ -f "$CONTRACT" ]; then
+  # fix-1/fix-2: guard against stale and cross-thread contracts before enforcement.
+  # Three distinct outcomes:
+  #   STALE      → idle/committed/no task_id: truly orphaned, auto-delete
+  #   PRE_BUILD  → negotiating/negotiated: active contract, build not started yet, skip enforcement (do NOT delete)
+  #   CROSS_THREAD → task_id not in active state tasks: different thread's contract, skip silently
+  #   ACTIVE     → building/evaluating/verified: enforce normally
+  CONTRACT_ACTIVE=$(python3 -c "
+import json, os
+try:
+    contract = json.load(open('$CONTRACT'))
+    phase = contract.get('phase', '')
+    task_id = contract.get('task_id', '')
+
+    if phase in ('idle', 'committed') or not task_id:
+        print('STALE')
+        raise SystemExit(0)
+
+    if phase in ('negotiating', 'negotiated'):
+        print('PRE_BUILD')
+        raise SystemExit(0)
+
+    state_path = '$STATE'
+    if os.path.exists(state_path):
+        state = json.load(open(state_path))
+        active = {t['id'] for t in state.get('tasks', [])
+                  if t.get('status') in ('building', 'evaluating', 'verified')}
+        if active and task_id not in active:
+            print('CROSS_THREAD')
+            raise SystemExit(0)
+
+    print('ACTIVE')
+except SystemExit:
+    pass
+except Exception:
+    print('ACTIVE')
+" 2>/dev/null)
+
+  if [ "$CONTRACT_ACTIVE" = "STALE" ]; then
+    hooks_log "verify-harness" "stale contract (idle/committed/no task_id), auto-cleaning"
+    rm -f "$CONTRACT"
+    echo '{}'
+    exit 0
+  fi
+
+  if [ "$CONTRACT_ACTIVE" = "PRE_BUILD" ]; then
+    hooks_log "verify-harness" "pre-build contract (negotiating/negotiated), no enforcement yet"
+    echo '{}'
+    exit 0
+  fi
+
+  if [ "$CONTRACT_ACTIVE" = "CROSS_THREAD" ]; then
+    hooks_log "verify-harness" "cross-thread contract (task_id not active in state.json), skipping"
+    echo '{}'
+    exit 0
+  fi
+
   if [ ! -f "$BREADCRUMBS" ]; then
     cat <<EOF
 {

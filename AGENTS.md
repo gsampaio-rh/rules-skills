@@ -35,13 +35,27 @@ This repo uses a three-role harness: **planner → builder → evaluator**.
 
 | File | Purpose | Format |
 |---|---|---|
-| `.harness/state.json` | Project scope, vision, task backlog | JSON — schema_version: 2 |
+| `.harness/state.json` | Project scope: one-line vision + max 5 tasks | JSON — schema_version: 2, under 50 lines |
 | `.harness/contract.json` | Acceptance criteria for current build task | JSON — feature, criteria, phase |
-| `.harness/breadcrumbs.jsonl` | Append-only session audit trail | JSONL — ts, role, type, feat, msg, result |
-| `.harness/archive.jsonl` | Completed tasks (archived from state.json) | JSONL — same schema as state tasks |
+| `.harness/breadcrumbs.jsonl` | Append-only session audit trail (auto-truncated to a rolling 30-line window) | JSONL — ts, role, type, feat, msg, result |
+| `.harness/archive.jsonl` | Completed tasks (auto-archived from state.json on session start) | JSONL — same schema as state tasks |
 
 **Breadcrumb roles:** `planner`, `builder`, `evaluator`, `system`
 **Breadcrumb types:** `plan`, `negotiate`, `build`, `evaluate`, `verify`, `checkpoint`, `session_start`
+
+### Schema v2 (simplified, post-`c9f57a4`)
+
+`state.json` holds exactly two fields beyond `project`/`schema_version`: `vision`
+(one sentence) and `tasks` (max 5, each `{id, name, type, status, scope}`).
+
+- **No `direction`, `trade_offs`, or `open_questions` fields** — those live in
+  `plan`-type breadcrumbs instead (e.g. `"msg":"...Trade-offs: <key decisions>"`).
+- **No `.harness/docs/` or `.harness/audits/`** — deleted in the v2 simplification.
+  Strategic research and design docs go in project `docs/`; standalone audits are
+  one-off reports (write directly to the location the user requests, not a
+  dedicated harness subdirectory).
+- `make sync-local` actively removes `.harness/docs/` and `.harness/audits/` if
+  a consumer project still has them from before the simplification.
 
 ---
 
@@ -100,7 +114,10 @@ Each role has a recommended model tier based on its failure modes. Config lives 
 
 **Warning:** `make sync-local` overwrites `.cursor/agents/`. Personal `model:` overrides in `.cursor/agents/` do not survive sync unless `library/cursor/agents/` is also changed.
 
-Full rationale and platform constraints: `.harness/docs/research/model-selection.md`
+Full rationale and platform constraints for this routing were researched pre-v2
+simplification; the source research doc (`.harness/docs/research/model-selection.md`)
+was deleted along with `.harness/docs/` — see `git show c9f57a4~1:.harness/docs/research/model-selection.md`
+for the historical version, or `.harness/archive.jsonl` for the negotiation trail.
 
 ---
 

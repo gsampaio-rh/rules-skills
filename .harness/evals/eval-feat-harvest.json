@@ -1,0 +1,84 @@
+{
+  "task_id": "feat-harvest",
+  "timestamp": "2026-07-14T11:52:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "PASS — make eval-fast: 0 errors, 1 warning (always-on token budget)",
+    "types": "NOT_APPLICABLE — no typed source files changed",
+    "tests": "PASS — pytest: 296 passed, 2 warnings in 14.98s",
+    "build": "PASS — make eval-fast (validate.py, contract_lint, harness_lint, acam-score) exited 0"
+  },
+  "criteria": [
+    {
+      "criterion": "library/cursor/agents/evaluator.md contains a '## Harvest Evaluation' section with three labeled type blocks ('**Type: skill**', '**Type: hook**', '**Type: none**'); the skill and hook blocks each contain ≥2 bullet-point decision predicates. Testable: python3 regex parse of the file exits 0.",
+      "result": "PASS",
+      "evidence": "python3 regex parse: section found between ## Harvest Evaluation and ## Termination Protocol; all three type labels present; skill block has 4 bullets, hook block has 4 bullets (≥2 required)."
+    },
+    {
+      "criterion": ".harness/evals/eval-{task_id}.json contains a 'harvest_recommendation' object with 'type' (string, one of: skill|hook|none) and 'rationale' (non-empty string). Testable: python3 -c \"import json; hr=json.load(open('.harness/evals/eval-{task_id}.json'))['harvest_recommendation']; assert hr['type'] in ('skill','hook','none'); assert hr.get('rationale')\"",
+      "result": "PASS",
+      "evidence": "Fixture .harness/evals/eval-feat-harvest-test.json validated: type='skill', rationale='Test rationale for schema validation.' This report includes harvest_recommendation with type='none' and non-empty rationale."
+    },
+    {
+      "criterion": "verify-harness.sh Path 0 (post-commit advance) resolves the eval report path as '.harness/evals/eval-{task_id}.json' where task_id is read from contract.json — NOT 'last file by mtime'. Testable: grep for harvest_recommendation in verify-harness.sh returns ≥1 hit; fixture run (see verification_method) confirms correct file is read.",
+      "result": "PASS",
+      "evidence": "grep harvest_recommendation: 3 hits in verify-harness.sh; line 77 uses eval_path = f'.harness/evals/eval-{task_id}.json'. Keyed-path fixture: followup_message contained KEYED-RATIONALE-XYZ from eval-feat-keyed-test.json and excluded DECOY-SHOULD-NOT-APPEAR from eval-decoy-other.json."
+    },
+    {
+      "criterion": "When verify-harness.sh Path 0 runs with a verified contract and eval report containing harvest_recommendation.type=skill (or hook), the followup_message JSON contains the literal string 'HARVEST RECOMMENDATION:' followed by the rationale. Testable: fixture run pipes hook stdout to python3 and asserts 'HARVEST RECOMMENDATION:' in msg.",
+      "result": "PASS",
+      "evidence": "Fixture task_id=feat-skill-test: exit 0, followup_message contains 'HARVEST RECOMMENDATION:' and 'Skill pattern detected.' Fixture task_id=feat-hook-test: exit 0, followup_message contains 'HARVEST RECOMMENDATION:' and 'Hook pattern detected.'"
+    },
+    {
+      "criterion": "When verify-harness.sh Path 0 runs with harvest_recommendation.type=none, the followup_message does NOT contain 'HARVEST RECOMMENDATION:'. Testable: fixture run asserts string is absent.",
+      "result": "PASS",
+      "evidence": "Fixture task_id=feat-none-test: exit 0, 'HARVEST RECOMMENDATION:' absent from followup_message; POST-COMMIT advance message present."
+    },
+    {
+      "criterion": "When the active task_id starts with 'chore-' or 'spike-', evaluator.md instructs the evaluator to automatically set harvest_recommendation.type=none and skip harvest reasoning. The hook produces no HARVEST RECOMMENDATION: block (covered by AC5). Testable: read evaluator.md for the chore/spike skip instruction; fixture run with chore- task confirms no harvest block.",
+      "result": "PASS",
+      "evidence": "evaluator.md line 276: 'If the task_id starts with chore-, spike-, or docs-, set harvest_recommendation.type to none and skip the evaluation below.' Fixture task_id=chore-test with harvest type=none: exit 0, no HARVEST RECOMMENDATION: in followup_message."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "Eval report .harness/evals/eval-{task_id}.json does not exist (evaluator was skipped) — Path 0 skips harvest surfacing entirely, followup_message is unchanged, no error or crash.",
+      "result": "PASS",
+      "evidence": "Fixture task_id=feat-missing-eval with no eval file: exit 0, POST-COMMIT message emitted, HARVEST RECOMMENDATION: absent, no stderr crash."
+    },
+    {
+      "case": "harvest_recommendation field is absent from eval report (older report pre-feature) — Path 0 skips harvest block silently, backward compatible.",
+      "result": "PASS",
+      "evidence": "Fixture task_id=feat-old-report with eval JSON lacking harvest_recommendation: exit 0, HARVEST RECOMMENDATION: absent, POST-COMMIT advance succeeded."
+    },
+    {
+      "case": "eval-{task_id}.json exists but is malformed JSON (parse error) — Path 0 skips harvest surfacing without crashing; hook continues to emit the normal advance followup_message.",
+      "result": "PASS",
+      "evidence": "Fixture task_id=feat-bad-json with '{invalid json!!!' content: exit 0, HARVEST RECOMMENDATION: absent, POST-COMMIT message present, hook did not crash."
+    }
+  ],
+  "rubric_audit": {
+    "domain": "code-quality",
+    "mode": "warn",
+    "overall_score": "B",
+    "summary": "Changed files are markdown agent prompt and bash hook script; no high-severity SOLID violations in the harvest extension. Path 0 embedded Python block is large but pre-existing.",
+    "score_breakdown": {
+      "high_pass": 2,
+      "high_fail": 0,
+      "medium_pass": 3,
+      "medium_fail": 1,
+      "low_pass": 2,
+      "low_fail": 0
+    },
+    "top_recommendations": [
+      "Extract Path 0 post-commit Python into a standalone script to reduce verify-harness.sh file size (389 lines, exceeds 300-line guideline)",
+      "Add dedicated pytest fixtures for harvest Path 0 scenarios to prevent regression without manual fixture setup"
+    ]
+  },
+  "recommendation": "proceed",
+  "notes": "All acceptance criteria and edge cases verified via executed fixture runs in isolated temp harness directories; code inspection was not used as sole evidence. Test artifact eval-feat-harvest-test.json left from AC2 schema validation.",
+  "harvest_recommendation": {
+    "type": "none",
+    "rationale": "Harvest surfacing extends existing library/cursor/agents/evaluator.md and library/cursor/hooks/verify-harness.sh rather than producing a new extractable skill or hook artifact."
+  }
+}

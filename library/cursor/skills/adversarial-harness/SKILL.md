@@ -49,7 +49,7 @@ Launch `/planner` with the user's request:
 /planner [paste or describe the user's request with relevant context]
 ```
 
-The planner produces `.harness/state.json` (vision, direction, trade-offs, and task list). Present to user for confirmation.
+The planner produces `.harness/state.json` (one-line vision + max 5 tasks). Trade-offs and open questions go in the planner's breadcrumb, not the state file. Present to user for confirmation.
 
 ### Pushback → Scoped Contract
 
@@ -144,11 +144,14 @@ Scrap-and-restart is expected, not failure — models should discard work that i
 
 | File | Purpose | Who writes |
 |------|---------|------------|
-| `.harness/state.json` | Single source of truth — vision, direction, trade-offs, tasks | Planner (init), Builder (updates) |
+| `.harness/state.json` | Single source of truth — one-line vision + max 5 tasks | Planner (init), Builder (updates) |
 | `.harness/contract.json` | Active contract | Builder (proposes), Evaluator (approves) |
 | `.harness/evals/eval-{id}.json` | Eval reports | Evaluator |
-| `.harness/docs/` | Strategic design docs (prose) | Builder |
 | `.harness/breadcrumbs.jsonl` | Append-only trace | All agents |
+
+Strategic research and design docs go in the project's own `docs/` directory,
+never `.harness/` — the harness holds working state, not prose. Trade-offs and
+open questions live in `plan`-type breadcrumbs, not a dedicated file.
 
 All state lives on the file system. Whether `.harness/` is git-tracked or gitignored depends on the project — this repo tracks it for dogfooding; consumer projects may choose to gitignore it.
 
@@ -173,10 +176,9 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 
 ## Output Artifacts
 
-- `.harness/state.json` — vision, direction, trade-offs, task tracking (all agents)
+- `.harness/state.json` — vision + task tracking (all agents)
 - `.harness/contract.json` — active contract (builder + evaluator)
 - `.harness/evals/eval-{id}.json` — evaluation reports (evaluator)
-- `.harness/docs/` — strategic design documents (builder)
 - `.harness/breadcrumbs.jsonl` — append-only trace (all agents)
 
 ## Stop Conditions

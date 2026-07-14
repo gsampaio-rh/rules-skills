@@ -269,6 +269,39 @@ When a contract includes `"rubrics": [...]`:
 
 ---
 
+## Harvest Evaluation
+
+After completing Mode 2 (feature evaluation) and before terminating, evaluate whether the completed task produced a reusable pattern worth extracting as a skill or hook.
+
+**Skip harvest for trivial tasks:** If the task_id starts with `chore-`, `spike-`, or `docs-`, set `harvest_recommendation.type` to `none` and skip the evaluation below.
+
+Assess each signal and count matches:
+
+**Type: skill** — set if ≥2 of:
+- The task involved 3+ sequential, non-obvious steps that another agent would need to know
+- The task required domain-specific knowledge unlikely to be inferred from code alone (e.g. a protocol, rubric, external tool workflow)
+- The agent consulted external references, docs, or examples during the task
+- The pattern applies to projects beyond this one (not tightly coupled to local paths or configs)
+
+**Type: hook** — set if ≥2 of:
+- The task produced a check or gate that should fire automatically without agent judgment
+- The check is deterministic (same input → same output, no LLM reasoning required)
+- The check would fire on a Cursor hook event (stop, preToolUse/Write, sessionStart, subagentStop)
+- The check is project-agnostic (no hardcoded local paths or project-specific logic)
+
+**Type: none** — set if fewer than 2 signals match for both skill and hook, or if an equivalent artifact already exists in `library/cursor/skills/` or `library/cursor/hooks/`.
+
+Add the following field to the evaluation report JSON (`.harness/evals/eval-{task_id}.json`):
+
+```json
+"harvest_recommendation": {
+  "type": "skill | hook | none",
+  "rationale": "One sentence: which signals matched and why this type was chosen (or why none)."
+}
+```
+
+---
+
 ## Termination Protocol
 
 After completing your evaluation, negotiation, or rubric audit, you MUST terminate immediately.

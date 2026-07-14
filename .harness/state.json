@@ -1,114 +1,17 @@
 {
   "project": "rules-skills",
-  "created": "2026-05-27T14:00:00Z",
-  "updated": "2026-06-26T11:14:00Z",
-  "schema_version": 2,
   "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. The harness solves five problems: (1) scope via state.json, (2) task definition, (3) task tracking, (4) session recovery via breadcrumbs.jsonl, (5) acceptance criteria via contract.json. AUDIT-DRIVEN IMPROVEMENT (2026-06-26): An interaction quality audit of agents-arena-event-final (18 sessions, 180 breadcrumbs, 5 days) exposed that the harness's structural enforcement works (contract-gate, evaluator-guard) but its behavioral activation doesn't: 14 configured skills saw 0 invocations, contracts were skipped for non-feature work, and long sessions ran unchecked despite advisory-only warnings. The next improvement cycle targets: (1) closing the skill auto-activation gap via a sessionStart prompt-matching hook, (2) widening contract-gate to all multi-file work (not just feat-*), (3) escalating session-length warnings to hard-suggest-split enforcement, and (4) filling the skills library with structured-reporting and pre-deploy-checklist skills. Priority: structural enforcement > new skills > bug fixes.",
-  "direction": "POST-AUDIT (2026-06-26): All prior measurement tasks (ACAM scorer, baseline seed, scenario mapping, runbook) committed. Model routing research + implementation committed. Anti-vacuity detection committed. The binding constraint is now BEHAVIORAL ACTIVATION \u2014 the harness rules exist but don't trigger at the right times. Focus: Group 1 (auto-activation + contract-gate expansion) unblocks everything; Group 2 (session quality) prevents marathon sessions; Group 3 (new skills) adds capabilities. Infrastructure is stable. ACAM status: Intermediate on all 4 dimensions, Tier 3 (~top 0.5%).",
-  "trade_offs": [
-    {
-      "decision": "Skill auto-activation via sessionStart hook injection, not runtime prompt interception",
-      "alternative": "preToolUse hook that intercepts every agent action and pattern-matches against skill triggers",
-      "reasoning": "sessionStart runs once per session (low overhead, simple). preToolUse runs on every Write/Shell/etc (expensive, noisy false positives). The audit gap is session-level \u2014 agent never considers skills at all \u2014 so one-time injection at session start is the right granularity."
-    },
-    {
-      "decision": "Widen contract-gate to multi-file work by type, not by counting actual file writes",
-      "alternative": "Dynamic file-count gate that blocks after Nth distinct file write without contract",
-      "reasoning": "Dynamic counting requires stateful tracking across hook invocations. Type-based gating (any task in state.json with building status triggers contract requirement regardless of type) is deterministic and matches the existing hook model."
-    },
-    {
-      "decision": "Session circuit breaker uses escalating severity (warn 90min, hard-suggest 3h, insist 4h+) not hard block",
-      "alternative": "Hard-block all agent actions after 4 hours",
-      "reasoning": "Cursor hooks cannot hard-block stop events \u2014 they can only inject followup_message. Escalating severity language + breadcrumb audit trail makes non-compliance visible in post-session analysis."
-    },
-    {
-      "decision": "experiment-report and structured-presentation as separate skills, not one combined skill",
-      "alternative": "Single 'structured-reporting' skill covering experiments, benchmarks, and analysis docs",
-      "reasoning": "Experiment reports have domain-specific concerns (hypothesis, methodology, statistical measures) that don't apply to general presentations. Combined skill would be 200+ lines and conflate two trigger patterns."
-    },
-    {
-      "decision": "Keep lean hook profile as default; demote full profile",
-      "alternative": "Maintain 11 hooks at equal priority",
-      "reasoning": "Lean (4 hooks) enforces the five-problem core. Full profile adds dedup-server, context-health, evaluator-guard, harness-gate LLM routing \u2014 valuable for dogfooding, optional for consumers."
-    }
-  ],
-  "open_questions": [
-    "Skill auto-activation: should the hook inject the full SKILL.md content or just a one-line suggestion that the agent then reads? Full injection is more reliable but costs tokens; suggestion relies on agent compliance.",
-    "Contract-gate expansion: should spike-type tasks require contracts? Spikes are research-only (no code output) but can still be multi-session. The audit showed research sessions benefiting from planning but not necessarily contracts.",
-    "Session circuit breaker: what's the right first-tier threshold \u2014 90 min or 120 min? The audit showed productive sessions up to ~90 min and degradation after ~150 min."
-  ],
+  "schema_version": 2,
   "tasks": [
     {
-      "id": "feat-skill-auto-activation",
-      "name": "SessionStart hook that matches prompt patterns to skill triggers",
+      "id": "feat-harvest",
+      "name": "Pattern harvest evaluation at task completion",
       "type": "feature",
-      "status": "verified",
-      "priority": "P1",
-      "scope": "CRITICAL gap: 14 skills configured, 0 invoked across 18 sessions. Build a sessionStart hook (library/cursor/hooks/skill-suggest.py) that: (1) reads all SKILL.md files from the skills directory, (2) extracts trigger keywords from each skill's description/metadata, (3) pattern-matches initial prompt against skill triggers, (4) injects matched skill suggestions into additional_context (top 3 by relevance). Must handle: zero matches (no injection), multiple matches (ranked list), skills directory not found (graceful skip). Excludes: changing IDE skill loading behavior; runtime mid-session re-matching. Depends on: nothing.",
-      "deliverable": "library/cursor/hooks/skill-suggest.py + hook config entry + integration test"
-    },
-    {
-      "id": "feat-contract-gate-expand",
-      "name": "Widen contract-gate to enforce contracts on all multi-file harness work",
-      "type": "feature",
-      "status": "verified",
-      "priority": "P2",
-      "scope": "Audit found 33% contract coverage. Currently contract-gate.sh bypasses spike/chore tasks. Expand: (1) any task with status=building requires contract regardless of type, (2) update adversarial_harness.mdc to explicitly list operational/infrastructure work (3+ manifests) as non-trivial, (3) keep fast-exit for no-state.json (simple ungated work). Also folds in ops-planning clause from audit finding #8. Excludes: dynamic file-count tracking. Depends on: nothing.",
-      "deliverable": "Updated library/cursor/hooks/contract-gate.sh + updated library/cursor/rules/adversarial_harness.mdc + updated library/cursor/rules/planning_discipline.mdc"
-    },
-    {
-      "id": "feat-session-circuit-breaker",
-      "name": "Escalate context-health from advisory to tiered enforcement with time-based severity",
-      "type": "feature",
-      "status": "verified",
-      "priority": "P2",
-      "scope": "4 sessions exceeded 4h (one ran 10h). Changes: (1) add elapsed-time tiers to context-health.sh: WARNING at 90min, STRONG WARNING at 3h, CRITICAL at 4h+, (2) at CRITICAL, inject handoff template into followup_message, (3) add session_duration_hours field to result JSON, (4) update planning_discipline.mdc Session Boundaries. Does NOT hard-block (hooks can only inject messages). Depends on: nothing.",
-      "deliverable": "Updated library/cursor/hooks/context-health.sh + updated library/cursor/rules/planning_discipline.mdc"
-    },
-    {
-      "id": "feat-incremental-eval-gate",
-      "name": "Rule clause enforcing evaluator run after each feature in a multi-feature sequence",
-      "type": "feature",
-      "status": "verified",
-      "priority": "P2",
-      "scope": "Phase 11 had 5 features implemented before any evaluation \u2014 11.3 caused -40pp regression undetected for 60 runs. Changes: (1) add clause to adversarial_harness.mdc: run evaluator after EACH feature before starting next, (2) add check to context-health.sh: if 2+ consecutive build breadcrumbs have different feat values without intervening evaluate, emit WARNING. Excludes: hard-blocking. Depends on: nothing.",
-      "deliverable": "Updated library/cursor/rules/adversarial_harness.mdc + updated library/cursor/hooks/context-health.sh"
-    },
-    {
-      "id": "feat-skill-experiment-report",
-      "name": "Skill enforcing structured methodology for experiment results and benchmark reports",
-      "type": "feature",
-      "status": "verified",
-      "priority": "P2",
-      "scope": "7 ad-hoc reports across sessions with arithmetic errors and missing methodology. Mandatory sections: Executive Summary, Methodology, Results (consistent rounding, error bars), Cross-verification, Limitations, Reproducibility. Validation: flag arithmetic inconsistencies, enforce consistent decimal places, require source citations. Triggers: 'write report', 'summarize results', 'benchmark report', 'findings'. Excludes: experiment design (that's experiment-workflow). Depends on: feat-skill-auto-activation (for activation to work).",
-      "deliverable": "library/cursor/skills/experiment-report/SKILL.md"
-    },
-    {
-      "id": "feat-skill-structured-presentation",
-      "name": "Skill enforcing document structure, consistent numbers, and citations for analytical outputs",
-      "type": "feature",
-      "status": "verified",
-      "priority": "P2",
-      "scope": "612-line unformatted report with inconsistent rounding. Enforces: (1) title/date/scope/findings structure, (2) length guard (>200 lines \u2192 TOC), (3) number consistency (same metric = same precision throughout), (4) data provenance (cite source for each data point), (5) cross-reference verification (same metric in multiple places must match). Triggers: 'write presentation', 'create report', 'format findings', 'write analysis'. Excludes: experiment methodology. Depends on: feat-skill-auto-activation.",
-      "deliverable": "library/cursor/skills/structured-presentation/SKILL.md"
-    },
-    {
-      "id": "feat-skill-infra-deploy-checklist",
-      "name": "Skill enforcing pre-deploy validation: resource budget, health gates, rollback plan",
-      "type": "feature",
-      "status": "verified",
-      "priority": "P2",
-      "scope": "Golf 70B crashed with OOM (37GB + KV > 48GB VRAM) \u2014 preventable with budget check. Enforces: (1) resource budget computation (VRAM/RAM/disk vs capacity), (2) health gates (probes, startup time), (3) rollback plan, (4) dry-run step, (5) GPU workload math (model_size + KV + overhead < VRAM). Triggers: 'deploy', 'rollout', 'scale up', 'serve model', 'inference server'. Excludes: manifest generation (that's iac-templates). Depends on: feat-skill-auto-activation.",
-      "deliverable": "library/cursor/skills/infra-deploy-checklist/SKILL.md"
-    },
-    {
-      "id": "chore-breadcrumb-commit-parse",
-      "name": "Fix malformed breadcrumb commit messages with '(0\\n0 files)' file counts",
-      "type": "chore",
-      "status": "verified",
-      "priority": "P3",
-      "scope": "23 entries with malformed file counts. Fix: (1) identify code path that writes commit breadcrumbs, (2) sanitize git output to strip newlines, (3) format as 'Commit: <hash> (<N> files)', (4) add test verifying no literal \\n in breadcrumb messages. Excludes: retroactively fixing existing entries. Depends on: nothing.",
-      "deliverable": "Updated library/cursor/hooks/pre-commit-harness.sh + test"
+      "status": "building",
+      "scope": [
+        "library/cursor/agents/evaluator.md",
+        "library/cursor/hooks/verify-harness.sh"
+      ]
     }
   ]
 }
