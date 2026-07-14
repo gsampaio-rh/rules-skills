@@ -1,17 +1,42 @@
 {
   "project": "rules-skills",
-  "vision": "A distributable library of AI coding assistant rules, skills, hooks, and a file-based harness for Cursor and Claude Code. The harness solves five problems: (1) scope via state.json, (2) task definition, (3) task tracking, (4) session recovery via breadcrumbs.jsonl, (5) acceptance criteria via contract.json. AUDIT-DRIVEN IMPROVEMENT (2026-06-26): An interaction quality audit of agents-arena-event-final (18 sessions, 180 breadcrumbs, 5 days) exposed that the harness's structural enforcement works (contract-gate, evaluator-guard) but its behavioral activation doesn't: 14 configured skills saw 0 invocations, contracts were skipped for non-feature work, and long sessions ran unchecked despite advisory-only warnings. The next improvement cycle targets: (1) closing the skill auto-activation gap via a sessionStart prompt-matching hook, (2) widening contract-gate to all multi-file work (not just feat-*), (3) escalating session-length warnings to hard-suggest-split enforcement, and (4) filling the skills library with structured-reporting and pre-deploy-checklist skills. Priority: structural enforcement > new skills > bug fixes.",
   "schema_version": 2,
+  "vision": "A distributable library of AI agent rules, skills, and hooks with a file-based adversarial harness — health audit cycle remediating two dead hooks, five undocumented rules, and a harness-gate blind spot for short prompts.",
   "tasks": [
     {
-      "id": "feat-harvest",
-      "name": "Pattern harvest evaluation at task completion",
-      "type": "feature",
-      "status": "building",
-      "scope": [
-        "library/cursor/agents/evaluator.md",
-        "library/cursor/hooks/verify-harness.sh"
-      ]
+      "id": "chore-register-missing-hooks",
+      "name": "Register evaluator-guard + chain-evaluator in hooks.json",
+      "type": "chore",
+      "status": "committed",
+      "scope": ".cursor/hooks.json only. Add evaluator-guard.sh as preToolUse(Write) and chain-evaluator.sh as subagentStop. Done when both hooks appear in hooks.json with correct event keys."
+    },
+    {
+      "id": "chore-update-agents-md",
+      "name": "Fix AGENTS.md: hooks table + glob-scoped rules + ACAM date",
+      "type": "chore",
+      "status": "pending",
+      "scope": "AGENTS.md only. Add 4 missing registered hooks (harness-gate, dedup-server, pre-commit-harness, enforce-progress); mark chain-evaluator/evaluator-guard as unregistered; add 5 glob-scoped rules (architecture, causal_rigor, python_ml, research_standards, testing); update ACAM Status date to 2026-07-14. Done when every hook.json entry has a row and 5 glob rules are documented."
+    },
+    {
+      "id": "chore-fix-skill-triggers",
+      "name": "Deduplicate overlapping skill trigger phrases",
+      "type": "chore",
+      "status": "pending",
+      "scope": "library/cursor/skills/experiment-workflow/SKILL.md, experiment-report/SKILL.md, structured-presentation/SKILL.md (+ .cursor/ sync). Remove 'write findings' and 'analyze results' from experiment-workflow (they belong to experiment-report); remove 'create report' / 'write report' collision between structured-presentation and experiment-report. Done when no trigger phrase is shared across two or more overlapping skills."
+    },
+    {
+      "id": "chore-harness-gate-glue-threshold",
+      "name": "Fix harness-gate glue threshold to catch short feature prompts",
+      "type": "chore",
+      "status": "pending",
+      "scope": "library/cursor/hooks/harness-gate.sh + .cursor/hooks/harness-gate.sh. Raise glue threshold from 25 to 50 chars OR add word-count heuristic (>=4 words = non-glue). Done when 'refatora tudo', 'migra o banco', 'adiciona autenticação' each trigger routing advice in a unit test run."
+    },
+    {
+      "id": "chore-skill-suggest-mid-session",
+      "name": "Fire skill-suggest on every prompt, not just sessionStart",
+      "type": "chore",
+      "status": "pending",
+      "scope": "library/cursor/hooks/harness-gate.sh + .cursor/hooks/harness-gate.sh. Add skill-suggest.py invocation to beforeSubmitPrompt so suggestions appear for all messages, not just the first. Done when running harness-gate.sh with a skill-triggering prompt returns SKILL SUGGESTIONS block in followup_message."
     }
   ]
 }

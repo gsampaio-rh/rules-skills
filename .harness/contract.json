@@ -1,27 +1,23 @@
 {
-  "task_id": "feat-harvest",
-  "feature": "Pattern harvest evaluation at task completion",
-  "problem": "Reusable patterns discovered during tasks are lost because no structured moment exists to identify and extract them as skills or hooks.",
-  "proposed_solution": "Extend evaluator.md to produce a harvest_recommendation field in eval reports. Extend verify-harness.sh post-commit advance to surface non-none recommendations.",
+  "task_id": "chore-register-missing-hooks",
+  "feature": "Register evaluator-guard.sh and chain-evaluator.sh in hooks.json",
+  "problem": "Two hooks exist in .cursor/hooks/ but are absent from hooks.json: evaluator-guard.sh (blocks evaluator source writes) and chain-evaluator.sh (auto-advances build phase). Without registration, the evaluator has no write protection and phase auto-advance is dead code.",
+  "proposed_solution": "Add one entry to preToolUse[] for evaluator-guard.sh (matcher: Write) and one entry to subagentStop[] for chain-evaluator.sh (new event key). No logic changes to the scripts themselves.",
   "acceptance_criteria": [
-    "library/cursor/agents/evaluator.md contains a '## Harvest Evaluation' section with three labeled type blocks ('**Type: skill**', '**Type: hook**', '**Type: none**'); the skill and hook blocks each contain \u22652 bullet-point decision predicates. Testable: python3 regex parse of the file exits 0.",
-    ".harness/evals/eval-{task_id}.json contains a 'harvest_recommendation' object with 'type' (string, one of: skill|hook|none) and 'rationale' (non-empty string). Testable: python3 -c \"import json; hr=json.load(open('.harness/evals/eval-{task_id}.json'))['harvest_recommendation']; assert hr['type'] in ('skill','hook','none'); assert hr.get('rationale')\"",
-    "verify-harness.sh Path 0 (post-commit advance) resolves the eval report path as '.harness/evals/eval-{task_id}.json' where task_id is read from contract.json \u2014 NOT 'last file by mtime'. Testable: grep for harvest_recommendation in verify-harness.sh returns \u22651 hit; fixture run (see verification_method) confirms correct file is read.",
-    "When verify-harness.sh Path 0 runs with a verified contract and eval report containing harvest_recommendation.type=skill (or hook), the followup_message JSON contains the literal string 'HARVEST RECOMMENDATION:' followed by the rationale. Testable: fixture run pipes hook stdout to python3 and asserts 'HARVEST RECOMMENDATION:' in msg.",
-    "When verify-harness.sh Path 0 runs with harvest_recommendation.type=none, the followup_message does NOT contain 'HARVEST RECOMMENDATION:'. Testable: fixture run asserts string is absent.",
-    "When the active task_id starts with 'chore-' or 'spike-', evaluator.md instructs the evaluator to automatically set harvest_recommendation.type=none and skip harvest reasoning. The hook produces no HARVEST RECOMMENDATION: block (covered by AC5). Testable: read evaluator.md for the chore/spike skip instruction; fixture run with chore- task confirms no harvest block."
+    "hooks.json contains a 'subagentStop' key at the top level of 'hooks' with chain-evaluator.sh as its sole entry",
+    "hooks.json preToolUse[] contains evaluator-guard.sh with matcher 'Write' — appears after contract-gate.sh so contract-gate runs first",
+    "The JSON in hooks.json is valid (python3 -c 'import json; json.load(open(\".cursor/hooks.json\"))' exits 0)",
+    "All previously registered hooks are still present and unmodified in hooks.json",
+    "make eval-fast exits 0 with no new failures"
   ],
   "edge_cases": [
-    "Eval report .harness/evals/eval-{task_id}.json does not exist (evaluator was skipped) \u2014 Path 0 skips harvest surfacing entirely, followup_message is unchanged, no error or crash.",
-    "harvest_recommendation field is absent from eval report (older report pre-feature) \u2014 Path 0 skips harvest block silently, backward compatible.",
-    "eval-{task_id}.json exists but is malformed JSON (parse error) \u2014 Path 0 skips harvest surfacing without crashing; hook continues to emit the normal advance followup_message."
+    "chain-evaluator.sh uses 'subagentStop' not 'stop' — wrong event key would silently not fire; evaluator verifies the key matches the hook's own header comment",
+    "evaluator-guard.sh order in preToolUse[] matters: contract-gate must run before evaluator-guard to avoid false denials"
   ],
-  "verification_method": "All steps are fixture-based and require no live LLM session.\n\nStep 1 (AC1): python3 -c \"import re; c=open('library/cursor/agents/evaluator.md').read(); assert '## Harvest Evaluation' in c\"\n\nStep 2 (AC2): Create fixture .harness/evals/eval-feat-harvest-test.json with harvest_recommendation; run python3 assert.\n\nSteps 3-5 (AC3/4/5): Set up temp fixture files with verified contract, evaluator-pass breadcrumb, and eval JSON with harvest_recommendation.type=skill; run bash library/cursor/hooks/verify-harness.sh and assert 'HARVEST RECOMMENDATION:' in stdout followup_message.\n\nStep 5 (type=none): Repeat with harvest_recommendation.type=none; assert string absent.\n\nStep 6 (AC6): Repeat with task_id='chore-test'; assert no harvest block.\n\nEdge cases: Omit eval file; assert hook exits 0 with no harvest block. Use malformed JSON; assert no crash.",
-  "rubrics": [
-    "code-quality"
-  ],
+  "verification_method": "python3 -c 'import json; h=json.load(open(\".cursor/hooks.json\"))[\"hooks\"]; assert \"subagentStop\" in h; assert any(\"chain-evaluator\" in e[\"command\"] for e in h[\"subagentStop\"]); pt=h[\"preToolUse\"]; assert any(\"evaluator-guard\" in e[\"command\"] for e in pt); assert pt.index(next(e for e in pt if \"evaluator-guard\" in e[\"command\"])) > pt.index(next(e for e in pt if \"contract-gate\" in e[\"command\"])); print(\"PASS\")' && make eval-fast",
+  "rubrics": ["code-quality"],
   "rubric_mode": "warn",
-  "negotiation_rounds": 1,
+  "negotiation_rounds": 0,
   "phase": "evaluating",
   "verified": true
 }

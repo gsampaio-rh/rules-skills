@@ -1,0 +1,56 @@
+{
+  "task_id": "chore-register-missing-hooks",
+  "timestamp": "2026-07-14T12:15:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "lint": "PASS — make eval-fast: 0 errors, 1 warning (always-on budget 1940/2000 tokens, pre-existing)",
+    "types": "N/A — no typed source files changed",
+    "tests": "PASS — make eval-fast exits 0; contract_lint.py and harness_lint.py both 0 errors",
+    "build": "N/A — JSON configuration, no build step"
+  },
+  "criteria": [
+    {
+      "criterion": "hooks.json contains a 'subagentStop' key at the top level of 'hooks' with chain-evaluator.sh as its sole entry",
+      "result": "PASS",
+      "evidence": "hooks.json['hooks']['subagentStop'] = [{\"command\": \".cursor/hooks/chain-evaluator.sh\", \"timeout\": 10}]. Sole entry confirmed — no other entries in the array. Structural assertion passed via verification command."
+    },
+    {
+      "criterion": "hooks.json preToolUse[] contains evaluator-guard.sh with matcher 'Write' — appears after contract-gate.sh so contract-gate runs first",
+      "result": "PASS",
+      "evidence": "preToolUse[0] = contract-gate.sh (matcher: Write), preToolUse[1] = evaluator-guard.sh (matcher: Write). Order assertion in verification command: pt.index(evaluator-guard entry) > pt.index(contract-gate entry) → 1 > 0. PASS."
+    },
+    {
+      "criterion": "The JSON in hooks.json is valid (python3 -c 'import json; json.load(open(\".cursor/hooks.json\"))' exits 0)",
+      "result": "PASS",
+      "evidence": "Ran: python3 -c 'import json; json.load(open(\".cursor/hooks.json\"))' && echo \"JSON VALID\". Output: JSON VALID. Exit code 0."
+    },
+    {
+      "criterion": "All previously registered hooks are still present and unmodified in hooks.json",
+      "result": "PASS",
+      "evidence": "Verified each previously-registered hook is present: sessionStart→harness-context.sh, beforeSubmitPrompt→harness-gate.sh, preToolUse→contract-gate.sh, beforeShellExecution→dedup-server.sh and pre-commit-harness.sh, stop→verify-harness.sh, enforce-progress.sh, context-health.sh. All PRESENT. Note: .cursor/ is gitignored so no git diff baseline exists; verification performed by exhaustive enumeration of all non-new entries against known prior hook set."
+    },
+    {
+      "criterion": "make eval-fast exits 0 with no new failures",
+      "result": "PASS",
+      "evidence": "make eval-fast output: 'Results: 0 errors, 1 warnings — PASSED'. Contract lint: 0 errors, 0 warnings. Harness lint: 0 errors, 0 warnings. Exit code 0. The 1 warning (always-on budget 1940/2000 tokens) is pre-existing, not introduced by this change."
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "chain-evaluator.sh uses 'subagentStop' not 'stop' — wrong event key would silently not fire; evaluator verifies the key matches the hook's own header comment",
+      "result": "PASS",
+      "evidence": "chain-evaluator.sh line 2: '# subagentStop hook: programmatic state-transition orchestration.' The registered event key in hooks.json is 'subagentStop'. Keys match exactly."
+    },
+    {
+      "case": "evaluator-guard.sh order in preToolUse[] matters: contract-gate must run before evaluator-guard to avoid false denials",
+      "result": "PASS",
+      "evidence": "preToolUse array index 0 = contract-gate.sh, index 1 = evaluator-guard.sh. Assertion confirmed by verification command Python assertion: pt.index(evaluator-guard) > pt.index(contract-gate) → 1 > 0 → True."
+    }
+  ],
+  "recommendation": "proceed",
+  "notes": "The .cursor/ directory is gitignored, so no git diff baseline exists for the pre-change state of hooks.json. The 'previously registered hooks still present' criterion was evaluated by exhaustive enumeration against the complete list of hook scripts referenced by the task description and library documentation. All registered hook scripts exist as files in .cursor/hooks/. The verification command from the contract passed end-to-end without modification.",
+  "harvest_recommendation": {
+    "type": "none",
+    "rationale": "task_id starts with 'chore-' — harvest evaluation skipped per evaluator instructions."
+  }
+}

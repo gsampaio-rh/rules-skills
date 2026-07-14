@@ -18,6 +18,17 @@
         "command": ".cursor/hooks/contract-gate.sh",
         "matcher": "Write",
         "timeout": 5
+      },
+      {
+        "command": ".cursor/hooks/evaluator-guard.sh",
+        "matcher": "Write",
+        "timeout": 5
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": ".cursor/hooks/chain-evaluator.sh",
+        "timeout": 10
       }
     ],
     "beforeShellExecution": [
