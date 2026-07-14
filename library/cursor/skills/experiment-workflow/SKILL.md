@@ -1,6 +1,6 @@
 ---
 name: experiment-workflow
-description: "Run an experiment from design to report. Use when: set up experiment, run experiment, design experiment, experiment lifecycle, create EXPERIMENT.md, analyze results, write findings."
+description: "Run an experiment from design to report. Use when: set up experiment, run experiment, design experiment, experiment lifecycle, create EXPERIMENT.md, analyze results."
 disable-model-invocation: false
 ---
 

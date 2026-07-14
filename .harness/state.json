@@ -14,14 +14,14 @@
       "id": "chore-update-agents-md",
       "name": "Fix AGENTS.md: hooks table + glob-scoped rules + ACAM date",
       "type": "chore",
-      "status": "committed",
+      "status": "verified",
       "scope": "AGENTS.md only. Add 4 missing registered hooks (harness-gate, dedup-server, pre-commit-harness, enforce-progress); mark chain-evaluator/evaluator-guard as unregistered; add 5 glob-scoped rules (architecture, causal_rigor, python_ml, research_standards, testing); update ACAM Status date to 2026-07-14. Done when every hook.json entry has a row and 5 glob rules are documented."
     },
     {
       "id": "chore-fix-skill-triggers",
       "name": "Deduplicate overlapping skill trigger phrases",
       "type": "chore",
-      "status": "pending",
+      "status": "committed",
       "scope": "library/cursor/skills/experiment-workflow/SKILL.md, experiment-report/SKILL.md, structured-presentation/SKILL.md (+ .cursor/ sync). Remove 'write findings' and 'analyze results' from experiment-workflow (they belong to experiment-report); remove 'create report' / 'write report' collision between structured-presentation and experiment-report. Done when no trigger phrase is shared across two or more overlapping skills."
     },
     {
