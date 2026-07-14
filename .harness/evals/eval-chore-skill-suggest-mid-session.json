@@ -1,0 +1,63 @@
+{
+  "task_id": "chore-skill-suggest-mid-session",
+  "timestamp": "2026-07-14T13:10:00Z",
+  "overall": "PASS",
+  "computational_checks": {
+    "tests": "pytest tests/eval/test_harness_gate.py tests/eval/test_harness_gate_skill_suggest.py — 23 passed in 10.78s",
+    "build": "diff library/cursor/hooks/harness-gate.sh .cursor/hooks/harness-gate.sh — exit 0 (byte-for-byte identical)"
+  },
+  "criteria": [
+    {
+      "criterion": "AC1: harness active + SKILLS_DIR + 'review my code' → followup_message contains 'SKILL SUGGESTIONS' AND output != '{}'",
+      "result": "PASS",
+      "evidence": "test_review_prompt_with_active_harness_returns_skill_suggestions PASSED; test_followup_message_does_not_contain_harness_routing_mid_session PASSED"
+    },
+    {
+      "criterion": "AC2: cold start (no state.json) + SKILLS_DIR + 'review my code' → followup_message contains 'SKILL SUGGESTIONS' AND NOT 'HARNESS ROUTING'",
+      "result": "PASS",
+      "evidence": "test_review_prompt_cold_start_returns_skill_suggestions PASSED; test_cold_start_simple_skill_prompt_does_not_also_route PASSED"
+    },
+    {
+      "criterion": "AC3: harness active + SKILLS_DIR + glue prompt 'ok' → output is exactly '{}'",
+      "result": "PASS",
+      "evidence": "test_ok_glue_with_active_harness_and_skills PASSED — d == {}"
+    },
+    {
+      "criterion": "AC4: cold start + 'migra o banco' (no SKILLS_DIR) → followup_message contains 'HARNESS ROUTING' AND NOT 'SKILL SUGGESTIONS'",
+      "result": "PASS",
+      "evidence": "test_nontrivial_cold_start_routes_not_suggests PASSED; skills_dir=None, routing fired, no skill suggestions"
+    },
+    {
+      "criterion": "AC5: harness active + SKILLS_DIR + 'translate this to french' → output is exactly '{}'",
+      "result": "PASS",
+      "evidence": "test_unmatched_prompt_with_active_harness_returns_empty PASSED — d == {}"
+    },
+    {
+      "criterion": "AC6: diff library/cursor/hooks/harness-gate.sh .cursor/hooks/harness-gate.sh exits 0",
+      "result": "PASS",
+      "evidence": "diff exits 0, no output — files are byte-for-byte identical"
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "EC1: SKILLS_DIR unset AND no .cursor/skills in CWD → exits '{}', returncode == 0, no Python traceback in stderr",
+      "result": "PASS",
+      "evidence": "test_no_skills_dir_exits_cleanly PASSED — returncode==0, no Traceback in stderr, d == {}"
+    },
+    {
+      "case": "EC2: pytest tests/eval/test_harness_gate.py -q exits 0 — all 14 existing assertions still pass (no regressions)",
+      "result": "PASS",
+      "evidence": "14 passed in 3.84s — all original glue, routing, harness-active, simple-pattern cases intact"
+    },
+    {
+      "case": "EC3: SKILLS_DIR set to existing but empty directory (no SKILL.md files) → exits '{}' without error",
+      "result": "PASS",
+      "evidence": "test_empty_skills_dir_exits_cleanly PASSED — d == {}, no error"
+    }
+  ],
+  "recommendation": "proceed",
+  "harvest_recommendation": {
+    "type": "none",
+    "rationale": "chore- prefix: skip harvest per protocol"
+  }
+}

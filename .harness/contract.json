@@ -1,23 +1,25 @@
 {
-  "task_id": "chore-fix-skill-triggers",
-  "feature": "Remove trigger phrase collisions between experiment-workflow and experiment-report",
-  "problem": "skill-suggest.py uses whole-word phrase matching. 'write findings' appears verbatim in both experiment-workflow and experiment-report descriptions, causing both skills to be suggested when a user types 'write findings'. The workflow skill owns the execution phase (setup, run, analyze); the report skill owns the output phase (write report, findings). The phrase belongs only in experiment-report.",
-  "proposed_solution": "Remove 'write findings' from experiment-workflow's 'Use when:' section. No other trigger is a true collision (analyze results, create EXPERIMENT.md, etc. are unique to workflow; benchmark report, performance report, etc. are unique to report). Apply change to both library/cursor/ and .cursor/ (synced copies).",
+  "task_id": "chore-skill-suggest-mid-session",
+  "feature": "Fire skill-suggest on every non-glue beforeSubmitPrompt, not just sessionStart",
+  "problem": "skill-suggest.py fires only inside harness-context.sh (sessionStart hook). For mid-session prompts, harness-gate.sh (beforeSubmitPrompt) exits {} immediately in Case 1 (harness active) without ever consulting skill-suggest.py. Users typing prompts like 'review my code' or 'audit the architecture' mid-session get no skill routing hint.",
+  "proposed_solution": "1) Remove the early exit in Case 1 of harness-gate.sh; instead set harness_active=true and continue. 2) Add Case 5 (skill-suggest) after Case 4: for any non-glue, non-opt-out prompt, run skill-suggest.py and if matches exist return them in followup_message. 3) Guard with SKILLS_DIR env var (default: .cursor/skills, fallback: $SCRIPT_DIR/../skills) for testability. 4) Sync change to both library/cursor/hooks/harness-gate.sh and .cursor/hooks/harness-gate.sh.",
   "acceptance_criteria": [
-    "grep 'write findings' library/cursor/skills/experiment-workflow/SKILL.md returns no matches (exit 1)",
-    "grep 'write findings' library/cursor/skills/experiment-report/SKILL.md returns at least 1 match (trigger preserved in the right skill)",
-    "python3 library/cursor/hooks/skill-suggest.py --skills-dir .cursor/skills --prompt 'write findings' --format json returns only experiment-report, not experiment-workflow (verified by: names=[s['name'] for s in r['skill_suggestions']]; assert 'experiment-report' in names and 'experiment-workflow' not in names)",
-    "python3 library/cursor/hooks/skill-suggest.py --skills-dir .cursor/skills --prompt 'set up experiment' --format json still returns experiment-workflow (no regression on workflow-specific triggers)",
-    "diff library/cursor/skills/experiment-workflow/SKILL.md .cursor/skills/experiment-workflow/SKILL.md exits 0 (files are byte-for-byte identical after sync)"
+    "STRENGTHENED: Run hook from a tmp dir with a state.json present (harness active) + SKILLS_DIR=<absolute path to repo>/library/cursor/skills, prompt 'review my code' → output JSON has followup_message containing 'SKILL SUGGESTIONS' AND output != '{}' (mid-session skill routing works; skill-suggest fires even when harness is active; silent pass-through is wrong)",
+    "STRENGTHENED: Run hook from a tmp dir WITHOUT state.json (cold start) + SKILLS_DIR=<absolute path to repo>/library/cursor/skills, prompt 'review my code' → output JSON followup_message contains 'SKILL SUGGESTIONS' AND does NOT contain 'HARNESS ROUTING' (simple pattern falls through to skill-suggest, not planner routing; both paths must not fire simultaneously)",
+    "ACCEPTED: Run hook from tmp dir with state.json + SKILLS_DIR=<absolute path to repo>/library/cursor/skills, glue prompt 'ok' → output is exactly '{}' (glue filter still suppresses suggestions even when skills dir is present and harness is active)",
+    "ACCEPTED: Run hook from tmp dir WITHOUT state.json, prompt 'migra o banco' (no SKILLS_DIR set) → followup_message contains 'HARNESS ROUTING' and does NOT contain 'SKILL SUGGESTIONS' (cold-start routing exits before reaching Case 5; harness routing gates skill-suggest)",
+    "STRENGTHENED: Run hook from tmp dir with state.json + SKILLS_DIR=<absolute path to repo>/library/cursor/skills, prompt 'translate this to french' → output is exactly '{}' (no skill trigger matches this domain-neutral prompt; previous prompt 'what does this do' was fragile because future skills could add generic triggers like 'what')",
+    "ACCEPTED: diff library/cursor/hooks/harness-gate.sh .cursor/hooks/harness-gate.sh exits 0 (files byte-for-byte identical)"
   ],
   "edge_cases": [
-    "experiment-workflow still has 'analyze results' as a unique trigger \u2014 verify python3 library/cursor/hooks/skill-suggest.py --skills-dir .cursor/skills --prompt 'analyze results' --format json returns experiment-workflow and NOT experiment-report (no new collision introduced)",
-    "Removing 'write findings' must not malform the 'Use when:' clause \u2014 verified by: grep -P 'Use when:.*,\\s*\"' library/cursor/skills/experiment-workflow/SKILL.md exits 1 (no trailing comma before closing quote); grep -P 'Use when:.*,,\\s*' library/cursor/skills/experiment-workflow/SKILL.md exits 1 (no double comma)"
+    "STRENGTHENED: SKILLS_DIR unset AND no .cursor/skills in CWD → hook exits exactly '{}', returncode == 0, and stderr contains no Python traceback (graceful fallback; previously only output was checked, not clean subprocess exit)",
+    "ACCEPTED: pytest tests/eval/test_harness_gate.py -q exits 0 — all 14 existing assertions still pass after the refactor (no regressions on glue, routing, harness-active, simple-pattern cases)",
+    "NEW: SKILLS_DIR set to an existing but empty directory (no SKILL.md files inside) → hook exits exactly '{}' without error (zero-match boundary: empty dir is distinct from missing dir and must not cause skill-suggest to crash or produce output)"
   ],
-  "verification_method": "grep -c 'write findings' library/cursor/skills/experiment-workflow/SKILL.md (expect 0); diff library/cursor/skills/experiment-workflow/SKILL.md .cursor/skills/experiment-workflow/SKILL.md (expect exit 0); python3 library/cursor/hooks/skill-suggest.py --skills-dir .cursor/skills --prompt 'write findings' --format json | python3 -c \"import json,sys; r=json.load(sys.stdin); names=[s['name'] for s in r['skill_suggestions']]; assert 'experiment-report' in names and 'experiment-workflow' not in names, f'FAIL: {names}'; print('PASS')\"",
+  "verification_method": "pytest tests/eval/test_harness_gate.py -q && pytest tests/eval/test_harness_gate_skill_suggest.py -q && diff library/cursor/hooks/harness-gate.sh .cursor/hooks/harness-gate.sh",
   "rubrics": [],
   "rubric_mode": "warn",
   "negotiation_rounds": 1,
-  "phase": "evaluating",
-  "verified": true
+  "phase": "negotiated",
+  "verified": false
 }
