@@ -76,13 +76,14 @@ These rules load in every session. Token budget enforced by `harness_lint.py`.
 
 ---
 
-## Agent-Requested Rules (3 files, loaded on demand)
+## Agent-Requested Rules (4 files, loaded on demand)
 
 | Rule | File | Trigger condition |
 |---|---|---|
 | Design Principles | `design_principles.mdc` | UI/UX, accessibility, visual design tasks |
 | Prompt Coaching | `prompt_coaching.mdc` | Vague or underspecified user requests |
 | Security | `security.mdc` | Auth, secrets, input validation, infra tasks |
+| Verify Before Claim | `verify_before_claim.mdc` | Numeric or count claims (tests, files, %, scenarios) without tool evidence |
 
 ## Glob-Scoped Rules (5 files, auto-loaded by file pattern)
 
@@ -149,6 +150,14 @@ Pre-configured hooks in `library/cursor/hooks/`. Copy to `.cursor/hooks/` to act
 | `verify-harness.sh` | stop | Requires evaluator launch when contract is open and unverified |
 | `enforce-progress.sh` | stop | Soft-blocks (PROGRESS BLOCKED) when session `source_writes>=2` lack a valid breadcrumb (msg≥20 + result); skips when `contract.json` exists (harness has its own enforcement); single-write and docs-only are exceptions |
 | `context-health.sh` | stop | Warns if breadcrumbs show no progress in current session |
+
+### Skills (selected)
+
+| Skill | Purpose |
+|---|---|
+| `session-review` | Harness/session health audit: flags P1–P6 RCA patterns (breadcrumbs, handoff, numeric claims, SVG, gates, guideline drift) via canonical report + `review.py` |
+| `svg-edit` | Safe SVG validate→preview→edit with a 2-write cap |
+| `adversarial-harness` | Planner/builder/evaluator workflow, contracts, breadcrumbs |
 
 ---
 

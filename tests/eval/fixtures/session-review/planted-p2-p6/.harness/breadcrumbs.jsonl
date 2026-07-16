@@ -1,0 +1,2 @@
+{"ts":"2026-07-16T10:00:00Z","role":"system","type":"session_start","feat":null,"msg":"New chat session started","result":"pass"}
+{"ts":"2026-07-16T10:05:00Z","role":"builder","type":"build","feat":"demo","msg":"too short"}

@@ -2,20 +2,5 @@
   "project": "rules-skills",
   "schema_version": 2,
   "vision": "Close the six RCA gaps: handoff, gate misfires, SVG friction, missing breadcrumbs, numeric hallucination, and mid-session guideline drift \u2014 via hooks, rules, and a session-review skill.",
-  "tasks": [
-    {
-      "id": "feat-rca-p2-enforce-progress",
-      "name": "enforce-progress hard-block",
-      "type": "feature",
-      "status": "completed",
-      "scope": "Includes: upgrade enforce-progress.sh warn\u2192deny when \u22652 source Writes/StrReplaces without breadcrumb (msg\u226520, result present); keep single-file + docs-only exceptions; protocol scenario. Excludes: changing breadcrumb schema; always-on progress_tracking rewrite. Done when: multi-file source write without valid breadcrumb is blocked; exceptions still pass."
-    },
-    {
-      "id": "feat-rca-p4-session-review",
-      "name": "verify-before-claim rule + session-review skill",
-      "type": "feature",
-      "status": "pending",
-      "scope": "Includes: agent-requestable verify-before-claim rule; session-review skill from session-review-skill-spec.md; fixture test planted P2+P6\u2192FLAG else PASS; AGENTS.md for skill+hooks+rule. Excludes: always-on rule (budget); P1 sticky reinject; rca-investigation app code. Done when: skill+rule sync, fixture green, AGENTS.md documents numeric verify-before-claim + new hooks/skills."
-    }
-  ]
+  "tasks": []
 }
