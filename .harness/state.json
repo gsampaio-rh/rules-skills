@@ -1,21 +1,28 @@
 {
   "project": "rules-skills",
   "schema_version": 2,
-  "vision": "A distributable library of AI agent rules, skills, and hooks with a file-based adversarial harness \u2014 health audit cycle remediating two dead hooks, five undocumented rules, and a harness-gate blind spot for short prompts.",
+  "vision": "Close the six RCA gaps: handoff, gate misfires, SVG friction, missing breadcrumbs, numeric hallucination, and mid-session guideline drift \u2014 via hooks, rules, and a session-review skill.",
   "tasks": [
     {
-      "id": "chore-harness-gate-glue-threshold",
-      "name": "Fix harness-gate glue threshold to catch short feature prompts",
-      "type": "chore",
-      "status": "committed",
-      "scope": "library/cursor/hooks/harness-gate.sh + .cursor/hooks/harness-gate.sh. Raise glue threshold from 25 to 50 chars OR add word-count heuristic (>=4 words = non-glue). Done when 'refatora tudo', 'migra o banco', 'adiciona autentica\u00e7\u00e3o' each trigger routing advice in a unit test run."
+      "id": "feat-rca-p3-svg-edit",
+      "name": "SVG edit skill",
+      "type": "feature",
+      "status": "pending",
+      "scope": "Includes: library/cursor/skills/svg-edit/SKILL.md with triggers, XML/entity-escape validate\u2192preview\u2192edit procedure, max 2 writes per SVG path without render evidence; sync via make sync-local. Excludes: auto-render tooling; always-on rule for SVG. Done when: skill exists, syncs clean, procedure documents encoding/& escape and the 2-write cap."
     },
     {
-      "id": "chore-skill-suggest-mid-session",
-      "name": "Fire skill-suggest on every prompt, not just sessionStart",
-      "type": "chore",
+      "id": "feat-rca-p2-enforce-progress",
+      "name": "enforce-progress hard-block",
+      "type": "feature",
       "status": "pending",
-      "scope": "library/cursor/hooks/harness-gate.sh + .cursor/hooks/harness-gate.sh. Add skill-suggest.py invocation to beforeSubmitPrompt so suggestions appear for all messages, not just the first. Done when running harness-gate.sh with a skill-triggering prompt returns SKILL SUGGESTIONS block in followup_message."
+      "scope": "Includes: upgrade enforce-progress.sh warn\u2192deny when \u22652 source Writes/StrReplaces without breadcrumb (msg\u226520, result present); keep single-file + docs-only exceptions; protocol scenario. Excludes: changing breadcrumb schema; always-on progress_tracking rewrite. Done when: multi-file source write without valid breadcrumb is blocked; exceptions still pass."
+    },
+    {
+      "id": "feat-rca-p4-session-review",
+      "name": "verify-before-claim rule + session-review skill",
+      "type": "feature",
+      "status": "pending",
+      "scope": "Includes: agent-requestable verify-before-claim rule; session-review skill from session-review-skill-spec.md; fixture test planted P2+P6\u2192FLAG else PASS; AGENTS.md for skill+hooks+rule. Excludes: always-on rule (budget); P1 sticky reinject; rca-investigation app code. Done when: skill+rule sync, fixture green, AGENTS.md documents numeric verify-before-claim + new hooks/skills."
     }
   ]
 }

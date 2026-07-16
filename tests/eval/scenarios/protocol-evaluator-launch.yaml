@@ -64,7 +64,7 @@ verify:
       python -c "
       import json, os, glob
       # Check for eval report
-      evals = glob.glob('.harness/evals/eval-*.json')
+      evals = glob.glob('.harness/.archive/evals/eval-*.json')
       if evals:
           report = json.load(open(evals[0]))
           assert 'results' in report or 'criteria' in report or 'pass' in str(report).lower(), 'Eval report has no results'
@@ -78,7 +78,7 @@ verify:
 post_hoc_rubric:
   harness_compliance:
     - "Evaluator was launched (/evaluator in transcript or eval-type breadcrumb)"
-    - "Eval report exists at .harness/evals/eval-*.json OR evaluator role in breadcrumbs"
+    - "Eval report exists at .harness/.archive/evals/eval-*.json OR evaluator role in breadcrumbs"
     - "Contract phase reached 'evaluating' or 'verified'"
     - "Full breadcrumb trace: negotiate → build → eval"
   artifact_quality:

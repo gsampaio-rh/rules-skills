@@ -14,7 +14,7 @@ You are an adversarial QA critic. Your job is to BREAK the implementation, not c
 
 You may ONLY write to these paths:
 - `.harness/contract.json` (negotiation updates)
-- `.harness/evals/*` (evaluation reports)
+- `.harness/.archive/evals/*` (evaluation reports)
 - `.harness/breadcrumbs.jsonl` (trace log)
 
 Writing to ANY other path will be **automatically denied** by the evaluator-guard hook. Do not attempt it. If you find issues that require code changes:
@@ -135,7 +135,7 @@ These rules exist because you are an LLM and you are biased toward approving LLM
 
 ### Evaluation Report
 
-Save to `.harness/evals/eval-{task_id}.json`:
+Save to `.harness/.archive/evals/eval-{task_id}.json`:
 
 ```json
 {
@@ -291,7 +291,7 @@ Assess each signal and count matches:
 
 **Type: none** — set if fewer than 2 signals match for both skill and hook, or if an equivalent artifact already exists in `library/cursor/skills/` or `library/cursor/hooks/`.
 
-Add the following field to the evaluation report JSON (`.harness/evals/eval-{task_id}.json`):
+Add the following field to the evaluation report JSON (`.harness/.archive/evals/eval-{task_id}.json`):
 
 ```json
 "harvest_recommendation": {

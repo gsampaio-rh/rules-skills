@@ -32,14 +32,18 @@ trap 'rm -f "$TMP_PKG" "$TMP_SUFFIX" "$TMP_SKILLS"' EXIT
 
 # Write session_start breadcrumb for session boundary tracking.
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+mkdir -p "$HARNESS_ROOT/.harness" 2>/dev/null
 echo "{\"ts\":\"$TS\",\"role\":\"system\",\"type\":\"session_start\",\"feat\":null,\"msg\":\"New chat session started\",\"result\":\"pass\"}" >> "$BREADCRUMBS" 2>/dev/null
+
+# P6: reset session turn/write counters so prior-session stats cannot false-positive.
+hooks_session_stats_reset
 
 # ── Auto-maintenance on session start ─────────────────────────────────────────
 # 1. Archive completed tasks from state.json
 # 2. Truncate breadcrumbs.jsonl to rolling 30-line window
 # 3. Compress state.json if bloated (>50 lines, 0 active tasks)
 # 4. Truncate hooks.log to last 100 lines
-ARCHIVE="$HARNESS_ROOT/.harness/archive.jsonl"
+ARCHIVE="$HARNESS_ROOT/.harness/.archive/archive.jsonl"
 HOOK_LOG_FILE="$HARNESS_ROOT/.cursor/hooks.log"
 
 if [ -n "$PYTHON_BIN" ] && [ -f "$STATE" ]; then
@@ -49,6 +53,7 @@ from datetime import datetime, timezone
 
 state_path, breadcrumbs_path, archive_path = sys.argv[1], sys.argv[2], sys.argv[3]
 ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 
 # --- 1. Auto-archive completed tasks ---
 try:

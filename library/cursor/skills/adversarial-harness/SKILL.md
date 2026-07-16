@@ -122,7 +122,7 @@ Set `"phase": "evaluating"`, then launch `/evaluator`:
 /evaluator Test the implementation against the contract at .harness/contract.json
 ```
 
-The evaluator reads the calibration guide, tests each criterion and edge case, and produces a report at `.harness/evals/eval-{task_id}.json`.
+The evaluator reads the calibration guide, tests each criterion and edge case, and produces a report at `.harness/.archive/evals/eval-{task_id}.json`.
 
 | Result | Action |
 |--------|--------|
@@ -146,7 +146,7 @@ Scrap-and-restart is expected, not failure — models should discard work that i
 |------|---------|------------|
 | `.harness/state.json` | Single source of truth — one-line vision + max 5 tasks | Planner (init), Builder (updates) |
 | `.harness/contract.json` | Active contract | Builder (proposes), Evaluator (approves) |
-| `.harness/evals/eval-{id}.json` | Eval reports | Evaluator |
+| `.harness/.archive/evals/eval-{id}.json` | Eval reports | Evaluator |
 | `.harness/breadcrumbs.jsonl` | Append-only trace | All agents |
 
 Strategic research and design docs go in the project's own `docs/` directory,
@@ -178,7 +178,7 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 
 - `.harness/state.json` — vision + task tracking (all agents)
 - `.harness/contract.json` — active contract (builder + evaluator)
-- `.harness/evals/eval-{id}.json` — evaluation reports (evaluator)
+- `.harness/.archive/evals/eval-{id}.json` — evaluation reports (evaluator)
 - `.harness/breadcrumbs.jsonl` — append-only trace (all agents)
 
 ## Stop Conditions

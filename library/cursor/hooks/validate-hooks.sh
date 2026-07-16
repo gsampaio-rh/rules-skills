@@ -481,7 +481,7 @@ fi
 
 # Test: evaluator active + harness write → allow
 touch .cursor/hooks/.evaluator-active
-OUTPUT=$(echo '{"input":{"path":".harness/evals/eval-feat-1.json"}}' | .cursor/hooks/evaluator-guard.sh 2>/dev/null)
+OUTPUT=$(echo '{"input":{"path":".harness/.archive/evals/eval-feat-1.json"}}' | .cursor/hooks/evaluator-guard.sh 2>/dev/null)
 if echo "$OUTPUT" | rg -q '^\{\}$'; then
   pass "evaluator-guard allows .harness/ write"
 else

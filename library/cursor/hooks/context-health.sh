@@ -12,6 +12,8 @@
 #   3. Consecutive failures (3+ fail results in a row — going in circles)
 #   4. Multiple scrap-and-restart cycles (2+ scraps — approach exhaustion)
 #   5. Same feature stuck (3+ eval failures on the same feature)
+#  10. Missing handoff (P6): turns>=5 AND source_writes>=2 in .session-stats.json
+#      with no type:checkpoint/handoff breadcrumb this session
 #
 # Severity:
 #   1 signal  → WARNING: suggest new chat
@@ -208,6 +210,36 @@ if churning:
     for feat, count in churning.items():
         details.append(f'Feature {feat} replanned {count} times — going in circles')
 
+# --- Signal 10: Missing handoff (P6 RCA) ---
+# Requires .harness/.session-stats.json; absent file → do not fire (no false positives).
+session_turns = 0
+session_source_writes = 0
+has_session_stats = False
+try:
+    with open('.harness/.session-stats.json') as sf:
+        stats = json.load(sf)
+    if isinstance(stats, dict):
+        session_turns = int(stats.get('turns', 0) or 0)
+        session_source_writes = int(stats.get('source_writes', 0) or 0)
+        has_session_stats = True
+except Exception:
+    pass
+
+has_handoff_breadcrumb = any(
+    e.get('type') in ('checkpoint', 'handoff') for e in entries
+)
+if (
+    has_session_stats
+    and session_turns >= 5
+    and session_source_writes >= 2
+    and not has_handoff_breadcrumb
+):
+    signals.append('missing_handoff')
+    details.append(
+        f'Substantial session ({session_turns} turns, {session_source_writes} source writes) '
+        'with no checkpoint/handoff breadcrumb — write a handoff before idle end'
+    )
+
 # --- Compose result ---
 # Compute cognitive load score (0-10)
 cognitive_load = min(10,
@@ -215,7 +247,8 @@ cognitive_load = min(10,
     3 * (1 if null_builds >= 3 else 0) +
     3 * (1 if churning else 0) +
     1 * (1 if total > 20 else 0) +
-    1 * (1 if session_duration_min > 60 else 0)
+    1 * (1 if session_duration_min > 60 else 0) +
+    2 * (1 if 'missing_handoff' in signals else 0)
 )
 
 result = {
@@ -247,6 +280,10 @@ if len(signals) >= 1:
             break
     result['active_feature'] = active_feat
 
+result['session_turns'] = session_turns
+result['session_source_writes'] = session_source_writes
+result['has_session_stats'] = has_session_stats
+
 print(json.dumps(result))
 " 2>/dev/null)
 
@@ -274,6 +311,30 @@ names = data.get('signal_names', [])
 details = data.get('details', [])
 recent = data.get('recent_context', [])
 active = data.get('active_feature')
+active_str = active if active else '<task-id>'
+
+last_summary = '<one-line summary>'
+for line in reversed(recent or []):
+    # recent lines look like: [role] msg (result)
+    text = line.split('] ', 1)[-1] if '] ' in line else line
+    text = text.rsplit(' (', 1)[0].strip() if text.endswith(')') and ' (' in text else text.strip()
+    if text and text != '?':
+        last_summary = text[:160]
+        break
+
+# P6: missing handoff gets a dedicated advisory with the canonical handoff block.
+if 'missing_handoff' in names and signals == 1:
+    lines = [
+        'SESSION HANDOFF ADVISORY: Substantial session (turns>=5, source_writes>=2) with no checkpoint/handoff breadcrumb.',
+        '',
+        'Before idle end, write a type:checkpoint breadcrumb and give the user this handoff block:',
+        '',
+        f'Continue working on {active_str}. Read .harness/breadcrumbs.jsonl and .harness/state.json.',
+        f'Last: {last_summary}. Next: <one-line next action>.',
+    ]
+    msg = '\\n'.join(lines)
+    print(json.dumps({'followup_message': msg}))
+    raise SystemExit(0)
 
 # Severity escalation based on cognitive load score
 has_critical_duration = 'session_duration_critical' in names
@@ -302,18 +363,19 @@ lines.append('')
 lines.append('Before ending this session:')
 lines.append('1. Write a handoff breadcrumb to .harness/breadcrumbs.jsonl summarizing current state and what to do next')
 lines.append('2. Tell the user to start a new chat with a prompt like:')
-
-if active:
+if 'missing_handoff' in names:
+    # Canonical P6 block only when the missing-handoff signal is present.
+    lines.append(f'   Continue working on {active_str}. Read .harness/breadcrumbs.jsonl and .harness/state.json.')
+    lines.append(f'   Last: {last_summary}. Next: <one-line next action>.')
+elif active:
     lines.append(f'   \"Continue working on {active}. Read .harness/breadcrumbs.jsonl and .harness/ for context.\"')
 else:
     lines.append('   \"Continue where I left off. Read .harness/breadcrumbs.jsonl for context.\"')
-
 lines.append('3. Do NOT attempt complex multi-step work in this degraded session')
 
-if has_critical_duration:
+if 'missing_handoff' in names or has_critical_duration:
     lines.append('')
     lines.append('HANDOFF TEMPLATE (copy and adapt):')
-    active_str = active if active else '<feature>'
     lines.append(f'{{\"ts\":\"...\",\"role\":\"builder\",\"type\":\"checkpoint\",\"feat\":\"{active_str}\",\"msg\":\"Handoff: <current state>. Next: <what to do>.\"}}')
 
 recent_str = '\\n'.join(f'  {r}' for r in recent)

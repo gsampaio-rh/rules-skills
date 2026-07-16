@@ -38,7 +38,7 @@ This repo uses a three-role harness: **planner → builder → evaluator**.
 | `.harness/state.json` | Project scope: one-line vision + max 5 tasks | JSON — schema_version: 2, under 50 lines |
 | `.harness/contract.json` | Acceptance criteria for current build task | JSON — feature, criteria, phase |
 | `.harness/breadcrumbs.jsonl` | Append-only session audit trail (auto-truncated to a rolling 30-line window) | JSONL — ts, role, type, feat, msg, result |
-| `.harness/archive.jsonl` | Completed tasks (auto-archived from state.json on session start) | JSONL — same schema as state tasks |
+| `.harness/.archive/archive.jsonl` | Triple-purpose append-only log: (1) `task_archived` — completed/cancelled tasks removed from state.json on session start; (2) `state_compressed` — stale metadata fields stripped from a bloated state.json; (3) breadcrumb overflow — lines evicted from breadcrumbs.jsonl when the rolling 30-line window truncates. No truncation policy — grows unbounded by design (forensic history). Never injected into LLM context. | JSONL — heterogeneous entries; `"type"` field distinguishes them |
 
 **Breadcrumb roles:** `planner`, `builder`, `evaluator`, `system`
 **Breadcrumb types:** `plan`, `negotiate`, `build`, `evaluate`, `verify`, `checkpoint`, `session_start`
@@ -129,7 +129,7 @@ Each role has a recommended model tier based on its failure modes. Config lives 
 Full rationale and platform constraints for this routing were researched pre-v2
 simplification; the source research doc (`.harness/docs/research/model-selection.md`)
 was deleted along with `.harness/docs/` — see `git show c9f57a4~1:.harness/docs/research/model-selection.md`
-for the historical version, or `.harness/archive.jsonl` for the negotiation trail.
+for the historical version, or `.harness/.archive/archive.jsonl` for the negotiation trail.
 
 ---
 

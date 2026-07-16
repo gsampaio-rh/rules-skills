@@ -213,7 +213,7 @@ def lint_cross_consistency(
     task_ids = {t.get("id") for t in tasks if t.get("id")}
 
     # Also collect archived task ids — archived tasks are valid contract references
-    archive_path = harness_dir / "archive.jsonl"
+    archive_path = harness_dir / ".archive" / "archive.jsonl"
     archived_ids: set[str] = set()
     if archive_path.exists():
         for line in archive_path.read_text().splitlines():
@@ -222,8 +222,10 @@ def lint_cross_consistency(
                 continue
             try:
                 entry = json.loads(line)
-                if entry.get("id"):
-                    archived_ids.add(entry["id"])
+                # task_archived entries nest the id under entry["task"]["id"]
+                task_id = entry.get("task", {}).get("id") if isinstance(entry.get("task"), dict) else None
+                if task_id:
+                    archived_ids.add(task_id)
             except json.JSONDecodeError:
                 pass
 

@@ -16,12 +16,12 @@
     "preToolUse": [
       {
         "command": ".cursor/hooks/contract-gate.sh",
-        "matcher": "Write",
+        "matcher": "Write|StrReplace",
         "timeout": 5
       },
       {
         "command": ".cursor/hooks/evaluator-guard.sh",
-        "matcher": "Write",
+        "matcher": "Write|StrReplace",
         "timeout": 5
       }
     ],

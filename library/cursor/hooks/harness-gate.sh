@@ -16,7 +16,9 @@ input="$HOOK_INPUT"
 CONTRACT=".harness/contract.json"
 STATE=".harness/state.json"
 
-# Case 1: Harness already active — skip planner routing but continue to skill-suggest (Case 5)
+# Case 1: Harness already active — skip planner routing but continue to skill-suggest (Case 5).
+# P5: leftover contract.json must NOT inject HARNESS GATE / HARNESS ROUTING on Q&A prompts;
+# this branch only suppresses cold-start routing (never emits HARNESS GATE).
 harness_active=false
 if [ -f "$CONTRACT" ] || [ -f "$STATE" ]; then
   echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-gate: harness active, skipping planner routing" >> "$HOOK_LOG" 2>/dev/null
@@ -44,6 +46,9 @@ if [ "$length" -lt 10 ] && [ "$word_count" -le 2 ]; then
   echo '{}'
   exit 0
 fi
+
+# P6: count non-glue user turns for session handoff advisory (context-health).
+hooks_session_stats_inc turns
 
 prompt_lower=$(echo "$prompt" | tr '[:upper:]' '[:lower:]')
 

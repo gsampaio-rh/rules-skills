@@ -139,7 +139,7 @@ sync_project() {
     local target_cursor="$SEARCH_ROOT/$rel/.cursor"
     local target_harness="$SEARCH_ROOT/$rel/.harness"
 
-    mkdir -p "$target_harness/evals" "$target_harness/audits"
+    mkdir -p "$target_harness/.archive/evals"
 
     # Cleanup runtime artifacts
     rm -f "$target_cursor/.DS_Store" "$target_cursor/hooks/.commit-approved"

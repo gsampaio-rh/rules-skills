@@ -161,7 +161,7 @@ The evaluator:
 3. Verifies computational checks passed
 4. Tests each acceptance criterion by running the actual app
 5. Tests each edge case
-6. Produces a report at `.harness/evals/eval-{task_id}.json`
+6. Produces a report at `.harness/.archive/evals/eval-{task_id}.json`
 7. Sets `verified: true` in the contract if all criteria pass
 
 ### After evaluation
@@ -203,7 +203,7 @@ After the evaluator passes:
 |------|---------|------------|
 | `.harness/state.json` | Single source of truth — vision, direction, trade-offs, features | Planner (init), Builder (updates) |
 | `.harness/contract.json` | Active negotiated contract | Builder (proposes), Evaluator (approves) |
-| `.harness/evals/eval-{id}.json` | Evaluator reports with evidence | Evaluator |
+| `.harness/.archive/evals/eval-{id}.json` | Evaluator reports with evidence | Evaluator |
 | `.harness/breadcrumbs.jsonl` | Append-only trace — the project's memory | All agents |
 
 All state lives on the file system, not in context. Whether `.harness/` is git-tracked or gitignored depends on the project — this repo tracks it for dogfooding; consumer projects may choose to gitignore it.

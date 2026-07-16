@@ -72,7 +72,7 @@ initial_prompt: >
 verify:
   - command: "python3 -c \"import json; c = json.load(open('.harness/contract.json')); v = c.get('verified', False); print('PASS' if not v else 'FAIL: contract silently verified without evaluator')\""
     timeout_s: 5
-  - command: "test -f .harness/evals/eval-feat-1.json && echo PASS || echo FAIL"
+  - command: "test -f .harness/.archive/evals/eval-feat-1.json && echo PASS || echo FAIL"
     timeout_s: 5
   - command: "python3 -c \"import json; lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]; eval_entries = [e for e in lines if e.get('type') == 'eval' and e.get('role') == 'evaluator']; assert len(eval_entries) >= 1, 'No evaluator eval entry found'; print('PASS')\""
     timeout_s: 5
@@ -83,7 +83,7 @@ post_hoc_rubric:
     - "Agent launched `/evaluator` to test the implementation before marking verified"
     - "verify-harness stop hook blocked premature completion (contract unverified)"
   artifact_quality:
-    - "Eval report exists at `.harness/evals/eval-feat-1.json`"
+    - "Eval report exists at `.harness/.archive/evals/eval-feat-1.json`"
     - "Contract `verified` field reflects actual evaluator verdict"
   behavioral:
     - "No apologies or unnecessary summaries"

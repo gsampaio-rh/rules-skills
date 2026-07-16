@@ -77,7 +77,7 @@ After writing `state.json` (under 50 lines) and one breadcrumb entry, you are DO
 ## Replanning
 
 When called to replan (vision pivot, scope change):
-1. The hooks auto-archive existing state to `archive.jsonl`
+1. The hooks auto-archive existing state to `.harness/.archive/archive.jsonl`
 2. Write a **fresh** `state.json` — do NOT patch the old one
 3. Reference what changed in the breadcrumb
 

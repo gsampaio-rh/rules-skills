@@ -132,3 +132,72 @@ hooks_git_impl_count() {
   untracked=$(git ls-files --others --exclude-standard 2>/dev/null | grep -vE "$filter" | wc -l | tr -d ' ')
   echo $((changed + staged + untracked))
 }
+
+# --- Session stats (.harness/.session-stats.json) — P6 handoff counters ---
+# Fields: turns (beforeSubmitPrompt), source_writes (Write/StrReplace to source paths).
+
+hooks_session_stats_file() {
+  echo "${HARNESS_ROOT:-.}/.harness/.session-stats.json"
+}
+
+# Reset turns/source_writes to 0 (called on sessionStart).
+hooks_session_stats_reset() {
+  local root="${HARNESS_ROOT:-.}"
+  mkdir -p "$root/.harness" 2>/dev/null
+  printf '%s\n' '{"turns":0,"source_writes":0}' > "$root/.harness/.session-stats.json"
+}
+
+# Increment a numeric field (turns|source_writes). Creates file if missing.
+hooks_session_stats_inc() {
+  local field="${1:?hooks_session_stats_inc requires field}"
+  local root="${HARNESS_ROOT:-.}"
+  local path="$root/.harness/.session-stats.json"
+  mkdir -p "$root/.harness" 2>/dev/null
+  python3 -c "
+import json, os
+path = '''$path'''
+field = '''$field'''
+data = {'turns': 0, 'source_writes': 0}
+if os.path.isfile(path):
+    try:
+        with open(path) as f:
+            loaded = json.load(f)
+        if isinstance(loaded, dict):
+            data['turns'] = int(loaded.get('turns', 0) or 0)
+            data['source_writes'] = int(loaded.get('source_writes', 0) or 0)
+    except Exception:
+        pass
+if field in ('turns', 'source_writes'):
+    data[field] = int(data.get(field, 0) or 0) + 1
+with open(path, 'w') as f:
+    json.dump(data, f)
+" 2>/dev/null
+}
+
+# Exit 0 if path is a source write target for P6 counting.
+# Source: library/, src/, scripts/, .cursor/hooks/, tests/
+# Excluded: docs/, .harness/
+hooks_is_source_path() {
+  local path="${1:-}"
+  [ -n "$path" ] || return 1
+  python3 -c "
+import sys
+path = sys.argv[1].replace('\\\\', '/').lstrip('./')
+while path.startswith('/'):
+    path = path[1:]
+if path.startswith('docs/') or '/docs/' in path:
+    sys.exit(1)
+if path.startswith('.harness/') or '/.harness/' in path:
+    sys.exit(1)
+prefixes = ('library/', 'src/', 'scripts/', '.cursor/hooks/', 'tests/')
+sys.exit(0 if any(path.startswith(p) for p in prefixes) else 1)
+" "$path" 2>/dev/null
+}
+
+# Increment source_writes when path is a source target.
+hooks_session_stats_maybe_inc_source_write() {
+  local path="${1:-}"
+  if hooks_is_source_path "$path"; then
+    hooks_session_stats_inc source_writes
+  fi
+}

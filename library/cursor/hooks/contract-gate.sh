@@ -16,6 +16,13 @@ hooks_init "contract-gate"
 STATE=".harness/state.json"
 CONTRACT=".harness/contract.json"
 
+# P6: count Write/StrReplace to source paths for session handoff advisory.
+# Runs before gate decisions so building sessions with a contract still increment.
+_p6_target=$(hooks_extract_path "$HOOK_INPUT")
+if [ -n "$_p6_target" ]; then
+  hooks_session_stats_maybe_inc_source_write "$_p6_target"
+fi
+
 # Cold-start enforcement: routing-pending marker means harness-gate detected
 # a non-trivial prompt but state.json hasn't been created yet (planner hasn't
 # run). Block implementation writes until the agent creates state.json.
@@ -79,10 +86,22 @@ if echo "$target_path" | grep -qE '\.harness/|\.cursor/hooks/'; then
   exit 0
 fi
 
+# P5: docs-only / non-source writes → soft warn (never hard deny).
+# Source paths (library/, src/, scripts/, tests/, …) still hard-gate below.
+if ! hooks_is_source_path "$target_path"; then
+  hooks_log "contract-gate" "P5 docs/non-source soft warn: $target_path"
+  cat <<EOF
+{
+  "permission": "allow",
+  "agent_message": "DOCS WRITE SOFT WARN: No contract.json exists, but this write targets documentation/non-source path \"$target_path\". Allowed without a hard CONTRACT gate. If you are starting implementation work, propose .harness/contract.json first."
+}
+EOF
+  exit 0
+fi
+
 # Determine the current task for the gate message.
-# Post-audit expansion: ALL tasks with status=building require a contract,
-# regardless of type (feature, chore, spike, etc.). The only bypass is
-# when no task is building or pending.
+# P5: hard-deny source writes when a building OR pending task exists and
+# there is no contract. Docs-only already soft-warned above.
 STATE_DATA=$(hooks_read_state "$STATE")
 GATE_RESULT=$(echo "$STATE_DATA" | python3 -c "
 import sys, json

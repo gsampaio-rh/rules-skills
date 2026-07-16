@@ -74,7 +74,7 @@ try:
         # Read harvest_recommendation from eval report (task_id-keyed path, not mtime)
         harvest_type = 'none'
         harvest_rationale = ''
-        eval_path = f'.harness/evals/eval-{task_id}.json'
+        eval_path = f'.harness/.archive/evals/eval-{task_id}.json'
         try:
             eval_report = json.load(open(eval_path))
             hr = eval_report.get('harvest_recommendation', {})
@@ -130,12 +130,13 @@ fi
 # ─── Path 1: Contract exists but unverified ───────────────────────────────────
 
 if [ -f "$CONTRACT" ]; then
-  # fix-1/fix-2: guard against stale and cross-thread contracts before enforcement.
-  # Three distinct outcomes:
-  #   STALE      → idle/committed/no task_id: truly orphaned, auto-delete
-  #   PRE_BUILD  → negotiating/negotiated: active contract, build not started yet, skip enforcement (do NOT delete)
-  #   CROSS_THREAD → task_id not in active state tasks: different thread's contract, skip silently
-  #   ACTIVE     → building/evaluating/verified: enforce normally
+  # fix-1/fix-2 + P5: guard against stale/cross-thread/no-build before enforcement.
+  # Outcomes:
+  #   STALE       → idle/committed/no task_id: orphaned, auto-delete
+  #   PRE_BUILD   → negotiating/negotiated: build not started, skip (do NOT delete)
+  #   CROSS_THREAD→ task_id not among building/evaluating tasks (and some are): skip
+  #   NO_BUILD    → P5: no task is building/evaluating (Q&A/explore + leftover contract) → {}
+  #   ACTIVE      → building/evaluating matches contract: enforce normally
   CONTRACT_ACTIVE=$(python3 -c "
 import json, os
 try:
@@ -154,9 +155,13 @@ try:
     state_path = '$STATE'
     if os.path.exists(state_path):
         state = json.load(open(state_path))
-        active = {t['id'] for t in state.get('tasks', [])
-                  if t.get('status') in ('building', 'evaluating', 'verified')}
-        if active and task_id not in active:
+        buildingish = {t['id'] for t in state.get('tasks', [])
+                       if t.get('status') in ('building', 'evaluating')}
+        # P5: leftover contract must not hard-gate Q&A/report/explore (no building task)
+        if not buildingish:
+            print('NO_BUILD')
+            raise SystemExit(0)
+        if task_id not in buildingish:
             print('CROSS_THREAD')
             raise SystemExit(0)
 
@@ -180,8 +185,14 @@ except Exception:
     exit 0
   fi
 
+  if [ "$CONTRACT_ACTIVE" = "NO_BUILD" ]; then
+    hooks_log "verify-harness" "P5 no-build (leftover contract, no building/evaluating task), skipping hard gate"
+    echo '{}'
+    exit 0
+  fi
+
   if [ "$CONTRACT_ACTIVE" = "CROSS_THREAD" ]; then
-    hooks_log "verify-harness" "cross-thread contract (task_id not active in state.json), skipping"
+    hooks_log "verify-harness" "cross-thread contract (task_id not building/evaluating in state.json), skipping"
     echo '{}'
     exit 0
   fi

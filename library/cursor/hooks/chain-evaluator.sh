@@ -164,7 +164,7 @@ if phase == 'evaluating':
     else:
         msg = (
             f'EVAL FAIL — fix and retry for "{feature}". '
-            f'Read the eval report at .harness/evals/, fix all failing acceptance criteria, '
+            f'Read the eval report at .harness/.archive/evals/, fix all failing acceptance criteria, '
             f'then launch /evaluator again. '
             f'Max 2 retests per harness rule — if both fail, re-negotiate the contract.'
         )

@@ -25,12 +25,15 @@ Long conversations degrade context quality:
 2. Write handoff breadcrumb
 3. Suggest fresh thread
 
+**P6 handoff:** if `turns>=5` AND `source_writes>=2` with no checkpoint/handoff → before idle end emit:
+`Continue working on <id>. Read .harness/breadcrumbs.jsonl and .harness/state.json.` / `Last:` … / `Next:` …
+
 **Time:** 60min=warn, 2h=strong, 3h+=critical. **Always:** commit before new feature.
 
 ## Replanning
 
 When direction changes: **archive and replace, don't patch.**
-- Current state auto-archives to `.harness/archive.jsonl`
+- Current state auto-archives to `.harness/.archive/archive.jsonl`
 - Launch `/planner` → fresh `state.json`
 - Never accumulate tasks across initiatives
 
