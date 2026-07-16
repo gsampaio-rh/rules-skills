@@ -26,7 +26,7 @@ A file-based task system that keeps AI agents honest across sessions.
 | Cold-start routing | `harness-gate.sh` (advisory) + `contract-gate.sh` (deny) | paired |
 | Verification before done | `verify-harness.sh` (stop, loop_limit: 3) | soft-block |
 | User commit approval | `pre-commit-harness.sh` (beforeShellExecution) | **structural deny** |
-| Progress breadcrumbs | `enforce-progress.sh` (stop, loop_limit: 2) | advisory |
+| Progress breadcrumbs | `enforce-progress.sh` (stop, loop_limit: 2) | soft-block (`PROGRESS BLOCKED` when `source_writes>=2` without valid breadcrumb; skips if `contract.json` present — harness owns that path) |
 | Session health | `context-health.sh` (stop, loop_limit: 1) | advisory |
 | Evaluator isolation | `evaluator-guard.sh` (preToolUse/Write, full only) | **structural deny** |
 

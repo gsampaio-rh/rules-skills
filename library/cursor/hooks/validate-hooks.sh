@@ -87,36 +87,55 @@ TMPF2=$(mktemp ./.test-hook-XXXX)
 
 # --- enforce-progress tests ---
 
-# Test: no breadcrumbs, 2+ untracked files → should fire
-rm -f .harness/breadcrumbs.jsonl .harness/contract.json 2>/dev/null
-OUTPUT=$(echo '{}' | .cursor/hooks/enforce-progress.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "PROGRESS CHECK|HARNESS CHECK"; then
-  pass "enforce-progress fires when files changed + no breadcrumbs"
-else
-  fail "enforce-progress should fire but returned: $(echo "$OUTPUT" | head -1)"
+# Preserve live harness contract so dogfood sessions aren't corrupted
+_VH_CONTRACT_BAK=""
+if [ -f .harness/contract.json ]; then
+  _VH_CONTRACT_BAK=$(mktemp)
+  cp .harness/contract.json "$_VH_CONTRACT_BAK"
+fi
+_VH_BC_BAK=""
+if [ -f .harness/breadcrumbs.jsonl ]; then
+  _VH_BC_BAK=$(mktemp)
+  cp .harness/breadcrumbs.jsonl "$_VH_BC_BAK"
+fi
+_VH_STATS_BAK=""
+if [ -f .harness/.session-stats.json ]; then
+  _VH_STATS_BAK=$(mktemp)
+  cp .harness/.session-stats.json "$_VH_STATS_BAK"
 fi
 
-# Test: fresh breadcrumbs → pass (or tier 2 if 4+ files)
-echo '{"ts":"test","role":"builder","type":"build","feat":null,"msg":"test"}' > .harness/breadcrumbs.jsonl
+# Test: source_writes=2, no breadcrumbs → PROGRESS BLOCKED
+rm -f .harness/breadcrumbs.jsonl .harness/contract.json 2>/dev/null
+mkdir -p .harness
+echo '{"turns":0,"source_writes":2}' > .harness/.session-stats.json
 OUTPUT=$(echo '{}' | .cursor/hooks/enforce-progress.sh 2>/dev/null)
-TOTAL_FILES=$(git diff --name-only 2>/dev/null | wc -l | tr -d ' ')
-STAGED_FILES=$(git diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
-UNTRACKED_FILES=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l | tr -d ' ')
-SUM=$((TOTAL_FILES + STAGED_FILES + UNTRACKED_FILES))
-if [ "$SUM" -ge 4 ]; then
-  if echo "$OUTPUT" | rg -q "HARNESS CHECK"; then
-    pass "enforce-progress fires tier 2 (harness check) with $SUM files + fresh breadcrumbs"
-  elif echo "$OUTPUT" | rg -q '^\{\}$'; then
-    pass "enforce-progress passes with fresh breadcrumbs"
-  else
-    fail "enforce-progress unexpected output with fresh breadcrumbs"
-  fi
+if echo "$OUTPUT" | rg -q "PROGRESS BLOCKED"; then
+  pass "enforce-progress blocks when source_writes=2 + no breadcrumbs"
 else
-  if echo "$OUTPUT" | rg -q '^\{\}$'; then
-    pass "enforce-progress passes with fresh breadcrumbs"
-  else
-    fail "enforce-progress should pass with fresh breadcrumbs"
-  fi
+  fail "enforce-progress should PROGRESS BLOCKED but returned: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: quality breadcrumb (msg>=20 + result) → pass
+echo '{"ts":"test","role":"builder","type":"build","feat":null,"msg":"validate-hooks quality breadcrumb ok","result":"pass"}' > .harness/breadcrumbs.jsonl
+OUTPUT=$(echo '{}' | .cursor/hooks/enforce-progress.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "enforce-progress passes with quality breadcrumbs"
+elif echo "$OUTPUT" | rg -q "HARNESS CHECK"; then
+  pass "enforce-progress fires tier 2 (harness check) with quality breadcrumbs"
+else
+  fail "enforce-progress unexpected output with quality breadcrumbs: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Restore harness artifacts; always remove fixture session-stats unless we had one
+rm -f .harness/.session-stats.json 2>/dev/null
+if [ -n "$_VH_STATS_BAK" ] && [ -f "$_VH_STATS_BAK" ]; then
+  mv "$_VH_STATS_BAK" .harness/.session-stats.json
+fi
+if [ -n "$_VH_CONTRACT_BAK" ] && [ -f "$_VH_CONTRACT_BAK" ]; then
+  mv "$_VH_CONTRACT_BAK" .harness/contract.json
+fi
+if [ -n "$_VH_BC_BAK" ] && [ -f "$_VH_BC_BAK" ]; then
+  mv "$_VH_BC_BAK" .harness/breadcrumbs.jsonl
 fi
 
 rm -f "$TMPF1" "$TMPF2"

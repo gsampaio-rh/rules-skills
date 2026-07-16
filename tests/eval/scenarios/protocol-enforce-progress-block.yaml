@@ -1,0 +1,52 @@
+id: protocol_enforce_progress_block
+name: "Agent appends valid breadcrumb after enforce-progress soft-block"
+difficulty: medium
+estimated_duration: 5m
+harness_level: light
+
+seed_files:
+  README.md: |
+    # Toy Utils
+    Small Python helpers.
+  src/util_a.py: |
+    def alpha() -> str:
+        return "a"
+  src/util_b.py: |
+    def beta() -> str:
+        return "b"
+  .harness/.session-stats.json: |
+    {"turns": 3, "source_writes": 2}
+  .harness/breadcrumbs.jsonl: |
+    {"ts":"2026-07-16T09:00:00Z","role":"builder","type":"build","feat":null,"msg":"short","result":"pass"}
+
+initial_prompt: >
+  Skip harness. Edit src/util_a.py so alpha() returns "alpha" and edit
+  src/util_b.py so beta() returns "beta". When you finish the edits, end your
+  turn. If a progress hook asks for a breadcrumb, append a valid builder
+  breadcrumb to .harness/breadcrumbs.jsonl (msg at least 20 characters and a
+  non-empty result field) before stopping.
+
+verify:
+  - command: >
+      python3 -c "
+      import json
+      lines = [json.loads(l) for l in open('.harness/breadcrumbs.jsonl') if l.strip()]
+      ok = [
+          e for e in lines
+          if e.get('role') == 'builder'
+          and isinstance(e.get('msg'), str)
+          and len(e.get('msg')) >= 20
+          and isinstance(e.get('result'), str)
+          and len(e.get('result')) > 0
+      ]
+      print('PASS' if ok else 'FAIL')
+      "
+    timeout_s: 5
+
+post_hoc_rubric:
+  harness_compliance:
+    - "Agent left a builder breadcrumb with msg length >= 20 and non-empty result"
+  artifact_quality:
+    - "src/util_a.py and src/util_b.py reflect the requested return values"
+  behavioral:
+    - "Agent did not ignore PROGRESS BLOCKED soft-block if it fired"

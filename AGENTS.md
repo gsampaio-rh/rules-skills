@@ -147,7 +147,7 @@ Pre-configured hooks in `library/cursor/hooks/`. Copy to `.cursor/hooks/` to act
 | `pre-commit-harness.sh` | beforeShellExecution | Writes a commit breadcrumb and enforces commit approval flag |
 | `chain-evaluator.sh` | subagentStop | Auto-advances phase to `evaluating`, creates `.evaluator-active` flag, injects /evaluator prompt |
 | `verify-harness.sh` | stop | Requires evaluator launch when contract is open and unverified |
-| `enforce-progress.sh` | stop | Warns when multi-file changes lack breadcrumbs |
+| `enforce-progress.sh` | stop | Soft-blocks (PROGRESS BLOCKED) when session `source_writes>=2` lack a valid breadcrumb (msg≥20 + result); skips when `contract.json` exists (harness has its own enforcement); single-write and docs-only are exceptions |
 | `context-health.sh` | stop | Warns if breadcrumbs show no progress in current session |
 
 ---

@@ -1,0 +1,30 @@
+{
+  "task_id": "feat-rca-p2-enforce-progress",
+  "feature": "enforce-progress hard-block on missing breadcrumbs",
+  "problem": "enforce-progress.sh only emits a soft PROGRESS CHECK followup based on git file count + breadcrumb file age. Agents can finish multi-file source edits without a valid breadcrumb (msg>=20 + result), leaving the RCA missing-breadcrumbs gap open.",
+  "proposed_solution": "Upgrade library/cursor/hooks/enforce-progress.sh to soft-block (Cursor stop followup, PROGRESS BLOCKED) when session source_writes>=2 and no valid recent breadcrumb; keep single-write and docs-only exceptions; add pytest + protocol scenario; sync docs/AGENTS wording warn->block.",
+  "acceptance_criteria": [
+    "AC1 (behavioral block): Temp fixture with git init, no contract.json, .harness/.session-stats.json containing {\"source_writes\":2}, and breadcrumbs.jsonl either missing or last entry with msg shorter than 20 chars OR missing/empty result field. Running bash library/cursor/hooks/enforce-progress.sh with stdin {} exits 0 and stdout JSON contains followup_message matching the literal string PROGRESS BLOCKED. The block threshold reads source_writes from .session-stats.json (not git file count).",
+    "AC2 (behavioral pass): Same fixture as AC1 but breadcrumbs.jsonl last line has msg of 20+ chars AND result field present with a non-empty string value (not empty-string, null, or absent). Hook exits 0 and stdout is exactly {}.",
+    "AC3 (single-write exception): Fixture with .session-stats.json {\"source_writes\":1}, no breadcrumbs.jsonl -> stdout exactly {} (no block).",
+    "AC4 (docs-only exception): Fixture with .session-stats.json {\"source_writes\":0} or missing .session-stats.json, no breadcrumbs -> stdout exactly {}.",
+    "AC5 (pytest): tests/eval/test_enforce_progress.py covers AC1-AC4 plus EC1-EC4 via temp fixtures; minimum 8 named test functions (one per AC/EC at minimum); pytest -q that file passes with 0 failures.",
+    "AC6 (protocol scenario): tests/eval/scenarios/protocol-enforce-progress-block.yaml exists with id protocol_enforce_progress_block. seed_files include .harness/.session-stats.json with source_writes>=2 and either no breadcrumbs.jsonl or a last entry with msg<20 or missing result. verify step is a single python3 -c command that parses .harness/breadcrumbs.jsonl, finds at least one line with role=builder AND len(msg)>=20 AND result is a non-empty string, and prints PASS; otherwise prints FAIL. No disjunctive or in the assertion.",
+    "AC7 (docs + AGENTS): AGENTS.md enforce-progress.sh row uses wording Blocks or soft-block (not Warns). docs/HARNESS_ESSENCE.md enforce-progress row says soft-block (not advisory). library/cursor/hooks/enforce-progress.sh header comments reflect the upgraded semantics. AC7 docs must also mention the contract.json exception (harness has its own enforcement).",
+    "AC8 (sync + eval-fast + validate-hooks): make sync-local && diff -q library/cursor/hooks/enforce-progress.sh .cursor/hooks/enforce-progress.sh exits 0. make eval-fast exits 0. validate-hooks.sh enforce-progress tests updated: (a) no-breadcrumbs test creates .harness/.session-stats.json with source_writes=2 and asserts PROGRESS BLOCKED in stdout (replaces old PROGRESS CHECK assertion); (b) fresh-breadcrumbs test writes a breadcrumb with msg>=20 chars and result field so it passes quality validation; (c) cleanup removes .session-stats.json afterward to avoid polluting later tests."
+  ],
+  "edge_cases": [
+    "EC1: Missing .harness/.session-stats.json -> fail open (stdout exactly {}), no false block.",
+    "EC2 (boundary): Two separate assertions in AC5 pytest: (a) source_writes=2, last breadcrumb msg exactly 19 chars with result=pass -> PROGRESS BLOCKED. (b) source_writes=2, last breadcrumb msg exactly 20 chars with result=pass -> stdout {} (pass). This confirms the >= 20 boundary is correct.",
+    "EC3 (contract skip retained): contract.json present + source_writes=2 + no breadcrumb -> stdout exactly {}. Rationale: harness has its own enforcement via contract-gate and evaluator. AC5 pytest asserts this. AC7 docs mention this exception.",
+    "EC4: Tier-2 harness nag (4+ git files, fresh quality breadcrumbs, no contract) uses git-count (unchanged). Still emits HARNESS CHECK or {} under lean profile as today. No regression."
+  ],
+  "verification_method": "1) pytest tests/eval/test_enforce_progress.py -q -- 8+ tests, 0 failures. 2) Manual adversarial fixture: mktemp -d, cd, git init, mkdir -p .harness, write .session-stats.json {source_writes:2}, echo {} | bash /path/to/enforce-progress.sh -- assert PROGRESS BLOCKED in stdout. 3) rg PROGRESS BLOCKED library/cursor/hooks/enforce-progress.sh -- at least 1 match. 4) rg -n enforce-progress AGENTS.md docs/HARNESS_ESSENCE.md -- verify Blocks/soft-block wording, no Warns/advisory on enforce-progress rows. 5) make sync-local && diff -q library/cursor/hooks/enforce-progress.sh .cursor/hooks/enforce-progress.sh. 6) make eval-fast. 7) Confirm protocol-enforce-progress-block.yaml exists with single binary verify step.",
+  "rubrics": [
+    "code-quality"
+  ],
+  "rubric_mode": "warn",
+  "negotiation_rounds": 1,
+  "phase": "evaluating",
+  "verified": true
+}

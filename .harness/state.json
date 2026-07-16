@@ -7,7 +7,7 @@
       "id": "feat-rca-p2-enforce-progress",
       "name": "enforce-progress hard-block",
       "type": "feature",
-      "status": "pending",
+      "status": "completed",
       "scope": "Includes: upgrade enforce-progress.sh warn\u2192deny when \u22652 source Writes/StrReplaces without breadcrumb (msg\u226520, result present); keep single-file + docs-only exceptions; protocol scenario. Excludes: changing breadcrumb schema; always-on progress_tracking rewrite. Done when: multi-file source write without valid breadcrumb is blocked; exceptions still pass."
     },
     {
