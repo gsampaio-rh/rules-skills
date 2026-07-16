@@ -4,13 +4,6 @@
   "vision": "Close the six RCA gaps: handoff, gate misfires, SVG friction, missing breadcrumbs, numeric hallucination, and mid-session guideline drift \u2014 via hooks, rules, and a session-review skill.",
   "tasks": [
     {
-      "id": "feat-rca-p3-svg-edit",
-      "name": "SVG edit skill",
-      "type": "feature",
-      "status": "pending",
-      "scope": "Includes: library/cursor/skills/svg-edit/SKILL.md with triggers, XML/entity-escape validate\u2192preview\u2192edit procedure, max 2 writes per SVG path without render evidence; sync via make sync-local. Excludes: auto-render tooling; always-on rule for SVG. Done when: skill exists, syncs clean, procedure documents encoding/& escape and the 2-write cap."
-    },
-    {
       "id": "feat-rca-p2-enforce-progress",
       "name": "enforce-progress hard-block",
       "type": "feature",
