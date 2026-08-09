@@ -34,11 +34,11 @@ def _setup(root: Path, state: dict | None = None, contract: dict | None = None,
         (harness / "breadcrumbs.jsonl").write_text(raw_breadcrumbs)
 
 
-def _state(tasks=None, open_questions=None):
+def _state(tasks=None):
     return {
-        "project": "test", "schema_version": 2, "vision": "v", "direction": "d",
-        "trade_offs": [],
-        "open_questions": open_questions or [],
+        "project": "test",
+        "schema_version": 2,
+        "vision": "v",
         "tasks": tasks or [],
     }
 
@@ -69,7 +69,7 @@ class TestJsonSchema:
         result = run_pkg(root=tmp_path)
         assert result.returncode == 0
         d = json.loads(result.stdout)
-        assert set(d) == {"task", "contract", "breadcrumbs", "open_questions"}
+        assert set(d) == {"task", "contract", "breadcrumbs"}
 
     def test_task_fields(self, tmp_path):
         _setup(tmp_path, state=_state(tasks=[_task("feat-2", "Do thing", "building")]))
@@ -201,34 +201,6 @@ class TestBreadcrumbs:
         assert len(d["breadcrumbs"]) == 2
 
 
-# --- Open questions filtering ---
-
-class TestOpenQuestions:
-    def test_resolved_deferred_excluded(self, tmp_path):
-        qs = [
-            "RESOLVED: done thing",
-            "DEFERRED: later thing",
-            "SUPERSEDED: old thing",
-            "Unresolved: still open",
-            "plain question",
-        ]
-        _setup(tmp_path, state=_state(tasks=[_task()], open_questions=qs))
-        result = run_pkg(root=tmp_path)
-        d = json.loads(result.stdout)
-        kept = d["open_questions"]
-        assert "RESOLVED: done thing" not in kept
-        assert "DEFERRED: later thing" not in kept
-        assert "SUPERSEDED: old thing" in kept
-        assert "Unresolved: still open" in kept
-        assert "plain question" in kept
-
-    def test_no_questions_empty_array(self, tmp_path):
-        _setup(tmp_path, state=_state(tasks=[_task()], open_questions=[]))
-        result = run_pkg(root=tmp_path)
-        d = json.loads(result.stdout)
-        assert d["open_questions"] == []
-
-
 # --- --format markdown ---
 
 class TestMarkdownFormat:
@@ -243,8 +215,8 @@ class TestMarkdownFormat:
             "## Current Task",
             "## Acceptance Criteria",
             "## Recent Breadcrumbs",
-            "## Open Questions",
         ]
+        assert "Open Questions" not in result.stdout
 
     def test_null_task_shows_none(self, tmp_path):
         _setup(tmp_path, state=_state(tasks=[]))

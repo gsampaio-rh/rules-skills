@@ -17,14 +17,11 @@ def run_prune(*args, root: Path) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
-def _make_state(root: Path, open_questions: list[str], tasks: list[dict] | None = None) -> Path:
+def _make_state(root: Path, tasks: list[dict] | None = None) -> Path:
     state = {
         "project": "test",
         "schema_version": 2,
         "vision": "test vision",
-        "direction": "test direction",
-        "trade_offs": [],
-        "open_questions": open_questions,
         "tasks": tasks or [],
     }
     state_path = root / ".harness" / "state.json"
@@ -57,7 +54,7 @@ def _age(days: float = 0, hours: float = 0, minutes: float = 0) -> datetime:
 class TestDryRun:
     def test_dry_run_no_op_on_files(self, tmp_path):
         """Dry-run must not modify any harness files."""
-        state_path = _make_state(tmp_path, ["RESOLVED: thing one"])
+        state_path = _make_state(tmp_path)
         bc_path = _make_breadcrumbs(tmp_path, [_bc_entry(_now(), "recent")])
 
         orig_state = state_path.read_bytes()
@@ -68,115 +65,53 @@ class TestDryRun:
 
         assert state_path.read_bytes() == orig_state, "state.json was modified by dry-run"
         assert bc_path.read_bytes() == orig_bc, "breadcrumbs.jsonl was modified by dry-run"
+        assert not (tmp_path / ".harness" / ".archive" / "archive.jsonl").exists()
         assert not (tmp_path / ".harness" / ".archive" / "questions.jsonl").exists()
+        assert not (tmp_path / ".harness" / ".archive" / "breadcrumbs.jsonl").exists()
 
     def test_dry_run_prints_plan(self, tmp_path):
-        _make_state(tmp_path, ["RESOLVED: something", "DEFERRED: another"])
-        _make_breadcrumbs(tmp_path, [])
+        _make_state(tmp_path)
+        # 40 old lines → dry-run should report archive plan
+        entries = [_bc_entry(_age(days=10), f"old {i}") for i in range(40)]
+        _make_breadcrumbs(tmp_path, entries)
 
         result = run_prune(root=tmp_path)
         assert result.returncode == 0
-        assert "RESOLVED" in result.stdout or "open_questions" in result.stdout
-
-
-# --- Questions archiving ---
-
-class TestQuestionsArchive:
-    def test_apply_archives_resolved_and_deferred(self, tmp_path):
-        qs = [
-            "RESOLVED: thing one",
-            "DEFERRED: thing two",
-            "Still open question — keep this",
-        ]
-        _make_state(tmp_path, qs)
-        _make_breadcrumbs(tmp_path, [])
-
-        result = run_prune("--apply", root=tmp_path)
-        assert result.returncode == 0, result.stderr
-
-        state = json.loads((tmp_path / ".harness" / "state.json").read_text())
-        assert len(state["open_questions"]) == 1
-        assert state["open_questions"][0] == "Still open question — keep this"
-
-        archive = (tmp_path / ".harness" / ".archive" / "questions.jsonl").read_text().strip().splitlines()
-        assert len(archive) == 2
-        archived_qs = {json.loads(ln)["question"] for ln in archive}
-        assert "RESOLVED: thing one" in archived_qs
-        assert "DEFERRED: thing two" in archived_qs
-
-    def test_apply_archive_format_has_archived_at(self, tmp_path):
-        _make_state(tmp_path, ["RESOLVED: x"])
-        _make_breadcrumbs(tmp_path, [])
-
-        run_prune("--apply", root=tmp_path)
-
-        archive_lines = (tmp_path / ".harness" / ".archive" / "questions.jsonl").read_text().strip().splitlines()
-        obj = json.loads(archive_lines[0])
-        assert "question" in obj
-        assert "archived_at" in obj
-        datetime.fromisoformat(obj["archived_at"])  # must parse
-
-    def test_no_resolved_questions_no_archive_created(self, tmp_path):
-        _make_state(tmp_path, ["Still open", "Another open"])
-        _make_breadcrumbs(tmp_path, [])
-
-        run_prune("--apply", root=tmp_path)
-
-        assert not (tmp_path / ".harness" / ".archive" / "questions.jsonl").exists()
-
-    def test_unresolved_superseded_stay_in_state(self, tmp_path):
-        _make_state(tmp_path, ["UNRESOLVED: keep me", "SUPERSEDED: also keep", "RESOLVED: archive me"])
-        _make_breadcrumbs(tmp_path, [])
-
-        run_prune("--apply", root=tmp_path)
-
-        state = json.loads((tmp_path / ".harness" / "state.json").read_text())
-        kept = state["open_questions"]
-        assert "UNRESOLVED: keep me" in kept
-        assert "SUPERSEDED: also keep" in kept
-        assert not any(q.startswith("RESOLVED") for q in kept)
-
-    def test_idempotent_no_duplicate_archive_lines(self, tmp_path):
-        _make_state(tmp_path, ["RESOLVED: idempotent test"])
-        _make_breadcrumbs(tmp_path, [])
-
-        run_prune("--apply", root=tmp_path)
-        # state.json now has 0 RESOLVED — second run archives nothing new
-        run_prune("--apply", root=tmp_path)
-
-        archive_lines = (tmp_path / ".harness" / ".archive" / "questions.jsonl").read_text().strip().splitlines()
-        assert len(archive_lines) == 1
+        assert "archive.jsonl" in result.stdout
+        assert "open_questions" not in result.stdout
 
 
 # --- Breadcrumb retention policy ---
 
 class TestBreadcrumbRetention:
-    def test_recent_within_7days_and_under_50_not_archived(self, tmp_path):
-        _make_state(tmp_path, [])
-        entries = [_bc_entry(_age(days=1), f"entry {i}") for i in range(30)]
+    def test_recent_within_7days_and_under_30_not_archived(self, tmp_path):
+        _make_state(tmp_path)
+        entries = [_bc_entry(_age(days=1), f"entry {i}") for i in range(25)]
         bc_path = _make_breadcrumbs(tmp_path, entries)
         orig = bc_path.read_bytes()
 
         run_prune("--apply", root=tmp_path)
 
         assert bc_path.read_bytes() == orig
+        assert not (tmp_path / ".harness" / ".archive" / "archive.jsonl").exists()
         assert not (tmp_path / ".harness" / ".archive" / "breadcrumbs.jsonl").exists()
 
     def test_100_recent_entries_archives_0(self, tmp_path):
-        """100 lines within 7 days — age policy keeps all 100 > last-50 → archive 0."""
-        _make_state(tmp_path, [])
+        """100 lines within 7 days — age policy keeps all 100 > last-30 → archive 0."""
+        _make_state(tmp_path)
         entries = [_bc_entry(_age(hours=1), f"recent {i}") for i in range(100)]
         bc_path = _make_breadcrumbs(tmp_path, entries)
 
         run_prune("--apply", root=tmp_path)
 
+        assert not (tmp_path / ".harness" / ".archive" / "archive.jsonl").exists()
         assert not (tmp_path / ".harness" / ".archive" / "breadcrumbs.jsonl").exists()
         kept = [ln for ln in bc_path.read_text().splitlines() if ln.strip()]
         assert len(kept) == 100
 
-    def test_100_old_entries_archives_50(self, tmp_path):
-        """100 lines all >7 days — last-50 policy (50) >= age-policy (0) → archive 50."""
-        _make_state(tmp_path, [])
+    def test_100_old_entries_archives_70(self, tmp_path):
+        """100 lines all >7 days — last-30 policy → keep 30, archive 70 into archive.jsonl."""
+        _make_state(tmp_path)
         entries = [_bc_entry(_age(days=10), f"old {i}") for i in range(100)]
         _make_breadcrumbs(tmp_path, entries)
 
@@ -184,14 +119,20 @@ class TestBreadcrumbRetention:
 
         bc_path = tmp_path / ".harness" / "breadcrumbs.jsonl"
         kept = [ln for ln in bc_path.read_text().splitlines() if ln.strip()]
-        assert len(kept) == 50
+        assert len(kept) == 30
 
-        archive = tmp_path / ".harness" / ".archive" / "breadcrumbs.jsonl"
+        archive = tmp_path / ".harness" / ".archive" / "archive.jsonl"
         archived = [ln for ln in archive.read_text().splitlines() if ln.strip()]
-        assert len(archived) == 50
+        assert len(archived) == 70
+        # Deprecated sink must not be written
+        assert not (tmp_path / ".harness" / ".archive" / "breadcrumbs.jsonl").exists()
+        # Overflow lines are raw breadcrumbs (same schema as harness-context)
+        obj = json.loads(archived[0])
+        assert obj.get("role") == "builder"
+        assert "msg" in obj
 
     def test_missing_breadcrumbs_no_crash(self, tmp_path):
-        _make_state(tmp_path, [])
+        _make_state(tmp_path)
         # No breadcrumbs.jsonl created
 
         result = run_prune("--apply", root=tmp_path)
@@ -211,7 +152,7 @@ class TestFlagPruning:
 
     def test_stale_routing_pending_removed(self, tmp_path):
         harness, hooks, _ = self._make_flags_dir(tmp_path)
-        _make_state(tmp_path, [], tasks=[])
+        _make_state(tmp_path, tasks=[])
         _make_breadcrumbs(tmp_path, [])
         flag = harness / ".routing-pending"
         flag.touch()
@@ -226,7 +167,7 @@ class TestFlagPruning:
 
     def test_fresh_routing_pending_kept(self, tmp_path):
         harness, hooks, _ = self._make_flags_dir(tmp_path)
-        _make_state(tmp_path, [], tasks=[])
+        _make_state(tmp_path, tasks=[])
         _make_breadcrumbs(tmp_path, [])
         flag = harness / ".routing-pending"
         flag.touch()  # mtime = now (< 30 min)
@@ -236,7 +177,7 @@ class TestFlagPruning:
 
     def test_evaluator_active_removed_when_not_evaluating(self, tmp_path):
         harness, hooks, _ = self._make_flags_dir(tmp_path)
-        _make_state(tmp_path, [], tasks=[])
+        _make_state(tmp_path, tasks=[])
         _make_breadcrumbs(tmp_path, [])
         # Contract with phase != evaluating
         contract = {"task_id": "feat-1", "phase": "building", "verified": False}
@@ -249,7 +190,7 @@ class TestFlagPruning:
 
     def test_evaluator_active_kept_when_evaluating(self, tmp_path):
         harness, hooks, _ = self._make_flags_dir(tmp_path)
-        _make_state(tmp_path, [], tasks=[])
+        _make_state(tmp_path, tasks=[])
         _make_breadcrumbs(tmp_path, [])
         contract = {"task_id": "feat-1", "phase": "evaluating", "verified": False}
         (harness / "contract.json").write_text(json.dumps(contract))
@@ -261,7 +202,7 @@ class TestFlagPruning:
 
     def test_commit_approved_removed_when_no_building_task(self, tmp_path):
         harness, hooks, _ = self._make_flags_dir(tmp_path)
-        _make_state(tmp_path, [], tasks=[{"id": "feat-1", "status": "verified"}])
+        _make_state(tmp_path, tasks=[{"id": "feat-1", "status": "verified"}])
         _make_breadcrumbs(tmp_path, [])
         flag = hooks / ".commit-approved"
         flag.touch()
@@ -271,7 +212,7 @@ class TestFlagPruning:
 
     def test_commit_approved_kept_when_building_task(self, tmp_path):
         harness, hooks, _ = self._make_flags_dir(tmp_path)
-        _make_state(tmp_path, [], tasks=[{"id": "feat-1", "status": "building"}])
+        _make_state(tmp_path, tasks=[{"id": "feat-1", "status": "building"}])
         _make_breadcrumbs(tmp_path, [])
         flag = hooks / ".commit-approved"
         flag.touch()
@@ -281,7 +222,7 @@ class TestFlagPruning:
 
     def test_dry_run_does_not_remove_flags(self, tmp_path):
         harness, hooks, _ = self._make_flags_dir(tmp_path)
-        _make_state(tmp_path, [], tasks=[])
+        _make_state(tmp_path, tasks=[])
         _make_breadcrumbs(tmp_path, [])
         import os, time
         flag = harness / ".routing-pending"
@@ -294,7 +235,7 @@ class TestFlagPruning:
 
     def test_absent_flag_no_error(self, tmp_path):
         self._make_flags_dir(tmp_path)
-        _make_state(tmp_path, [], tasks=[])
+        _make_state(tmp_path, tasks=[])
         _make_breadcrumbs(tmp_path, [])
         # No flag files created — should exit 0 silently
 
@@ -306,20 +247,20 @@ class TestFlagPruning:
 
 class TestStateValidAfterApply:
     def test_state_json_valid_after_prune(self, tmp_path):
-        qs = ["RESOLVED: q1", "DEFERRED: q2", "Keep me"]
-        _make_state(tmp_path, qs, tasks=[{"id": "feat-1", "status": "pending"}])
-        _make_breadcrumbs(tmp_path, [])
+        _make_state(tmp_path, tasks=[{"id": "feat-1", "status": "pending"}])
+        entries = [_bc_entry(_age(days=10), f"old {i}") for i in range(40)]
+        _make_breadcrumbs(tmp_path, entries)
 
         result = run_prune("--apply", root=tmp_path)
         assert result.returncode == 0
 
         state = json.loads((tmp_path / ".harness" / "state.json").read_text())
-        assert "open_questions" in state
         assert "tasks" in state
         assert state["tasks"][0]["id"] == "feat-1"
+        assert "open_questions" not in state
 
     def test_empty_tasks_array_no_crash(self, tmp_path):
-        _make_state(tmp_path, ["RESOLVED: q"], tasks=[])
+        _make_state(tmp_path, tasks=[])
         _make_breadcrumbs(tmp_path, [])
 
         result = run_prune("--apply", root=tmp_path)

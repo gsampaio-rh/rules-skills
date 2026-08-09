@@ -107,7 +107,7 @@ make harness-prune
 python .cursor/hooks/prune-harness.py --apply
 ```
 
-Session start auto-archives completed tasks and truncates breadcrumbs to a rolling window. Forensic history lives in `.harness/.archive/` (not injected into prompts).
+Session start auto-archives completed tasks and truncates breadcrumbs to a rolling ~30-line window. Forensic history lives in `.harness/.archive/archive.jsonl` (not injected into prompts). Manual prune appends breadcrumb overflow to the same `archive.jsonl` sink and clears stale flags — it does not write deprecated `.archive/breadcrumbs.jsonl` or `questions.jsonl`.
 
 ## Context package
 
@@ -116,7 +116,7 @@ python .cursor/hooks/context-package.py
 python .cursor/hooks/context-package.py --format markdown
 ```
 
-Returns lean JSON/markdown: active task, AC slice (≤5), last 3 breadcrumbs. Use at handoffs — do not dump full archive into the prompt.
+Returns lean JSON/markdown: active task, AC slice (≤5), last 3 breadcrumbs (no open-questions section). Use at handoffs — do not dump full archive into the prompt.
 
 ## Eval Scope (this repo only)
 

@@ -9,7 +9,6 @@ Output keys:
   task          — first active task (pending/building/evaluating) or null
   contract      — slice of contract.json or null
   breadcrumbs   — last ≤3 parsed breadcrumb entries
-  open_questions — non-RESOLVED/non-DEFERRED open_questions from state.json
 """
 
 import argparse
@@ -20,7 +19,6 @@ from pathlib import Path
 _DEFAULT_ROOT = Path.cwd()
 
 _ACTIVE_STATUSES = {"pending", "building", "evaluating"}
-_EXCLUDE_PREFIXES = ("RESOLVED", "DEFERRED")
 
 BREADCRUMB_WINDOW = 3
 MAX_AC_DISPLAY = 5
@@ -102,13 +100,6 @@ def _load_breadcrumbs(path: Path) -> list[dict]:
     return parsed[-BREADCRUMB_WINDOW:]
 
 
-def _active_questions(state: dict) -> list[str]:
-    return [
-        q for q in state.get("open_questions", [])
-        if not q.startswith(_EXCLUDE_PREFIXES)
-    ]
-
-
 def build_package(paths: dict) -> dict:
     state = _load_state(paths["state"])
     contract_raw = _load_json_optional(paths["contract"])
@@ -117,7 +108,6 @@ def build_package(paths: dict) -> dict:
         "task": _active_task(state),
         "contract": _contract_slice(contract_raw),
         "breadcrumbs": _load_breadcrumbs(paths["breadcrumbs"]),
-        "open_questions": _active_questions(state),
     }
 
 
@@ -155,17 +145,6 @@ def _format_markdown(pkg: dict) -> str:
             result = bc.get("result", "")
             suffix = f" [{result}]" if result else ""
             lines.append(f"- `{ts}` **{role}**: {msg}{suffix}")
-    else:
-        lines.append("(none)")
-
-    lines.append("")
-    lines.append("## Open Questions")
-    if pkg["open_questions"]:
-        for q in pkg["open_questions"][:3]:
-            lines.append(f"- {q}")
-        extra = len(pkg["open_questions"]) - 3
-        if extra > 0:
-            lines.append(f"- … +{extra} more")
     else:
         lines.append("(none)")
 
