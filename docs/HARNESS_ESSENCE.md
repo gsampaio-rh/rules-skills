@@ -25,18 +25,18 @@ A file-based task system that keeps AI agents honest across sessions.
 | Cold-start routing | `harness-gate.sh` (sets `.routing-pending`) + `contract-gate` deny | **paired** |
 | Contract before impl | `contract-gate.sh` (preToolUse) | **structural deny** |
 | Evaluator isolation | `evaluator-guard.sh` (preToolUse) | **structural deny** |
-| Verification before done | `verify-harness.sh` (stop) | soft-block |
+| Verification before done | `verify-harness.sh` (stop) | side-effect-thin soft followup |
 | User commit approval | `pre-commit-harness.sh` (beforeShellExecution) | **structural deny** |
 | Staged secrets / `.env` | `pre-commit-harness.sh` (filename deny) | **structural deny** |
-| Progress breadcrumbs | `enforce-progress.sh` (stop) | soft-block |
-| Phase advance | `chain-evaluator.sh` (subagentStop) | orchestration |
+| Progress breadcrumbs | `enforce-progress.sh` (stop) | side-effect-thin soft followup |
+| Phase advance | `chain-evaluator.sh` (subagentStop) | orchestration (side-effect) |
 | Session context | `harness-context.sh` (sessionStart) | inject |
 
-**Optional (not in default `hooks.json`):** `secret-read-guard.sh` (`beforeReadFile`, failClosed — deny live `.env`/key paths), `security-shell.sh` (`beforeShellExecution`, failClosed — deny curl/wget pipe-to-shell), `dedup-server.sh` (dev-server utility), `context-health.sh` (session fatigue) — see `library/cursor/hooks.optional.json`.
+**Optional (not in default `hooks.json`):** `secret-read-guard.sh` (`beforeReadFile`, failClosed — deny live `.env`/key paths), `security-shell.sh` (`beforeShellExecution`, failClosed — deny curl/wget pipe-to-shell), `dedup-server.sh` (dev-server utility) — see `library/cursor/hooks.optional.json`. Session fatigue/handoff (P6) is skill `session-review`, not a stop hook.
 
-**Design principle:** Critical steps must be structurally impossible to skip (deny hooks). Advisory hooks are optional dogfood.
+**Design principle:** Critical steps must be structurally impossible to skip (**structural deny** hooks). Soft hooks are **side-effect-thin** (flags, phase patches, short `followup_message` pointers) — not prose sermons. Semantic advisories live in skill `adversarial-harness` / `/evaluator` / `session-review`.
 
-**Self-certification:** `verify-harness.sh` honors `verified: true` only when breadcrumbs include an evaluator `pass` for the contract task (builder self-set `verified` without that crumb is soft-blocked).
+**Self-certification:** `verify-harness.sh` honors `verified: true` only when breadcrumbs include an evaluator pass for the contract task (builder self-set `verified` without that crumb gets a soft followup).
 
 **Orphan contracts:** A leftover `contract.json` with `verified: true` and no `building`/`evaluating` task is treated as `NO_BUILD` (stop soft-gate skips). Clear it by a `Commit:` checkpoint breadcrumb (post-commit ADVANCE archives the contract) or delete `.harness/contract.json` manually when abandoning the task.
 
@@ -83,7 +83,7 @@ No `direction`, `trade_offs`, or `open_questions` in `state.json` — those go i
 
 `harness-context`, `harness-gate`, `contract-gate`, `evaluator-guard`, `pre-commit-harness`, `verify-harness`, `enforce-progress`, `chain-evaluator`.
 
-**Optional** — merge `library/cursor/hooks.optional.json` for `secret-read-guard` + `security-shell` + `dedup-server` + `context-health`.
+**Optional** — merge `library/cursor/hooks.optional.json` for `secret-read-guard` + `security-shell` + `dedup-server`.
 
 There is no lean/full dual product; older `hooks.lean.json` / `hooks.full.json` names are retired.
 

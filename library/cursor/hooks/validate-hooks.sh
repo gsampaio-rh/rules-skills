@@ -172,33 +172,33 @@ fi
 
 # --- chain-evaluator (subagentStop) tests ---
 
-# Test: planner just finished (state.json, no contract) → PLAN GATE
+# Test: planner finished (state.json, no contract) → {} (plan gate prose removed)
 rm -f .harness/contract.json 2>/dev/null
 echo '{"tasks":[{"id":"feat-1"},{"id":"feat-2"}]}' > .harness/state.json
 touch .harness/state.json
 OUTPUT=$(echo '{}' | .cursor/hooks/chain-evaluator.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "PLAN GATE"; then
-  pass "chain-evaluator fires PLAN GATE after planner finishes"
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "chain-evaluator passes when state exists without contract (no plan-gate prose)"
 else
-  fail "chain-evaluator should fire PLAN GATE when state.json exists without contract"
+  fail "chain-evaluator should return {} without contract: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: phase=negotiating → "Contract negotiation complete" (builder should build)
+# Test: phase=negotiating → {} (build guidance is skill-owned)
 echo '{"feature":"test","verified":false,"phase":"negotiating"}' > .harness/contract.json
 OUTPUT=$(echo '{}' | .cursor/hooks/chain-evaluator.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "Contract negotiation complete"; then
-  pass "chain-evaluator routes negotiating → build instruction"
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "chain-evaluator passes through negotiating phase"
 else
-  fail "chain-evaluator should route negotiating phase to build: $(echo "$OUTPUT" | head -1)"
+  fail "chain-evaluator should return {} for negotiating: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: phase=negotiated → "Contract negotiation complete" (builder should build)
+# Test: phase=negotiated → {}
 echo '{"feature":"test","verified":false,"phase":"negotiated"}' > .harness/contract.json
 OUTPUT=$(echo '{}' | .cursor/hooks/chain-evaluator.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "Contract negotiation complete"; then
-  pass "chain-evaluator routes negotiated → build instruction"
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "chain-evaluator passes through negotiated phase"
 else
-  fail "chain-evaluator should route negotiated phase to build: $(echo "$OUTPUT" | head -1)"
+  fail "chain-evaluator should return {} for negotiated: $(echo "$OUTPUT" | head -1)"
 fi
 
 # Test: phase=building → BUILD COMPLETE (launch evaluator)
@@ -210,13 +210,13 @@ else
   fail "chain-evaluator should route building phase to evaluator: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: phase=evaluating + unverified → "EVAL FAIL" retry message
+# Test: phase=evaluating + unverified → {} (retry prose removed)
 echo '{"feature":"test","verified":false,"phase":"evaluating"}' > .harness/contract.json
 OUTPUT=$(echo '{}' | .cursor/hooks/chain-evaluator.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "EVAL FAIL"; then
-  pass "chain-evaluator routes evaluating+unverified → re-launch"
+if echo "$OUTPUT" | rg -q '^\{\}$'; then
+  pass "chain-evaluator passes evaluating+unverified without EVAL FAIL prose"
 else
-  fail "chain-evaluator should fire EVAL INCOMPLETE for unverified evaluating: $(echo "$OUTPUT" | head -1)"
+  fail "chain-evaluator should return {} for evaluating+unverified: $(echo "$OUTPUT" | head -1)"
 fi
 
 # Test: phase=evaluating + verified → pass
@@ -249,11 +249,10 @@ else
   fail "harness-gate should allow short glue messages: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: non-trivial prompt without harness → allow + inject routing
-# Prompt must be >100 chars and NOT match SIMPLE_PATTERNS to trigger routing
+# Test: non-trivial prompt without harness → set .routing-pending + short routing followup
 rm -f .harness/state.json .harness/contract.json .harness/.routing-pending 2>/dev/null
 OUTPUT=$(echo '{"prompt":"implement a new authentication service with OAuth2 integration, database schema migrations, role-based access control, and session management across multiple microservices"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "HARNESS ROUTING|followup_message.*planner"; then
+if echo "$OUTPUT" | rg -q "HARNESS ROUTING|followup_message.*planner" && [ -f .harness/.routing-pending ]; then
   pass "harness-gate injects planner routing for non-trivial prompt (does NOT block)"
 else
   fail "harness-gate should inject routing instructions for non-trivial prompt: $(echo "$OUTPUT" | head -1)"
@@ -338,62 +337,6 @@ else
 fi
 
 rm -f .harness/contract.json .harness/state.json "$COMMIT_GATE" 2>/dev/null
-
-# --- context-health (stop) tests ---
-
-# Test: few breadcrumbs → healthy, pass through
-rm -f .harness/breadcrumbs.jsonl 2>/dev/null
-echo '{"ts":"2026-05-24T10:00","role":"builder","type":"build","feat":null,"msg":"step 1"}' > .harness/breadcrumbs.jsonl
-echo '{"ts":"2026-05-24T10:01","role":"builder","type":"build","feat":null,"msg":"step 2"}' >> .harness/breadcrumbs.jsonl
-OUTPUT=$(echo '{}' | .cursor/hooks/context-health.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q '^\{\}$'; then
-  pass "context-health passes with few breadcrumbs (healthy)"
-else
-  fail "context-health should pass with only 2 breadcrumbs: $(echo "$OUTPUT" | head -1)"
-fi
-
-# Test: many breadcrumbs (>25) → fatigue signal
-rm -f .harness/breadcrumbs.jsonl 2>/dev/null
-for i in $(seq 1 30); do
-  echo "{\"ts\":\"2026-05-24T10:$(printf '%02d' $i)\",\"role\":\"builder\",\"type\":\"build\",\"feat\":null,\"msg\":\"step $i\"}" >> .harness/breadcrumbs.jsonl
-done
-OUTPUT=$(echo '{}' | .cursor/hooks/context-health.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "CONTEXT HEALTH|breadcrumb"; then
-  pass "context-health detects breadcrumb volume fatigue (>25 entries)"
-else
-  fail "context-health should detect volume fatigue: $(echo "$OUTPUT" | head -1)"
-fi
-
-# Test: consecutive failures → fatigue signal
-rm -f .harness/breadcrumbs.jsonl 2>/dev/null
-for i in $(seq 1 3); do
-  echo "{\"ts\":\"2026-05-24T10:0$i\",\"role\":\"builder\",\"type\":\"build\",\"feat\":\"feat-1\",\"msg\":\"attempt $i\"}" >> .harness/breadcrumbs.jsonl
-done
-for i in $(seq 4 8); do
-  echo "{\"ts\":\"2026-05-24T10:0$i\",\"role\":\"evaluator\",\"type\":\"eval\",\"feat\":\"feat-1\",\"msg\":\"eval $i\",\"result\":\"fail\"}" >> .harness/breadcrumbs.jsonl
-done
-OUTPUT=$(echo '{}' | .cursor/hooks/context-health.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "CONTEXT HEALTH|consecutive|circles"; then
-  pass "context-health detects consecutive failure fatigue"
-else
-  fail "context-health should detect consecutive failures: $(echo "$OUTPUT" | head -1)"
-fi
-
-# Test: scrap-and-restart exhaustion → fatigue signal
-rm -f .harness/breadcrumbs.jsonl 2>/dev/null
-for i in $(seq 1 6); do
-  echo "{\"ts\":\"2026-05-24T10:0$i\",\"role\":\"builder\",\"type\":\"build\",\"feat\":\"feat-1\",\"msg\":\"build $i\"}" >> .harness/breadcrumbs.jsonl
-done
-echo '{"ts":"2026-05-24T10:07","role":"evaluator","type":"scrap","feat":"feat-1","msg":"scrap 1"}' >> .harness/breadcrumbs.jsonl
-echo '{"ts":"2026-05-24T10:08","role":"evaluator","type":"scrap","feat":"feat-1","msg":"scrap 2"}' >> .harness/breadcrumbs.jsonl
-OUTPUT=$(echo '{}' | .cursor/hooks/context-health.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "CONTEXT HEALTH|scrap|exhaustion"; then
-  pass "context-health detects scrap-and-restart exhaustion"
-else
-  fail "context-health should detect scrap exhaustion: $(echo "$OUTPUT" | head -1)"
-fi
-
-rm -f .harness/breadcrumbs.jsonl 2>/dev/null
 
 # --- contract-gate (preToolUse) tests ---
 

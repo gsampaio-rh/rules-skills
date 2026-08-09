@@ -43,7 +43,7 @@ Procedure: skill `adversarial-harness`. Design: [`docs/HARNESS_ESSENCE.md`](docs
 
 Default profile: [`library/cursor/hooks.json`](library/cursor/hooks.json) — harness-context, **harness-gate** (cold-start → `.routing-pending`), contract-gate, evaluator-guard, pre-commit, verify, enforce-progress, chain-evaluator.
 
-Optional dogfood: [`library/cursor/hooks.optional.json`](library/cursor/hooks.optional.json) — `secret-read-guard` (failClosed Read deny on `.env`/keys), `security-shell` (failClosed deny curl|wget pipe-to-shell), `dedup-server`, `context-health`.
+Optional dogfood: [`library/cursor/hooks.optional.json`](library/cursor/hooks.optional.json) — `secret-read-guard` (failClosed Read deny on `.env`/keys), `security-shell` (failClosed deny curl|wget pipe-to-shell), `dedup-server`.
 
 ## Skills (active catalog)
 

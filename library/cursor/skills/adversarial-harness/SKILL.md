@@ -38,15 +38,17 @@ Optional rubric pass (contract `rubrics` or user ask): `references/rubrics-and-t
 | Evaluator | `/evaluator` | Adversarial QA — negotiates contracts AND tests the actual app |
 
 Subagent definitions live in `.cursor/agents/`. Default hooks (`library/cursor/hooks.json`) enforce the workflow:
-- `sessionStart` (`harness-context`) → injects harness state into context
-- `beforeSubmitPrompt` (`harness-gate`) → cold-start: sets `.harness/.routing-pending` + planner advisory; `skip harness` clears the marker
+- `sessionStart` (`harness-context`) → injects lean context-package (state/AC/crumbs); maintenance only
+- `beforeSubmitPrompt` (`harness-gate`) → cold-start: sets `.harness/.routing-pending`; `skip harness` clears the marker (short followup; deny is `contract-gate`)
 - `preToolUse` (`contract-gate`) → **denies** impl writes while routing-pending (no `state.json`, unless skip breadcrumb / 600s TTL) or building without `contract.json`
 - `preToolUse` (`evaluator-guard`) → **denies** evaluator writes outside `.harness/`
-- `subagentStop` (`chain-evaluator`) → phase orchestration only for empty/`planner`/`evaluator` stops (not explore/shell/etc.)
+- `subagentStop` (`chain-evaluator`) → phase orchestration only: `building→evaluating` + `.evaluator-active` for empty/`planner`/`evaluator` stops (not explore/shell/etc.)
 - `beforeShellExecution` (`pre-commit-harness`) → **denies** commit without approval flag; blocks staged `.env`/secret filenames
-- `stop` (`verify-harness`, `enforce-progress`) → soft-blocks unverified contracts / missing breadcrumbs
+- `stop` (`verify-harness`, `enforce-progress`) → side-effect-thin soft followups (anti-self-cert crumb check / breadcrumb schema); not structural deny
 
-Optional (`hooks.optional.json`): `secret-read-guard` (deny Read of live secrets), `security-shell` (deny download-exec pipes), `dedup-server`, `context-health`.
+Soft hooks stay **side-effect-thin**. Plan confirmation, negotiate→build guidance, eval-fail retry prose, and session fatigue/handoff advisories live in this skill, `/evaluator`, or skill `session-review` — not long hook sermons.
+
+Optional (`hooks.optional.json`): `secret-read-guard` (deny Read of live secrets), `security-shell` (deny download-exec pipes), `dedup-server`.
 
 ## Phase 1: Planning
 

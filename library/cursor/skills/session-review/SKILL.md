@@ -42,7 +42,7 @@ Follow this order — do not skip steps:
 | P3 SVG friction | SVG write loops | No `.svg` path, or ≤2 writes per SVG | Same SVG written ≥3 times without render evidence |
 | P4 number/facts | Numeric claims | Claims verified by a tool same/next turn | Claim then correction language without tool cite |
 | P5 gate misfire | Contract/harness gates | No false GATE, or legitimate building task | GATE while first turns are Q&A/explore |
-| P6 handoff/rework | Session boundary | Checkpoint/handoff when turns≥5 and writes≥2 | Substantial session with no handoff |
+| P6 handoff/rework | Session boundary (owned here; no stop hook) | Checkpoint/handoff when turns≥5 and writes≥2 | Substantial session with no handoff |
 
 ## Canonical report (emit exactly)
 

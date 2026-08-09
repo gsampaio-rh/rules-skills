@@ -22,13 +22,6 @@
         "matcher": "npm|yarn|pnpm|vite|next|flask|uvicorn|gunicorn|cargo run|go run|python.*http",
         "timeout": 5
       }
-    ],
-    "stop": [
-      {
-        "command": ".cursor/hooks/context-health.sh",
-        "timeout": 5,
-        "loop_limit": 1
-      }
     ]
   }
 }

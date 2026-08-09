@@ -152,16 +152,14 @@ def test_building_write_error_returns_manual_fallback(tmp_path):
 # ─── AC7(c): evaluating+unverified → EVAL FAIL ────────────────────────────────
 
 
-def test_evaluating_unverified_returns_eval_fail(tmp_path):
-    """AC7(c): phase=evaluating, verified=false → EVAL FAIL message with max-retry reminder."""
+def test_evaluating_unverified_returns_empty(tmp_path):
+    """Slim: phase=evaluating, verified=false → {} (retry prose moved to skill)."""
     _write_contract(tmp_path, "evaluating", verified=False)
     exit_code, result = _run_hook(tmp_path)
 
     assert exit_code == 0
-    msg = result.get("followup_message", "")
-    assert "EVAL FAIL" in msg, f"Missing EVAL FAIL in: {msg}"
-    # Static max-retry reminder
-    assert "2" in msg or "max" in msg.lower(), f"Missing max-retry hint in: {msg}"
+    assert result == {}, f"Expected empty dict, got: {result}"
+    assert "EVAL FAIL" not in json.dumps(result)
 
 
 # ─── AC7(d): evaluating+verified → {} ────────────────────────────────────────
@@ -180,15 +178,13 @@ def test_evaluating_verified_returns_empty_dict(tmp_path):
 
 
 @pytest.mark.parametrize("phase", ["negotiating", "negotiated"])
-def test_negotiating_returns_imperative_message(tmp_path, phase):
-    """AC4: phase=negotiating/negotiated → imperative 'Set phase to building...' message."""
+def test_pre_build_phases_pass_through(tmp_path, phase):
+    """Slim: pre-build phases → {} (build guidance lives in skill)."""
     _write_contract(tmp_path, phase)
     exit_code, result = _run_hook(tmp_path)
 
     assert exit_code == 0
-    msg = result.get("followup_message", "")
-    assert "building" in msg.lower(), f"Missing 'building' in: {msg}"
-    assert "implementation" in msg.lower() or "start" in msg.lower(), f"Missing action in: {msg}"
+    assert result == {}, f"Expected empty dict for phase={phase}, got: {result}"
 
 
 # ─── EC1: no task_id field → feat='' in breadcrumb, no crash ─────────────────
@@ -283,8 +279,8 @@ def test_evaluator_type_building_advances(tmp_path):
     assert "Launch /evaluator now" in result.get("followup_message", "")
 
 
-def test_plan_gate_planner_and_legacy(tmp_path):
-    """AC4a: fresh state, no contract → PLAN GATE for {} and planner."""
+def test_no_contract_passes_for_planner_and_legacy(tmp_path):
+    """Slim: fresh state, no contract → {} (plan confirmation is skill/user, not hook)."""
     harness = tmp_path / ".harness"
     harness.mkdir()
     (harness / "state.json").write_text(
@@ -300,11 +296,12 @@ def test_plan_gate_planner_and_legacy(tmp_path):
     for stdin in ("{}", json.dumps({"subagent_type": "planner"})):
         exit_code, result = _run_hook(tmp_path, stdin)
         assert exit_code == 0, stdin
-        assert "PLAN GATE" in result.get("followup_message", ""), result
+        assert result == {}, result
+        assert "PLAN GATE" not in json.dumps(result)
 
 
-def test_plan_gate_explore_skipped(tmp_path):
-    """AC4b: explore must not PLAN GATE."""
+def test_explore_no_contract_still_empty(tmp_path):
+    """Allowlisted skip: explore + no contract → {}."""
     harness = tmp_path / ".harness"
     harness.mkdir()
     (harness / "state.json").write_text(

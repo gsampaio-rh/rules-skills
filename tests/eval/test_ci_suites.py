@@ -16,7 +16,7 @@ SCENARIOS_DIR = EVAL_DIR / "scenarios"
 LONG_SCENARIOS_DIR = SCENARIOS_DIR / "long"
 
 PR_EXPECTED_COUNT = 11
-NIGHTLY_EXPECTED_COUNT = 32
+NIGHTLY_EXPECTED_COUNT = 31
 
 
 @pytest.fixture(scope="module")
@@ -36,7 +36,7 @@ def test_pr_tier_has_expected_count(suites):
 
 
 def test_nightly_tier_has_expected_count(suites):
-    """AC10: nightly list has exactly 31 ids."""
+    """AC10: nightly list has exactly 31 ids (retired context-health scenario)."""
     assert len(suites["nightly"]) == NIGHTLY_EXPECTED_COUNT, (
         f"nightly tier has {len(suites['nightly'])} scenarios, expected {NIGHTLY_EXPECTED_COUNT}"
     )

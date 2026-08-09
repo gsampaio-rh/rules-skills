@@ -47,7 +47,7 @@
       {
         "command": ".cursor/hooks/enforce-progress.sh",
         "timeout": 5,
-        "loop_limit": 2
+        "loop_limit": 1
       }
     ]
   }

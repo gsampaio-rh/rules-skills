@@ -53,7 +53,7 @@ mkdir -p /path/to/project/.harness
 
 **Default** (`library/cursor/hooks.json`): harness-context, harness-gate (cold-start), contract-gate, evaluator-guard, pre-commit-harness, verify-harness, enforce-progress, chain-evaluator.
 
-**Optional** (`library/cursor/hooks.optional.json`): secret-read-guard, security-shell, dedup-server, context-health — `scripts/hooks-profile.sh optional`.
+**Optional** (`library/cursor/hooks.optional.json`): secret-read-guard, security-shell, dedup-server — `scripts/hooks-profile.sh optional`.
 
 ```bash
 make sync-local            # installs default hooks.json

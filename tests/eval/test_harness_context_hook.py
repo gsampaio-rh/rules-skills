@@ -90,21 +90,9 @@ class TestCoreContext:
         d = run_hook(tmp_path)
         assert "## Recent Breadcrumbs" in d["additional_context"]
 
-    def test_session_tasks_completed_present(self, tmp_path):
-        _write_state(tmp_path, tasks=[])
-        d = run_hook(tmp_path)
-        assert "Session tasks completed:" in d["additional_context"]
-
-
-# --- Session boundary advisory ---
-
-class TestSessionBoundaryAdvisory:
-    def test_3_feats_triggers_advisory(self, tmp_path):
-        """3 build-pass feats after session_start → hook appends new session_start →
-        window between the two session_starts has 3 feats → advisory fires."""
-        _write_state(tmp_path, tasks=[])
-        # Seed: one session_start + 3 builds. Hook will append a new session_start,
-        # making the window between [0] and [-1] contain the 3 builds.
+    def test_inject_has_no_novel_session_advisories(self, tmp_path):
+        """Slim: inject is context-package only — no SESSION BOUNDARY / overload prose."""
+        _write_state(tmp_path, tasks=[{"id": "feat-1", "name": "Test", "status": "pending"}])
         entries = [
             _session_start("2026-01-01T00:00:00Z"),
             _build_pass("feat-1", "2026-01-01T01:00:00Z"),
@@ -112,24 +100,11 @@ class TestSessionBoundaryAdvisory:
             _build_pass("feat-3", "2026-01-01T03:00:00Z"),
         ]
         _write_breadcrumbs(tmp_path, entries)
-        d = run_hook(tmp_path)
-        ctx = d["additional_context"]
-        assert "SESSION BOUNDARY ADVISORY" in ctx
-        assert "Session tasks completed: 3" in ctx
-
-    def test_2_feats_no_advisory(self, tmp_path):
-        """2 build-pass feats in window → no advisory."""
-        _write_state(tmp_path, tasks=[])
-        entries = [
-            _session_start("2026-01-01T00:00:00Z"),
-            _build_pass("feat-1", "2026-01-01T01:00:00Z"),
-            _build_pass("feat-2", "2026-01-01T02:00:00Z"),
-        ]
-        _write_breadcrumbs(tmp_path, entries)
-        d = run_hook(tmp_path)
-        ctx = d["additional_context"]
-        assert "SESSION BOUNDARY ADVISORY" not in ctx
-        assert "Session tasks completed: 2" in ctx
+        ctx = run_hook(tmp_path)["additional_context"]
+        banned = ("SESSION BOUNDARY", "TASK OVERLOAD", "CONTRACT REQUIRED")
+        for needle in banned:
+            assert needle not in ctx, f"unexpected advisory: {needle}"
+        assert "## Current Task" in ctx
 
 
 # --- Prune advisory (>40 non-empty lines) ---
@@ -164,18 +139,13 @@ class TestAutoTruncation:
 # --- Fallback / robustness ---
 
 class TestFallback:
-    def test_context_package_missing_still_exits_zero_with_session_counter(self, tmp_path):
-        """When context-package.py is missing/fails, hook exits 0 with fallback
-        text that still includes 'Session tasks completed:' and no Traceback on stdout."""
+    def test_context_package_missing_still_exits_zero_with_fallback(self, tmp_path):
+        """When context-package.py is missing/fails, hook exits 0 with lean fallback."""
         _write_state(tmp_path, tasks=[{"id": "feat-1", "name": "x", "status": "pending"}])
         _write_breadcrumbs(tmp_path, [])
 
-        # Write a wrapper hook that points CONTEXT_PKG at a non-existent path,
-        # then delegates to the real hook via sourcing/exec.
-        # Simpler: write a thin wrapper that overwrites CONTEXT_PKG and calls the real hook body.
         hook_src = HOOK.read_text()
         broken_hook = tmp_path / "broken-harness-context.sh"
-        # Patch the CONTEXT_PKG line to point at a missing script.
         patched = hook_src.replace(
             'CONTEXT_PKG="$SCRIPT_DIR/context-package.py"',
             'CONTEXT_PKG="/nonexistent/path/context-package.py"',
@@ -197,9 +167,9 @@ class TestFallback:
         assert result.returncode == 0, f"Non-zero exit:\n{result.stderr}"
         d = json.loads(result.stdout.strip())
         ctx = d["additional_context"]
-        assert "Session tasks completed:" in ctx, "Fallback must include session counter"
         assert "Traceback" not in result.stdout, "No Python traceback on stdout"
         assert "context-package unavailable" in ctx, "Fallback text must indicate pkg unavailable"
+        assert "SESSION BOUNDARY" not in ctx
 
     def test_cold_start_no_harness_files(self, tmp_path):
         """No state.json or contract.json → cold-start message, exit 0."""

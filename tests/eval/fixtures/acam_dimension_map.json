@@ -2,7 +2,6 @@
   "adversarial_conflicting_instruction": "interaction",
   "adversarial_skip_override": "workflows",
   "adversarial_task_priority_inversion": "workflows",
-  "behavioral_context_health_stale_thread": "interaction",
   "behavioral_focused_opener": "interaction",
   "behavioral_plan_adherence_multi_task": "interaction",
   "behavioral_session_boundary": "interaction",

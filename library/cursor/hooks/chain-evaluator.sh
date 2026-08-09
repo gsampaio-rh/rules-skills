@@ -1,217 +1,65 @@
 #!/bin/bash
-# subagentStop hook: programmatic state-transition orchestration.
-#
-# Phase transitions handled automatically (not just advisory):
-#   phase=building → writes phase=evaluating to contract.json in-place,
-#                    creates .evaluator-active flag, appends dispatch breadcrumb,
-#                    returns imperative followup_message with /evaluator invocation.
-#
-# Advisory-only (Cursor hook API cannot auto-invoke subagents):
-#   phase=negotiating/negotiated → imperative message to start building
-#   phase=evaluating + unverified → EVAL FAIL retry message
-#   phase=evaluating + verified   → pass through {}
-#   state.json exists, no contract → PLAN GATE user confirmation required
-#
-# Final /evaluator invocation remains manual — hook injects prescribed text.
-#
-# Orchestration allowlist: empty subagent_type (legacy/tests) or planner|evaluator.
-# explore/shell/generalPurpose/etc. only clear .evaluator-active then return {}.
+# subagentStop: building→evaluating + .evaluator-active. Prose advisories → skill.
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/hooks-lib.sh"
 hooks_init "chain-evaluator"
 
-EVALUATOR_FLAG=".cursor/hooks/.evaluator-active"
+FLAG=".cursor/hooks/.evaluator-active"
 CONTRACT=".harness/contract.json"
-STATE=".harness/state.json"
-BREADCRUMBS=".harness/breadcrumbs.jsonl"
 
 SUBAGENT_TYPE=$(echo "$HOOK_INPUT" | python3 -c "
 import sys, json
 try:
-    data = json.load(sys.stdin)
-    print(data.get('subagent_type') or data.get('subagentType') or '')
-except Exception:
-    print('')
+    d=json.load(sys.stdin); print(d.get('subagent_type') or d.get('subagentType') or '')
+except Exception: print('')
 " 2>/dev/null)
 
-# Clear evaluator flag on any subagent completion
-if [ -f "$EVALUATOR_FLAG" ]; then
-    hooks_log "chain-evaluator" "clearing evaluator-active flag"
-    rm -f "$EVALUATOR_FLAG"
-fi
+[ -f "$FLAG" ] && { hooks_log "chain-evaluator" "clearing evaluator-active flag"; rm -f "$FLAG"; }
 
-# Non-allowlisted stops: no PLAN GATE / phase advance / EVAL FAIL orchestration.
 if [ -n "$SUBAGENT_TYPE" ] && [ "$SUBAGENT_TYPE" != "planner" ] && [ "$SUBAGENT_TYPE" != "evaluator" ]; then
-    hooks_log "chain-evaluator" "skip orchestration for subagent_type=$SUBAGENT_TYPE"
-    echo '{}'
-    exit 0
+  hooks_log "chain-evaluator" "skip orchestration for subagent_type=$SUBAGENT_TYPE"
+  echo '{}'; exit 0
 fi
 
-# ─── Scenario 1: planner just finished ─────────────────────────────────────
-if [ -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
-    AGE=$(hooks_file_age "$STATE")
+[ ! -f "$CONTRACT" ] && { hooks_log "chain-evaluator" "no contract, skipping"; echo '{}'; exit 0; }
 
-    if [ "$AGE" -lt 300 ]; then
-        hooks_log "chain-evaluator" "planner finished — plan gate"
-
-        TASK_COUNT=$(python3 -c "
-import json
+RESULT=$(python3 << 'PY'
+import json, os, sys, datetime
+path, crumbs, flag = '.harness/contract.json', '.harness/breadcrumbs.jsonl', '.cursor/hooks/.evaluator-active'
 try:
-    with open('$STATE') as f:
-        data = json.load(f)
-    print(len(data.get('tasks', [])))
+    contract = json.load(open(path))
 except Exception:
-    print('?')
-" 2>/dev/null)
-
-        cat <<EOF
-{
-  "followup_message": "PLAN GATE: The planner produced state.json with $TASK_COUNT tasks. Before starting development:\n1. Read .harness/state.json and present vision and task list to the user\n2. Ask the user to confirm the plan before proceeding\n3. Do NOT start contract negotiation or building until the user confirms"
-}
-EOF
-        exit 0
-    fi
-fi
-
-# No contract → no harness state
-if [ ! -f "$CONTRACT" ]; then
-    hooks_log "chain-evaluator" "no harness state, skipping"
-    echo '{}'
-    exit 0
-fi
-
-# ─── Read contract fields ────────────────────────────────────────────────────
-RESULT=$(python3 << 'PYEOF'
-import json, os, sys
-
-contract_path = '.harness/contract.json'
-breadcrumbs_path = '.harness/breadcrumbs.jsonl'
-evaluator_flag = '.cursor/hooks/.evaluator-active'
-
+    print(json.dumps({})); sys.exit(0)
+if contract.get('phase') != 'building':
+    print(json.dumps({})); sys.exit(0)
+feat, tid = contract.get('feature', 'unknown feature'), contract.get('task_id', '')
 try:
-    with open(contract_path) as f:
-        contract = json.load(f)
+    contract['phase'] = 'evaluating'
+    open(path, 'w').write(json.dumps(contract, indent=2, ensure_ascii=False) + '\n')
 except Exception as e:
-    print(json.dumps({}))
+    print(json.dumps({'followup_message': f'MANUAL: Could not auto-advance contract phase ({e}). Set phase=evaluating, touch .cursor/hooks/.evaluator-active, launch /evaluator.'}))
     sys.exit(0)
-
-phase = contract.get('phase', 'unknown')
-verified = contract.get('verified', False)
-feature = contract.get('feature', 'unknown feature')
-task_id = contract.get('task_id', '')
-
-# ─── phase=building: AUTO-ADVANCE STATE ────────────────────────────────────
-if phase == 'building':
-    # 1. Advance phase to evaluating in contract.json
-    patch_ok = False
-    try:
-        contract['phase'] = 'evaluating'
-        contract_text = json.dumps(contract, indent=2, ensure_ascii=False) + '\n'
-        with open(contract_path, 'w') as f:
-            f.write(contract_text)
-        patch_ok = True
-    except Exception as e:
-        # AC5 fallback: write error
-        msg = (
-            f'MANUAL: Could not auto-advance contract phase ({e}). '
-            f'Manually: set phase=evaluating in .harness/contract.json, '
-            f'touch .cursor/hooks/.evaluator-active, then launch /evaluator.'
-        )
-        print(json.dumps({'followup_message': msg}))
-        sys.exit(0)
-
-    # 2. Create .evaluator-active flag (EC2: mkdir if needed)
-    flag_dir = os.path.dirname(evaluator_flag)
-    try:
-        os.makedirs(flag_dir, exist_ok=True)
-        with open(evaluator_flag, 'w') as f:
-            f.write('')
-    except Exception as flag_err:
-        # AC5/EC2: flag creation failed → MANUAL fallback (same as write-error path)
-        msg = (
-            f'MANUAL: Could not create evaluator-active flag ({flag_err}). '
-            f'Manually: touch .cursor/hooks/.evaluator-active, then launch /evaluator.'
-        )
-        print(json.dumps({'followup_message': msg}))
-        sys.exit(0)
-
-    # 3. Append dispatch breadcrumb
-    import datetime
-    ts = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-    crumb = {
-        'ts': ts,
-        'role': 'system',
-        'type': 'dispatch',
-        'feat': task_id,
+try:
+    os.makedirs(os.path.dirname(flag), exist_ok=True)
+    open(flag, 'w').write('')
+except Exception as e:
+    print(json.dumps({'followup_message': f'MANUAL: Could not create evaluator-active flag ({e}). touch .cursor/hooks/.evaluator-active, then launch /evaluator.'}))
+    sys.exit(0)
+try:
+    open(crumbs, 'a').write(json.dumps({
+        'ts': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'role': 'system', 'type': 'dispatch', 'feat': tid,
         'msg': 'chain-evaluator: auto-advanced to evaluating, evaluator-active flag set',
         'result': 'pass',
-    }
-    try:
-        with open(breadcrumbs_path, 'a') as f:
-            f.write(json.dumps(crumb, ensure_ascii=False) + '\n')
-    except Exception:
-        pass  # EC3: breadcrumbs.jsonl may not exist; non-fatal
-
-    # 4. Return imperative followup_message
-    msg = (
-        f'Phase auto-advanced to evaluating. Evaluator-active flag set.\n\n'
-        f'BUILD COMPLETE for "{feature}".\n\n'
-        f'Launch /evaluator now: invoke the /evaluator subagent to verify the implementation '
-        f'against the acceptance criteria in .harness/contract.json.\n\n'
-        f'The evaluator will test your implementation adversarially and return PASS or FAIL.'
-    )
-    print(json.dumps({'followup_message': msg}))
-    sys.exit(0)
-
-# ─── phase=negotiating/negotiated ─────────────────────────────────────────
-if phase in ('negotiating', 'negotiated'):
-    msg = (
-        f'Contract negotiation complete for "{feature}". '
-        f'Set phase to building in .harness/contract.json and start implementation now. '
-        f'Steps: (1) update .harness/contract.json phase to "building", '
-        f'(2) update state.json task status to "building", '
-        f'(3) begin implementation against the acceptance criteria.'
-    )
-    print(json.dumps({'followup_message': msg}))
-    sys.exit(0)
-
-# ─── phase=evaluating ─────────────────────────────────────────────────────
-if phase == 'evaluating':
-    if verified:
-        print(json.dumps({}))
-    else:
-        msg = (
-            f'EVAL FAIL — fix and retry for "{feature}". '
-            f'Read the eval report at .harness/.archive/evals/, fix all failing acceptance criteria, '
-            f'then launch /evaluator again. '
-            f'Max 2 retests per harness rule — if both fail, re-negotiate the contract.'
-        )
-        print(json.dumps({'followup_message': msg}))
-    sys.exit(0)
-
-# ─── other phases (verified, committed) ───────────────────────────────────
-print(json.dumps({}))
-PYEOF
+    }, ensure_ascii=False) + '\n')
+except Exception:
+    pass
+print(json.dumps({'followup_message': f'Phase auto-advanced to evaluating. Evaluator-active flag set.\n\nBUILD COMPLETE for "{feat}". Launch /evaluator now.'}))
+PY
 )
 
-EXIT_CODE=$?
-
-if [ -z "$RESULT" ] || [ "$EXIT_CODE" -ne 0 ]; then
-    hooks_log "chain-evaluator" "python failed (exit=$EXIT_CODE), passing"
-    echo '{}'
-    exit 0
-fi
-
-PHASE=$(python3 -c "
-import json
-try:
-    with open('$CONTRACT') as f:
-        print(json.load(f).get('phase', '?'))
-except:
-    print('?')
-" 2>/dev/null)
-hooks_log "chain-evaluator" "phase=$PHASE, routed"
-
+[ -z "$RESULT" ] && { hooks_log "chain-evaluator" "python failed, passing"; echo '{}'; exit 0; }
+hooks_log "chain-evaluator" "routed"
 echo "$RESULT"
 exit 0

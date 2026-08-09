@@ -386,7 +386,7 @@ post_hoc_rubric:
 
 When the agent runs via `CursorClient.launch_bridge()`:
 
-- **Hooks fire**: `contract-gate.sh` (preToolUse), `verify-harness.sh` (stop), `harness-context.sh` (sessionStart), `enforce-progress.sh` (stop), and `context-health.sh` (stop) all execute in SDK bridge sessions. The sandbox copies `.cursor/hooks.json` and hook scripts into the workspace, and the bridge loads them from `local.cwd`.
+- **Hooks fire**: `contract-gate.sh` (preToolUse), `verify-harness.sh` (stop), `harness-context.sh` (sessionStart), and `enforce-progress.sh` (stop) all execute in SDK bridge sessions. The sandbox copies `.cursor/hooks.json` and hook scripts into the workspace, and the bridge loads them from `local.cwd`.
 - **preToolUse contract-gate blocks writes**: When `state.json` exists without `contract.json`, the agent cannot write implementation files — it must create the contract first. This is deterministic enforcement.
 - **Skills are not auto-routed**: The IDE's skill activation system does not run. The agent has `.cursor/` in its workspace but doesn't proactively read skill files unless its system prompt references them.
 - **Subagents (`/planner`, `/evaluator`) are not available**: These are IDE features that don't exist in the SDK bridge. The agent simulates the evaluator role internally.
@@ -505,7 +505,7 @@ Snapshots live in `.harness/snapshots/` (create the directory if absent). Commit
 
 ```json
 {
-  "scenario_id": "behavioral_context_health_stale_thread",
+  "scenario_id": "behavioral_session_boundary",
   "criterion": "Agent wrote a handoff breadcrumb summarizing current state and next steps",
   "expected_bool": false
 }

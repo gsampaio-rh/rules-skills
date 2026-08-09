@@ -1,11 +1,5 @@
 #!/bin/bash
-# Stop hook: enforces adversarial verification when a harness is active.
-#
-# Two enforcement paths:
-#   1. Contract exists + verified != true → force evaluator launch
-#   2. State.json has building feature + impl files changed + no contract/eval → force workflow
-#
-# No state.json and no contract = simple task = pass through silently.
+# Stop: anti-self-cert + post-commit ADVANCE + stale cleanup. Soft followup ≠ deny.
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/hooks-lib.sh"
@@ -15,385 +9,139 @@ CONTRACT=".harness/contract.json"
 STATE=".harness/state.json"
 BREADCRUMBS=".harness/breadcrumbs.jsonl"
 
-# ─── Path 0: Post-commit auto-advance ────────────────────────────────────────
-# If a commit breadcrumb was written this turn AND contract is verified,
-# auto-advance: task → committed, contract → archived, select next task.
-# This replaces the guidance message that agents ignored 30%+ of the time.
-
+# Path 0: post-commit ADVANCE (verified + Commit: checkpoint → archive contract).
 if [ -f "$CONTRACT" ] && [ -f "$BREADCRUMBS" ] && [ -f "$STATE" ]; then
   POST_COMMIT_ACTION=$(python3 -c "
 import json, os
-from datetime import datetime, timezone
-
-contract_path, breadcrumbs_path, state_path = '$CONTRACT', '$BREADCRUMBS', '$STATE'
-
+contract=json.load(open('$CONTRACT'))
+if not contract.get('verified'):
+    print('SKIP'); raise SystemExit
+lines=[l.strip() for l in open('$BREADCRUMBS') if l.strip()]
+recent=[]
+for line in lines[-3:]:
+    try: recent.append(json.loads(line))
+    except Exception: pass
+if not any(e.get('type')=='checkpoint' and 'Commit:' in e.get('msg','') for e in recent):
+    print('SKIP'); raise SystemExit
+task_id=contract.get('task_id', contract.get('feature',''))
+state=json.load(open('$STATE'))
+advanced=False
+for t in state.get('tasks',[]):
+    if t.get('id')==task_id and t.get('status') in ('verified','building','evaluating'):
+        t['status']='committed'; advanced=True; break
+if not advanced:
+    print('SKIP'); raise SystemExit
+open('$STATE','w').write(json.dumps(state, indent=2)+'\n')
+os.remove('$CONTRACT')
+harvest_type, harvest_rationale = 'none', ''
 try:
-    contract = json.load(open(contract_path))
-    if not contract.get('verified'):
-        print('SKIP')
-        raise SystemExit(0)
-
-    # Post-commit advance requires an explicit commit checkpoint breadcrumb.
-    # Do NOT treat evaluator PASS as a commit — that falsely archives contracts
-    # and marks tasks committed while the working tree is still dirty.
-    lines = [l.strip() for l in open(breadcrumbs_path).readlines() if l.strip()]
-    recent = []
-    for line in lines[-3:]:
-        try:
-            recent.append(json.loads(line))
-        except Exception:
-            pass
-
-    has_commit = any(
-        e.get('type') == 'checkpoint' and 'Commit:' in e.get('msg', '')
-        for e in recent
-    )
-
-    if not has_commit:
-        print('SKIP')
-        raise SystemExit(0)
-
-    # Auto-advance: mark task as committed in state.json
-    task_id = contract.get('task_id', contract.get('feature', ''))
-    state = json.load(open(state_path))
-    advanced = False
-    for t in state.get('tasks', []):
-        if t.get('id') == task_id and t.get('status') in ('verified', 'building', 'evaluating'):
-            t['status'] = 'committed'
-            advanced = True
-            break
-
-    if advanced:
-        with open(state_path, 'w') as f:
-            json.dump(state, f, indent=2)
-            f.write('\n')
-
-        # Archive contract (remove it so next task starts clean)
-        os.remove(contract_path)
-
-        # Read harvest_recommendation from eval report (task_id-keyed path, not mtime)
-        harvest_type = 'none'
-        harvest_rationale = ''
-        eval_path = f'.harness/.archive/evals/eval-{task_id}.json'
-        try:
-            eval_report = json.load(open(eval_path))
-            hr = eval_report.get('harvest_recommendation', {})
-            harvest_type = hr.get('type', 'none')
-            harvest_rationale = hr.get('rationale', '')
-            if harvest_type not in ('skill', 'hook', 'none'):
-                harvest_type = 'none'
-        except Exception:
-            pass  # missing or malformed eval report — skip harvest silently
-
-        # Find next pending task
-        pending = [t for t in state.get('tasks', []) if t.get('status') == 'pending']
-        next_task = pending[0]['id'] if pending else None
-        print(f'ADVANCE|{task_id}|{next_task or \"none\"}|{harvest_type}|{harvest_rationale}')
-    else:
-        print('SKIP')
-except Exception:
-    print('SKIP')
+    hr=json.load(open(f'.harness/.archive/evals/eval-{task_id}.json')).get('harvest_recommendation',{})
+    harvest_type=hr.get('type','none') if hr.get('type') in ('skill','hook','none') else 'none'
+    harvest_rationale=hr.get('rationale','')
+except Exception: pass
+pending=[t for t in state.get('tasks',[]) if t.get('status')=='pending']
+next_task=pending[0]['id'] if pending else 'none'
+print(f'ADVANCE|{task_id}|{next_task}|{harvest_type}|{harvest_rationale}')
 " 2>/dev/null)
 
-  POST_ACTION=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f1)
-  COMMITTED_TASK=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f2)
-  NEXT_TASK=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f3)
-  HARVEST_TYPE=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f4)
-  HARVEST_RATIONALE=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f5-)
-
-  if [ "$POST_ACTION" = "ADVANCE" ]; then
-    hooks_log "verify-harness" "post-commit: auto-advanced '$COMMITTED_TASK' to committed, contract archived, harvest=$HARVEST_TYPE"
-
-    # Build harvest block (only when type is skill or hook)
+  if [ "$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f1)" = "ADVANCE" ]; then
+    COMMITTED_TASK=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f2)
+    NEXT_TASK=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f3)
+    HARVEST_TYPE=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f4)
+    HARVEST_RATIONALE=$(echo "$POST_COMMIT_ACTION" | cut -d'|' -f5-)
     HARVEST_BLOCK=""
     if [ "$HARVEST_TYPE" = "skill" ] || [ "$HARVEST_TYPE" = "hook" ]; then
-      HARVEST_BLOCK="\n\nHARVEST RECOMMENDATION: This task produced a reusable **${HARVEST_TYPE}** pattern.\n${HARVEST_RATIONALE}\nConsider extracting it to library/cursor/${HARVEST_TYPE}s/."
+      HARVEST_BLOCK="\n\nHARVEST: reusable ${HARVEST_TYPE}. ${HARVEST_RATIONALE}"
     fi
-
     if [ "$NEXT_TASK" != "none" ]; then
-      cat <<EOF
-{
-  "followup_message": "POST-COMMIT: Task \"$COMMITTED_TASK\" auto-advanced to committed. Contract archived.\n\nNext pending task: **$NEXT_TASK**. To continue:\n1. Propose a contract for $NEXT_TASK (write .harness/contract.json)\n2. Launch /evaluator for negotiation\n3. Implement against the agreed contract${HARVEST_BLOCK}"
-}
-EOF
+      printf '%s\n' "{\"followup_message\": \"POST-COMMIT: Task \\\"$COMMITTED_TASK\\\" committed; contract archived. Next: $NEXT_TASK — write contract.json then /evaluator.${HARVEST_BLOCK}\"}"
     else
-      cat <<EOF
-{
-  "followup_message": "POST-COMMIT: Task \"$COMMITTED_TASK\" auto-advanced to committed. Contract archived.\n\nAll tasks complete. If the user has more work, launch /planner for the next initiative.${HARVEST_BLOCK}"
-}
-EOF
+      printf '%s\n' "{\"followup_message\": \"POST-COMMIT: Task \\\"$COMMITTED_TASK\\\" committed; contract archived. All tasks complete.${HARVEST_BLOCK}\"}"
     fi
     exit 0
   fi
 fi
 
-# ─── Path 1: Contract exists but unverified ───────────────────────────────────
-
+# Path 1: contract present — scope + anti-self-cert + unverified soft pointer.
 if [ -f "$CONTRACT" ]; then
-  # fix-1/fix-2 + P5: guard against stale/cross-thread/no-build before enforcement.
-  # Outcomes:
-  #   STALE       → idle/committed/no task_id: orphaned, auto-delete
-  #   PRE_BUILD   → negotiating/negotiated: build not started, skip (do NOT delete)
-  #   CROSS_THREAD→ task_id not among building/evaluating tasks (and some are): skip
-  #   NO_BUILD    → P5: no task is building/evaluating (Q&A/explore + leftover contract) → {}
-  #   ACTIVE      → building/evaluating matches contract: enforce normally
   CONTRACT_ACTIVE=$(python3 -c "
 import json, os
-try:
-    contract = json.load(open('$CONTRACT'))
-    phase = contract.get('phase', '')
-    task_id = contract.get('task_id', '')
-
-    if phase in ('idle', 'committed') or not task_id:
-        print('STALE')
-        raise SystemExit(0)
-
-    if phase in ('negotiating', 'negotiated'):
-        print('PRE_BUILD')
-        raise SystemExit(0)
-
-    state_path = '$STATE'
-    if os.path.exists(state_path):
-        state = json.load(open(state_path))
-        buildingish = {t['id'] for t in state.get('tasks', [])
-                       if t.get('status') in ('building', 'evaluating')}
-        # P5: leftover contract must not hard-gate Q&A/report/explore (no building task)
-        if not buildingish:
-            print('NO_BUILD')
-            raise SystemExit(0)
-        if task_id not in buildingish:
-            print('CROSS_THREAD')
-            raise SystemExit(0)
-
-    print('ACTIVE')
-except SystemExit:
-    pass
-except Exception:
-    print('ACTIVE')
+c=json.load(open('$CONTRACT'))
+phase, task_id = c.get('phase',''), c.get('task_id','')
+if phase in ('idle','committed') or not task_id: print('STALE'); raise SystemExit
+if phase in ('negotiating','negotiated'): print('PRE_BUILD'); raise SystemExit
+if os.path.exists('$STATE'):
+    buildingish={t['id'] for t in json.load(open('$STATE')).get('tasks',[]) if t.get('status') in ('building','evaluating')}
+    if not buildingish: print('NO_BUILD'); raise SystemExit
+    if task_id not in buildingish: print('CROSS_THREAD'); raise SystemExit
+print('ACTIVE')
 " 2>/dev/null)
 
-  if [ "$CONTRACT_ACTIVE" = "STALE" ]; then
-    hooks_log "verify-harness" "stale contract (idle/committed/no task_id), auto-cleaning"
-    rm -f "$CONTRACT"
-    echo '{}'
-    exit 0
-  fi
+  case "$CONTRACT_ACTIVE" in
+    STALE) rm -f "$CONTRACT"; echo '{}'; exit 0 ;;
+    PRE_BUILD|NO_BUILD|CROSS_THREAD) echo '{}'; exit 0 ;;
+  esac
 
-  if [ "$CONTRACT_ACTIVE" = "PRE_BUILD" ]; then
-    hooks_log "verify-harness" "pre-build contract (negotiating/negotiated), no enforcement yet"
-    echo '{}'
+  [ ! -f "$BREADCRUMBS" ] && {
+    echo '{"followup_message":"HARNESS GATE: contract exists but breadcrumbs.jsonl missing — create it."}'
     exit 0
-  fi
+  }
 
-  if [ "$CONTRACT_ACTIVE" = "NO_BUILD" ]; then
-    hooks_log "verify-harness" "P5 no-build (leftover contract, no building/evaluating task), skipping hard gate"
-    echo '{}'
-    exit 0
-  fi
-
-  if [ "$CONTRACT_ACTIVE" = "CROSS_THREAD" ]; then
-    hooks_log "verify-harness" "cross-thread contract (task_id not building/evaluating in state.json), skipping"
-    echo '{}'
-    exit 0
-  fi
-
-  if [ ! -f "$BREADCRUMBS" ]; then
-    cat <<EOF
-{
-  "followup_message": "HARNESS WARNING: A contract exists but no breadcrumbs.jsonl was found. Create .harness/breadcrumbs.jsonl before continuing — the trace log is required for the adversarial harness workflow."
-}
-EOF
-    exit 0
-  fi
-
-  # BUG-7 fix: validate JSON before reading verified field
   VERIFIED=$(python3 -c "
 import json
 try:
-    with open('$CONTRACT') as f:
-        data = json.load(f)
-    print(str(data.get('verified', False)))
-except (json.JSONDecodeError, ValueError):
-    print('PARSE_ERROR')
-except Exception:
-    print('False')
+    print(str(json.load(open('$CONTRACT')).get('verified', False)))
+except json.JSONDecodeError: print('PARSE_ERROR')
+except Exception: print('False')
 " 2>/dev/null)
 
-  if [ "$VERIFIED" = "PARSE_ERROR" ]; then
-    hooks_log "verify-harness" "contract JSON malformed, skipping"
-    echo '{}'
-    exit 0
-  fi
+  [ "$VERIFIED" = "PARSE_ERROR" ] && { echo '{}'; exit 0; }
 
   if [ "$VERIFIED" = "True" ]; then
-    # Require at least one breadcrumb with role=evaluator AND result=pass for this task.
-    # Prevents builder from self-certifying by directly setting verified:true.
-    TASK_ID=$(python3 -c "
-import json
-try:
-    with open('$CONTRACT') as f:
-        data = json.load(f)
-    print(data.get('task_id', ''))
-except Exception:
-    print('')
-" 2>/dev/null)
-
+    TASK_ID=$(python3 -c "import json; print(json.load(open('$CONTRACT')).get('task_id',''))" 2>/dev/null)
     EVAL_PASS=$(python3 -c "
 import json
-task_id = '$TASK_ID'
+task_id='$TASK_ID'
 try:
-    lines = []
-    with open('$BREADCRUMBS') as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                try:
-                    lines.append(json.loads(line))
-                except Exception:
-                    pass
-    # Accept evaluator entry with result=pass; feat match is optional (legacy compat)
-    for b in lines:
-        if (b.get('role') == 'evaluator'
-                and str(b.get('result', '')).lower() == 'pass'
-                and (not task_id or b.get('feat', '') == task_id or b.get('feat', '') == '')):
-            print('YES')
-            exit()
+    for line in open('$BREADCRUMBS'):
+        line=line.strip()
+        if not line: continue
+        try: b=json.loads(line)
+        except Exception: continue
+        if b.get('role')=='evaluator' and str(b.get('result','')).lower()=='pass' and (not task_id or b.get('feat','') in (task_id,'')):
+            print('YES'); raise SystemExit
     print('NO')
-except Exception:
-    print('NO')
+except Exception: print('NO')
 " 2>/dev/null)
 
     if [ "$EVAL_PASS" = "YES" ]; then
-      hooks_log "verify-harness" "contract verified + evaluator PASS breadcrumb found, passing"
-
-      # Auto-update state.json: mark task as verified (saves agent from forgetting)
       python3 -c "
 import json
+tid='$TASK_ID'
 try:
-    task_id = '$TASK_ID'
-    with open('$STATE') as f:
-        state = json.load(f)
-    for t in state.get('tasks', []):
-        if t.get('id') == task_id and t.get('status') != 'verified':
-            t['status'] = 'verified'
-            break
-    with open('$STATE', 'w') as f:
-        json.dump(state, f, indent=2)
-        f.write('\n')
-except Exception:
-    pass
+    s=json.load(open('$STATE'))
+    for t in s.get('tasks',[]):
+        if t.get('id')==tid and t.get('status')!='verified':
+            t['status']='verified'; break
+    open('$STATE','w').write(json.dumps(s, indent=2)+'\n')
+except Exception: pass
 " 2>/dev/null
-
-      echo '{}'
-      exit 0
+      echo '{}'; exit 0
     fi
-
-    FEATURE=$(python3 -c "
-import json
-try:
-    with open('$CONTRACT') as f:
-        data = json.load(f)
-    print(data.get('feature', 'unknown feature'))
-except Exception:
-    print('unknown feature')
-" 2>/dev/null)
-
-    hooks_log "verify-harness" "BLOCKED — contract verified:true but no evaluator PASS breadcrumb for task '$TASK_ID'"
-
+    FEATURE=$(python3 -c "import json; print(json.load(open('$CONTRACT')).get('feature','unknown'))" 2>/dev/null)
     cat <<EOF
-{
-  "followup_message": "HARNESS GATE: contract.json has verified:true for \"$FEATURE\" but no evaluator PASS breadcrumb was found in breadcrumbs.jsonl.\n\nSelf-certification is not allowed. You must:\n1. Launch an evaluator subagent (Task tool) to test against .harness/contract.json\n2. Evaluator must append a breadcrumb: {\"role\":\"evaluator\",\"result\":\"pass\",\"feat\":\"$TASK_ID\",...}\n\nIf the evaluator already ran but the breadcrumb is missing, append it manually with the correct schema."
-}
+{"followup_message":"HARNESS GATE: verified:true for \"$FEATURE\" but no evaluator pass breadcrumb. Launch /evaluator (role=evaluator, result=pass, feat=$TASK_ID)."}
 EOF
     exit 0
   fi
 
-  FEATURE=$(python3 -c "
-import json
-try:
-    with open('$CONTRACT') as f:
-        data = json.load(f)
-    print(data.get('feature', 'unknown feature'))
-except Exception:
-    print('unknown feature')
-" 2>/dev/null)
-
-  hooks_log "verify-harness" "BLOCKED — contract unverified for '$FEATURE'"
-
+  FEATURE=$(python3 -c "import json; print(json.load(open('$CONTRACT')).get('feature','unknown'))" 2>/dev/null)
   cat <<EOF
-{
-  "followup_message": "HARNESS GATE: A contract exists for \"$FEATURE\" but verification is incomplete. You must:\n1. Create the evaluator flag: touch .cursor/hooks/.evaluator-active\n2. Launch an evaluator subagent (Task tool) to test the implementation against .harness/contract.json\n3. After the evaluator passes, set verified to true in the contract\n\nDo not skip this step — the harness requires adversarial verification before completion."
-}
+{"followup_message":"HARNESS GATE: contract for \"$FEATURE\" unverified. Launch /evaluator against .harness/contract.json."}
 EOF
   exit 0
 fi
 
-# ─── Path 2: State.json exists but no contract — check if work was done ───────
-
-if [ ! -f "$STATE" ]; then
-  hooks_log "verify-harness" "no harness state, skipping"
-  echo '{}'
-  exit 0
-fi
-
-# Check if state.json has a task in "building" status (with type-aware bypass)
-STATE_DATA=$(hooks_read_state "$STATE")
-BUILDING_RESULT=$(echo "$STATE_DATA" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    bid = data.get('building_id', '')
-    btype = data.get('building_type', '')
-    bname = data.get('building_name', '')
-    has_gatable = data.get('has_gatable', False)
-
-    if not bid:
-        print('NONE|')
-    else:
-        gatable = {'feature', 'bug', 'gap', 'fix'}
-        skip = (btype not in gatable and not has_gatable)
-        print(f\"{'SKIP' if skip else 'GATE'}|{bname or bid}\")
-except Exception:
-    print('NONE|')
-" 2>/dev/null)
-
-BUILDING_ACTION=$(echo "$BUILDING_RESULT" | cut -d'|' -f1)
-BUILDING_FEATURE=$(echo "$BUILDING_RESULT" | cut -d'|' -f2)
-
-if [ "$BUILDING_ACTION" = "NONE" ]; then
-  hooks_log "verify-harness" "no building task, passing"
-  echo '{}'
-  exit 0
-fi
-
-if [ "$BUILDING_ACTION" = "SKIP" ]; then
-  hooks_log "verify-harness" "type-aware bypass (spike/chore), passing"
-  echo '{}'
-  exit 0
-fi
-
-# Check if a recent "Skipped harness" breadcrumb exists
-if hooks_skip_detected "$BREADCRUMBS"; then
-  hooks_log "verify-harness" "skip breadcrumb found, passing"
-  echo '{}'
-  exit 0
-fi
-
-# A feature is marked as building — check if implementation files were modified
-TOTAL_IMPL=$(hooks_git_impl_count)
-
-if [ "$TOTAL_IMPL" -lt 1 ]; then
-  hooks_log "verify-harness" "building feature but no impl changes, passing"
-  echo '{}'
-  exit 0
-fi
-
-# Implementation files changed while a feature is building — enforce workflow
-hooks_log "verify-harness" "BLOCKED — $TOTAL_IMPL impl files changed, feature '$BUILDING_FEATURE' building, no contract"
-
-cat <<EOF
-{
-  "followup_message": "HARNESS ENFORCEMENT: Feature \"$BUILDING_FEATURE\" is in 'building' status and $TOTAL_IMPL implementation file(s) were modified, but no contract exists. The adversarial harness requires:\n\n1. Propose a contract for this feature (write .harness/contract.json with acceptance_criteria, edge_cases, verification_method)\n2. Launch the evaluator subagent for contract negotiation\n3. After negotiation, implement against the agreed contract\n4. Launch the evaluator again for verification\n\nIf you've already completed the work and need to skip the harness, write a breadcrumb explaining why: {\"ts\":\"...\",\"role\":\"builder\",\"type\":\"decision\",\"msg\":\"Skipped harness: <reason>\"}"
-}
-EOF
+# No contract → pass (contract-gate owns write deny).
+echo '{}'
 exit 0

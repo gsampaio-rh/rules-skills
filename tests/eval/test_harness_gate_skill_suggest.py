@@ -58,10 +58,11 @@ class TestColdStartRouting:
         assert "HARNESS ROUTING" in d["followup_message"]
         assert (tmp_path / ".harness" / ".routing-pending").is_file()
 
-    def test_simple_pattern_cold_start_does_not_route(self, tmp_path):
+    def test_former_simple_pattern_now_routes(self, tmp_path):
+        """Slim: no SIMPLE_PATTERNS faux-judge — 'review my code' arms routing-pending."""
         d = run_hook("review my code", tmp_path)
-        assert d == {}
-        assert not (tmp_path / ".harness" / ".routing-pending").exists()
+        assert "followup_message" in d
+        assert (tmp_path / ".harness" / ".routing-pending").is_file()
 
 
 class TestHarnessActiveSkipsRouting:

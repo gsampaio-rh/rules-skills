@@ -105,15 +105,17 @@ class TestOptOutAndSimple:
         d = run_hook("skip harness and just code", tmp_path)
         assert d == {}, f"Expected silent pass-through but got: {d}"
 
-    def test_what_question_passes(self, tmp_path):
-        """'what does this function do' matches SIMPLE_PATTERNS → no routing."""
+    def test_what_question_routes_without_faux_judge(self, tmp_path):
+        """Slim: no SIMPLE_PATTERNS — long Q&A prompts still arm .routing-pending."""
         d = run_hook("what does this function do", tmp_path)
-        assert d == {}, f"Expected simple-pattern pass-through but got: {d}"
+        assert "followup_message" in d, f"Expected routing but got: {d}"
+        assert (tmp_path / ".harness" / ".routing-pending").is_file()
 
-    def test_review_prompt_passes(self, tmp_path):
-        """'review the auth module' matches SIMPLE_PATTERNS → no routing."""
+    def test_review_prompt_routes_without_faux_judge(self, tmp_path):
+        """Slim: 'review the auth module' routes after SIMPLE_PATTERNS removal."""
         d = run_hook("review the auth module", tmp_path)
-        assert d == {}, f"Expected simple-pattern pass-through but got: {d}"
+        assert "followup_message" in d, f"Expected routing but got: {d}"
+        assert (tmp_path / ".harness" / ".routing-pending").is_file()
 
 
 # ---------------------------------------------------------------------------

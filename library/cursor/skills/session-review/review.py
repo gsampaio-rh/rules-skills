@@ -189,7 +189,7 @@ def render_report(root: Path) -> str:
             )
         elif label.startswith("P6"):
             recommendations.append(
-                "2. Write a checkpoint/handoff breadcrumb before idle end — session boundary — context-health / planning_discipline"
+                "2. Write a checkpoint/handoff breadcrumb before idle end — session boundary — session-review P6 / planning_discipline"
             )
     if not recommendations:
         recommendations.append(

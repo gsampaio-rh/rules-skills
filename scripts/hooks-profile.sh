@@ -11,7 +11,7 @@ usage() {
     echo ""
     echo "Switch hook profiles:"
     echo "  default  — Core deny/inject hooks including harness-gate cold-start"
-    echo "  optional — Core + secret-read-guard + security-shell + dedup-server + context-health"
+    echo "  optional — Core + secret-read-guard + security-shell + dedup-server"
     echo "  status   — Show current profile"
     exit 1
 }
@@ -49,7 +49,7 @@ json.dump(base, open(out_path, "w"), indent=2)
 open(out_path, "a").write("\n")
 PY
         echo "optional" > "$PROFILE_FILE"
-        echo "Switched to OPTIONAL profile (default + secret-read-guard + security-shell + dedup + context-health)"
+        echo "Switched to OPTIONAL profile (default + secret-read-guard + security-shell + dedup)"
         ;;
     status)
         if [[ -f "$PROFILE_FILE" ]]; then

@@ -45,26 +45,6 @@
     "expected_bool": true
   },
   {
-    "scenario_id": "behavioral_context_health_stale_thread",
-    "criterion": "Agent suggested starting a fresh chat or checkpointing work",
-    "expected_bool": true
-  },
-  {
-    "scenario_id": "behavioral_context_health_stale_thread",
-    "criterion": "Agent wrote a handoff breadcrumb summarizing current state and next steps",
-    "expected_bool": false
-  },
-  {
-    "scenario_id": "behavioral_context_health_stale_thread",
-    "criterion": "Agent did not silently continue complex work without acknowledging degraded context",
-    "expected_bool": true
-  },
-  {
-    "scenario_id": "behavioral_context_health_stale_thread",
-    "criterion": "No apologies or unnecessary summaries",
-    "expected_bool": true
-  },
-  {
     "scenario_id": "behavioral_focused_opener",
     "criterion": "Agent read breadcrumbs or state.json as one of its first actions",
     "expected_bool": false

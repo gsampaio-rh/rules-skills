@@ -8,7 +8,9 @@ tests/eval_results/
 
 # Commit approval flag (defense-in-depth; also covered by .cursor/ ignore)
 .commit-approved
-.harness/.archive/
+
+# File-based harness runtime (state, contract, breadcrumbs, archive) — never commit
+.harness/
 
 # Eval repos: .cursor/ (matched above) and .harness/ are runtime artifacts
 # generated locally by tests/eval_repos/setup.sh, never committed.
