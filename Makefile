@@ -18,7 +18,7 @@ ABLATE_RULE ?= adversarial_harness.mdc
 .PHONY: eval-session-long eval-session-long-dry eval-session-long-judge
 .PHONY: eval-ci-pr eval-ci-nightly eval-regression-check
 .PHONY: eval-ablation eval-ablation-dry eval-ablation-adversarial
-.PHONY: clean
+.PHONY: clean harness-dashboard
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -142,6 +142,9 @@ migrate-harness-dry: ## Preview migration without writing files
 
 harness-prune: ## Preview stale harness state to prune (dry-run; use --apply to mutate)
 	$(PYTHON) library/cursor/hooks/prune-harness.py
+
+harness-dashboard: ## Generate read-only Genius Bar session desk (.harness/dashboard.html)
+	@$(PYTHON) library/cursor/hooks/harness-dashboard.py --root . --out .harness/dashboard.html
 
 # ─── Utilities ────────────────────────────────────────────────
 

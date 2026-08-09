@@ -21,7 +21,8 @@ Sync .cursor/ config (rules, skills, hooks, references) from rules-skills
 to all projects under ~/redhat.
 
 Strategy: add new files, update changed files, delete stale files in managed
-directories (rules/, hooks/, references/). Project-specific extras outside
+directories (rules/, hooks/, references/). Also removes retired root profiles
+(hooks.lean.json / hooks.full.json). Other project-specific extras outside
 managed dirs are never touched.
 
 Options:
@@ -52,6 +53,8 @@ CYAN="\033[36m"
 RESET="\033[0m"
 
 MANAGED_DIRS=(rules hooks references)
+# Retired dual-profile names (docs/HARNESS_ESSENCE.md) — wipe from .cursor/ root.
+RETIRED_ROOT_FILES=(hooks.lean.json hooks.full.json)
 
 SOURCE_FILES_LIST="$TMPDIR_SYNC/source_files"
 find "$SOURCE_CURSOR" -type f \
@@ -120,6 +123,13 @@ compare_project() {
         done < <(find "$target_dir" -type f ! -name '.DS_Store' | sort)
     done
 
+    for retired in "${RETIRED_ROOT_FILES[@]}"; do
+        if [[ -f "$target_cursor/$retired" ]]; then
+            stale_count=$((stale_count + 1))
+            stale_files="${stale_files}  - ${retired}\n"
+        fi
+    done
+
     local key
     key="$(echo "$rel" | tr '/' '_')"
     echo "$new_count $changed_count $uptodate_count $stale_count" > "$TMPDIR_SYNC/counts_$key"
@@ -146,6 +156,11 @@ sync_project() {
             mv "$target_cursor/hooks.log.tmp" "$target_cursor/hooks.log"
         fi
     fi
+
+    # Retired dual-profile hook configs (outside managed dirs — not covered by stale walk)
+    for retired in "${RETIRED_ROOT_FILES[@]}"; do
+        rm -f "$target_cursor/$retired"
+    done
 
     while IFS= read -r src_file; do
         local target_file

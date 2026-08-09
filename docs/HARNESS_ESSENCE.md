@@ -109,6 +109,8 @@ python .cursor/hooks/prune-harness.py --apply
 
 Session start auto-archives completed tasks and truncates breadcrumbs to a rolling ~30-line window. Forensic history lives in `.harness/.archive/archive.jsonl` (not injected into prompts). Manual prune appends breadcrumb overflow to the same `archive.jsonl` sink and clears stale flags — it does not write deprecated `.archive/breadcrumbs.jsonl` or `questions.jsonl`.
 
+Read-only session desk (observability, not enforcement): `make harness-dashboard` or `python .cursor/hooks/harness-dashboard.py` writes a self-contained Genius Bar board to `.harness/dashboard.html` from local harness artifacts. Optional soft regenerate on `stop` / `sessionStart` lives in `hooks.optional.json` only — never injected into prompts. Tokens stay Unavailable unless a real local source exists (Cursor does not reliably expose them into `.harness/` today).
+
 ## Context package
 
 ```bash

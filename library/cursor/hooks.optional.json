@@ -2,6 +2,18 @@
   "version": 1,
   "description": "Optional dogfood hooks — merge via scripts/hooks-profile.sh optional",
   "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/harness-dashboard.sh",
+        "timeout": 10
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/harness-dashboard.sh",
+        "timeout": 10
+      }
+    ],
     "beforeReadFile": [
       {
         "command": ".cursor/hooks/secret-read-guard.sh",
