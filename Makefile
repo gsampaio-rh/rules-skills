@@ -5,9 +5,9 @@
 #   export CURSOR_API_KEY="crsr_..."
 #
 # Quick reference:
-#   make eval-fast      → Tier 1: static lints (seconds, no API key)
-#   make eval-session   → Tier 3: full session eval (needs CURSOR_API_KEY)
-#   make eval           → Tier 1 + Tier 3
+#   make eval-fast      → validate + contract/harness lint (seconds, no API)
+#   make eval-session   → LOCAL SDK session eval (needs CURSOR_API_KEY; not hosted CI)
+#   make eval           → eval-fast + eval-session
 
 PYTHON      ?= python
 MODEL       ?= composer-2.5
@@ -51,12 +51,11 @@ sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents,
 		fi; \
 	done
 	@rm -f .cursor/hooks.json .cursor/hooks.full.json .cursor/hooks.lean.json
-	@cp library/cursor/hooks.full.json .cursor/hooks.full.json
-	@cp library/cursor/hooks.lean.json .cursor/hooks.lean.json
-	@cp library/cursor/hooks.lean.json .cursor/hooks.json
-	@echo "lean" > .cursor/.hooks-profile
+	@cp library/cursor/hooks.json .cursor/hooks.json
+	@cp library/cursor/hooks.optional.json .cursor/hooks.optional.json
+	@echo "default" > .cursor/.hooks-profile
 	@cp library/cursor/harness-model-routing.json .cursor/harness-model-routing.json
-	@echo "Done. Profile: lean (run scripts/hooks-profile.sh full to switch)"
+	@echo "Done. Profile: default (run scripts/hooks-profile.sh optional to add advisories)"
 
 validate: ## Validate rules and skills against authoring standards
 	$(PYTHON) tests/validate.py
@@ -65,36 +64,36 @@ validate: ## Validate rules and skills against authoring standards
 
 eval: eval-fast eval-session ## Run full eval (Tier 1 + Tier 3)
 
-eval-fast: validate ## Tier 1: fast static checks (seconds, no API key)
+eval-fast: validate ## Tier 1: validate + contract/harness lint (no API; no ACAM)
 	$(PYTHON) tests/eval/contract_lint.py
 	$(PYTHON) tests/eval/harness_lint.py
-	$(PYTHON) scripts/acam-score.py
 
-eval-session: ## Tier 3: run scenarios in isolated sandbox via Cursor SDK
+eval-session: ## LOCAL SDK: run scenarios (needs CURSOR_API_KEY; no GitHub Actions)
 	$(PYTHON) tests/eval/session_runner.py --model $(MODEL) --timeout 300
 
-eval-session-dry: ## Tier 3: show session scenario plan
+eval-session-dry: ## LOCAL SDK: show session scenario plan
 	$(PYTHON) tests/eval/session_runner.py --dry-run
 
-eval-session-judge: ## Tier 3: judge completed sessions (structural checks)
+eval-session-judge: ## LOCAL SDK: judge completed sessions (structural checks)
 	$(PYTHON) tests/eval/session_judge.py --tier structural
 
-eval-session-judge-full: ## Tier 3: judge with all tiers including LLM
+eval-session-judge-full: ## LOCAL SDK: judge with all tiers including LLM
 	$(PYTHON) tests/eval/session_judge.py
 
-eval-session-report: ## Tier 3: aggregated report from judgments
+eval-session-report: ## LOCAL SDK: aggregated report from judgments
 	$(PYTHON) tests/eval/session_report.py --save
 
-eval-session-long: ## Tier 3: run long scenarios (~10-15 min each, needs CURSOR_API_KEY)
+eval-session-long: ## LOCAL SDK: long scenarios (~10-15 min each, needs CURSOR_API_KEY)
 	$(PYTHON) tests/eval/session_runner.py --long --model $(MODEL)
 
-eval-session-long-dry: ## Tier 3: show long scenario plan
+eval-session-long-dry: ## LOCAL SDK: show long scenario plan
 	$(PYTHON) tests/eval/session_runner.py --long --dry-run
 
-eval-session-long-judge: ## Tier 3: judge completed long sessions
+eval-session-long-judge: ## LOCAL SDK: judge completed long sessions
 	$(PYTHON) tests/eval/session_judge.py --tier structural
 
-eval-ci-pr: ## CI: run PR tier (11 protocol scenarios) + judge + regression check
+eval-ci-pr: ## LOCAL SDK only (not hosted CI): PR-tier scenarios + regression check
+	@echo "NOTE: No GitHub Actions — this runs locally via Cursor SDK"
 	$(PYTHON) tests/eval/session_runner.py --ci-tier pr --model $(MODEL)
 	$(PYTHON) tests/eval/session_judge.py --tier structural
 	$(PYTHON) tests/eval/session_report.py --save
@@ -104,7 +103,8 @@ eval-ci-pr: ## CI: run PR tier (11 protocol scenarios) + judge + regression chec
 		--tier pr \
 		--write-diff tests/eval_results/$$(ls -t tests/eval_results/ | head -1)/regression.json
 
-eval-ci-nightly: ## CI: run nightly tier (31 scenarios) + judge + regression check
+eval-ci-nightly: ## LOCAL SDK only (not hosted CI): nightly scenarios + regression check
+	@echo "NOTE: No GitHub Actions — this runs locally via Cursor SDK"
 	$(PYTHON) tests/eval/session_runner.py --ci-tier nightly --model $(MODEL)
 	$(PYTHON) tests/eval/session_judge.py --tier structural
 	$(PYTHON) tests/eval/session_report.py --save
@@ -114,19 +114,19 @@ eval-ci-nightly: ## CI: run nightly tier (31 scenarios) + judge + regression che
 		--tier nightly \
 		--write-diff tests/eval_results/$$(ls -t tests/eval_results/ | head -1)/regression.json
 
-eval-regression-check: ## Run regression check against latest run dir
+eval-regression-check: ## LOCAL: regression check against latest run dir
 	$(PYTHON) tests/eval/eval_regression_check.py \
 		--run-dir tests/eval_results/$$(ls -t tests/eval_results/ | head -1) \
 		--baseline tests/eval/fixtures/eval_baseline.json \
 		--tier pr
 
-eval-ablation: ## Ablation run: each standard scenario 2x (control + ablated). Set ABLATE_RULE=<rule.mdc>
+eval-ablation: ## LOCAL SDK: ablation (control + ablated). Set ABLATE_RULE=<rule.mdc>
 	$(PYTHON) tests/eval/session_runner.py --ablate-rule $(ABLATE_RULE) --model $(MODEL)
 
-eval-ablation-dry: ## Show ablation plan without running
+eval-ablation-dry: ## LOCAL SDK: show ablation plan without running
 	$(PYTHON) tests/eval/session_runner.py --ablate-rule $(ABLATE_RULE) --dry-run
 
-eval-ablation-adversarial: ## Ablation targeting adversarial_harness.mdc (ACAM Configuration gate)
+eval-ablation-adversarial: ## LOCAL SDK: ablation targeting adversarial_harness.mdc
 	$(PYTHON) tests/eval/session_runner.py \
 		--ablate-rule adversarial_harness.mdc \
 		--filter protocol \

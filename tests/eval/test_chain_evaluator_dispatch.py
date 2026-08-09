@@ -27,13 +27,14 @@ HOOKS_LIB = (
 ).resolve()
 
 
-def _run_hook(tmpdir: Path) -> tuple[int, dict]:
+def _run_hook(tmpdir: Path, stdin: str = "{}") -> tuple[int, dict]:
     """Run chain-evaluator.sh from tmpdir and return (exit_code, parsed_stdout_json)."""
     env = os.environ.copy()
     env["HOOK_LOG"] = str(tmpdir / "hooks.log")
     result = subprocess.run(
         ["bash", str(HOOK_PATH)],
         cwd=str(tmpdir),
+        input=stdin,
         capture_output=True,
         text=True,
         env=env,
@@ -242,3 +243,114 @@ def test_building_double_fire_idempotent(tmp_path):
     assert _read_contract_phase(tmp_path) == "evaluating"
     flag_path = tmp_path / ".cursor" / "hooks" / ".evaluator-active"
     assert flag_path.exists()
+
+
+# ─── bug-chain-evaluator-advance: subagent_type allowlist ─────────────────────
+
+
+def test_explore_building_skips_advance(tmp_path):
+    """AC1: explore + building → no phase advance, no flag, no dispatch crumb."""
+    _write_contract(tmp_path, "building", task_id="feat-x")
+    (tmp_path / ".harness" / "breadcrumbs.jsonl").write_text("")
+    exit_code, result = _run_hook(tmp_path, json.dumps({"subagent_type": "explore"}))
+    assert exit_code == 0
+    assert result == {}
+    assert _read_contract_phase(tmp_path) == "building"
+    assert not (tmp_path / ".cursor" / "hooks" / ".evaluator-active").exists()
+    crumbs = _read_breadcrumbs(tmp_path)
+    assert not any(c.get("type") == "dispatch" for c in crumbs)
+
+
+def test_legacy_empty_stdin_building_still_advances(tmp_path):
+    """AC2: empty stdin keeps feat-13b auto-advance."""
+    _write_contract(tmp_path, "building")
+    exit_code, result = _run_hook(tmp_path, "")
+    assert exit_code == 0
+    assert _read_contract_phase(tmp_path) == "evaluating"
+    assert (tmp_path / ".cursor" / "hooks" / ".evaluator-active").exists()
+    msg = result.get("followup_message", "")
+    assert "Launch /evaluator now" in msg
+    assert "Phase auto-advanced to evaluating" in msg
+
+
+def test_evaluator_type_building_advances(tmp_path):
+    """AC3: evaluator + building still advances."""
+    _write_contract(tmp_path, "building")
+    exit_code, result = _run_hook(tmp_path, json.dumps({"subagent_type": "evaluator"}))
+    assert exit_code == 0
+    assert _read_contract_phase(tmp_path) == "evaluating"
+    assert (tmp_path / ".cursor" / "hooks" / ".evaluator-active").exists()
+    assert "Launch /evaluator now" in result.get("followup_message", "")
+
+
+def test_plan_gate_planner_and_legacy(tmp_path):
+    """AC4a: fresh state, no contract → PLAN GATE for {} and planner."""
+    harness = tmp_path / ".harness"
+    harness.mkdir()
+    (harness / "state.json").write_text(
+        json.dumps(
+            {
+                "project": "t",
+                "schema_version": 2,
+                "vision": "v",
+                "tasks": [{"id": "t1", "name": "n", "type": "feature", "status": "pending"}],
+            }
+        )
+    )
+    for stdin in ("{}", json.dumps({"subagent_type": "planner"})):
+        exit_code, result = _run_hook(tmp_path, stdin)
+        assert exit_code == 0, stdin
+        assert "PLAN GATE" in result.get("followup_message", ""), result
+
+
+def test_plan_gate_explore_skipped(tmp_path):
+    """AC4b: explore must not PLAN GATE."""
+    harness = tmp_path / ".harness"
+    harness.mkdir()
+    (harness / "state.json").write_text(
+        json.dumps(
+            {
+                "project": "t",
+                "schema_version": 2,
+                "vision": "v",
+                "tasks": [{"id": "t1", "name": "n", "type": "feature", "status": "pending"}],
+            }
+        )
+    )
+    exit_code, result = _run_hook(tmp_path, json.dumps({"subagent_type": "explore"}))
+    assert exit_code == 0
+    assert result == {}
+    assert "PLAN GATE" not in json.dumps(result)
+
+
+def test_shell_evaluating_skips_eval_fail(tmp_path):
+    """AC5: shell + evaluating unverified → {} (no EVAL FAIL)."""
+    _write_contract(tmp_path, "evaluating", verified=False)
+    exit_code, result = _run_hook(tmp_path, json.dumps({"subagent_type": "shell"}))
+    assert exit_code == 0
+    assert result == {}
+    assert "EVAL FAIL" not in json.dumps(result)
+
+
+def test_explore_clears_evaluator_active_without_advance(tmp_path):
+    """AC6: explore clears pre-existing flag; phase stays building."""
+    _write_contract(tmp_path, "building")
+    flag = tmp_path / ".cursor" / "hooks" / ".evaluator-active"
+    flag.parent.mkdir(parents=True)
+    flag.write_text("")
+    exit_code, result = _run_hook(tmp_path, json.dumps({"subagent_type": "explore"}))
+    assert exit_code == 0
+    assert result == {}
+    assert not flag.exists()
+    assert _read_contract_phase(tmp_path) == "building"
+
+
+def test_general_purpose_skips_like_explore(tmp_path):
+    """EC: unknown types behave like explore."""
+    _write_contract(tmp_path, "building")
+    exit_code, result = _run_hook(
+        tmp_path, json.dumps({"subagent_type": "generalPurpose"})
+    )
+    assert exit_code == 0
+    assert result == {}
+    assert _read_contract_phase(tmp_path) == "building"

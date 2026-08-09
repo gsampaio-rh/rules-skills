@@ -1,12 +1,12 @@
 #!/bin/bash
-# beforeSubmitPrompt hook: fast-path handler for obvious cases.
+# beforeSubmitPrompt hook: cold-start routing + glue/opt-out fast paths.
 #
 # Deterministic cases (no LLM needed):
-#   1. Harness active (state.json or contract.json exists) → skip planner routing, continue to skill-suggest
+#   1. Harness active (state.json or contract.json exists) → skip planner routing
 #   2. Glue message (length < 10 AND word_count ≤ 2) → allow silently
 #   3. User explicitly opts out ("skip harness") → allow silently
-#   4. Cold start: no state.json + non-trivial prompt (> 10 chars) → inject planner routing
-#   5. Skill-suggest: for all non-glue prompts, inject relevant skill hints via followup_message
+#   4. Cold start: no state.json + non-trivial prompt (> 10 chars) → set .routing-pending + planner advisory
+#      (contract-gate then DENIES impl writes until state.json exists)
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/hooks-lib.sh"
@@ -16,9 +16,8 @@ input="$HOOK_INPUT"
 CONTRACT=".harness/contract.json"
 STATE=".harness/state.json"
 
-# Case 1: Harness already active — skip planner routing but continue to skill-suggest (Case 5).
-# P5: leftover contract.json must NOT inject HARNESS GATE / HARNESS ROUTING on Q&A prompts;
-# this branch only suppresses cold-start routing (never emits HARNESS GATE).
+# Case 1: Harness already active — skip cold-start planner routing.
+# P5: leftover contract.json must NOT inject HARNESS ROUTING on Q&A prompts.
 harness_active=false
 if [ -f "$CONTRACT" ] || [ -f "$STATE" ]; then
   echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-gate: harness active, skipping planner routing" >> "$HOOK_LOG" 2>/dev/null
@@ -52,9 +51,10 @@ hooks_session_stats_inc turns
 
 prompt_lower=$(echo "$prompt" | tr '[:upper:]' '[:lower:]')
 
-# Case 3: Explicit opt-out
+# Case 3: Explicit opt-out — clear cold-start marker so contract-gate unblocks.
 if echo "$prompt_lower" | grep -q "skip harness"; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-gate: user opted out, allowing" >> "$HOOK_LOG" 2>/dev/null
+  rm -f .harness/.routing-pending 2>/dev/null
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-gate: user opted out, cleared routing-pending, allowing" >> "$HOOK_LOG" 2>/dev/null
   echo '{}'
   exit 0
 fi
@@ -77,37 +77,9 @@ EOF
   fi
 fi
 
-# Case 5: Skill suggestions — fire for all non-glue, non-routing prompts.
-# Fires for both harness-active prompts (mid-session) and cold-start simple/short prompts.
-#
-# SKILLS_DIR resolution (first match wins):
-#   1. SKILLS_DIR env var (for tests and explicit overrides)
-#   2. .cursor/skills relative to CWD (production — populated by make sync-local)
-_skills_dir="${SKILLS_DIR:-}"
-if [ -z "$_skills_dir" ] && [ -d ".cursor/skills" ]; then
-  _skills_dir=".cursor/skills"
-fi
-
-SKILL_SUGGEST="$SCRIPT_DIR/skill-suggest.py"
-if [ -f "$SKILL_SUGGEST" ] && [ -d "$_skills_dir" ]; then
-  TMP_SKILLS=$(mktemp)
-  trap 'rm -f "$TMP_SKILLS"' EXIT
-  python3 "$SKILL_SUGGEST" --skills-dir "$_skills_dir" --prompt "$prompt" --format text > "$TMP_SKILLS" 2>/dev/null
-  if [ -s "$TMP_SKILLS" ]; then
-    python3 - "$TMP_SKILLS" <<'PYEOF'
-import json, sys
-text = open(sys.argv[1]).read().strip()
-if text:
-    print(json.dumps({"followup_message": text}))
-else:
-    print('{}')
-PYEOF
-    echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-gate: skill suggestions injected" >> "$HOOK_LOG" 2>/dev/null
-    exit 0
-  fi
-fi
+# Skill discovery is host-owned (Cursor lists skills); not injected here.
 
 # All other cases: allow silently
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-gate: allowing (no skill match)" >> "$HOOK_LOG" 2>/dev/null
+echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] harness-gate: allowing" >> "$HOOK_LOG" 2>/dev/null
 echo '{}'
 exit 0

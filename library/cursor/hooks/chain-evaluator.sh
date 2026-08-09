@@ -13,6 +13,9 @@
 #   state.json exists, no contract → PLAN GATE user confirmation required
 #
 # Final /evaluator invocation remains manual — hook injects prescribed text.
+#
+# Orchestration allowlist: empty subagent_type (legacy/tests) or planner|evaluator.
+# explore/shell/generalPurpose/etc. only clear .evaluator-active then return {}.
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/hooks-lib.sh"
@@ -23,10 +26,26 @@ CONTRACT=".harness/contract.json"
 STATE=".harness/state.json"
 BREADCRUMBS=".harness/breadcrumbs.jsonl"
 
+SUBAGENT_TYPE=$(echo "$HOOK_INPUT" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    print(data.get('subagent_type') or data.get('subagentType') or '')
+except Exception:
+    print('')
+" 2>/dev/null)
+
 # Clear evaluator flag on any subagent completion
 if [ -f "$EVALUATOR_FLAG" ]; then
     hooks_log "chain-evaluator" "clearing evaluator-active flag"
     rm -f "$EVALUATOR_FLAG"
+fi
+
+# Non-allowlisted stops: no PLAN GATE / phase advance / EVAL FAIL orchestration.
+if [ -n "$SUBAGENT_TYPE" ] && [ "$SUBAGENT_TYPE" != "planner" ] && [ "$SUBAGENT_TYPE" != "evaluator" ]; then
+    hooks_log "chain-evaluator" "skip orchestration for subagent_type=$SUBAGENT_TYPE"
+    echo '{}'
+    exit 0
 fi
 
 # ─── Scenario 1: planner just finished ─────────────────────────────────────
@@ -48,7 +67,7 @@ except Exception:
 
         cat <<EOF
 {
-  "followup_message": "PLAN GATE: The planner produced state.json with $TASK_COUNT tasks. Before starting development:\n1. Read .harness/state.json and present vision, direction, and task list to the user\n2. Ask the user to confirm the plan before proceeding\n3. Do NOT start contract negotiation or building until the user confirms"
+  "followup_message": "PLAN GATE: The planner produced state.json with $TASK_COUNT tasks. Before starting development:\n1. Read .harness/state.json and present vision and task list to the user\n2. Ask the user to confirm the plan before proceeding\n3. Do NOT start contract negotiation or building until the user confirms"
 }
 EOF
         exit 0

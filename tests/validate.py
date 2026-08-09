@@ -17,8 +17,17 @@ SKILLS_DIR = Path("library/cursor/skills")
 
 MAX_RULE_LINES = 200
 MAX_SKILL_LINES = 300
-MAX_ALWAYS_ON_TOKENS = 2000  # words * ~1.3 ≈ tokens
+MAX_ALWAYS_ON_TOKENS = 1200  # words * ~1.3 ≈ tokens; keep always-on lean
 MAX_ALWAYS_ON_WORDS = int(MAX_ALWAYS_ON_TOKENS / 1.3)
+
+# Glob-tax: always-on + matching glob-scoped rules for representative edit paths.
+# Warn-only (does not fail validate) — broad globs act like semi-always-on.
+GLOB_TAX_FIXTURES: list[tuple[str, int]] = [
+    ("src/foo.py", 800),
+    ("tests/eval/x.py", 800),
+    ("experiments/run.py", 1200),
+]
+TOKEN_FACTOR = 1.3
 
 REQUIRED_SKILL_SECTIONS = [
     "Proactive Triggers",
@@ -142,6 +151,84 @@ def validate_skill(path: Path) -> ValidationResult:
     return result
 
 
+def estimate_tokens(body: str) -> int:
+    return int(len(body.split()) * TOKEN_FACTOR)
+
+
+def _expand_brace_globs(pattern: str) -> list[str]:
+    """Expand `{a,b}` brace groups (Cursor-style). Recurses if multiple groups."""
+    match = re.search(r"\{([^{}]+)\}", pattern)
+    if not match:
+        return [pattern]
+    prefix, suffix = pattern[: match.start()], pattern[match.end() :]
+    out: list[str] = []
+    for opt in match.group(1).split(","):
+        out.extend(_expand_brace_globs(prefix + opt.strip() + suffix))
+    return out
+
+
+def _split_glob_list(globs_field: str) -> list[str]:
+    """Split comma-separated globs without breaking `{py,ts}` braces."""
+    parts: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    for ch in globs_field:
+        if ch == "{":
+            depth += 1
+            buf.append(ch)
+        elif ch == "}":
+            depth = max(0, depth - 1)
+            buf.append(ch)
+        elif ch == "," and depth == 0:
+            part = "".join(buf).strip()
+            if part:
+                parts.append(part)
+            buf = []
+        else:
+            buf.append(ch)
+    part = "".join(buf).strip()
+    if part:
+        parts.append(part)
+    return parts
+
+
+def glob_matches(globs_field: str, rel_path: str) -> bool:
+    """Return True if rel_path matches any comma-separated Cursor-style glob.
+
+    Uses pathlib match with small normalizations: brace expansion, optional
+    leading ``**/``, and ``/**/`` → ``/`` so single-segment paths like
+    ``src/foo.py`` match ``src/**/*.py`` (Python 3.12 pathlib quirk).
+    """
+    if not globs_field:
+        return False
+    from pathlib import PurePath
+    import fnmatch
+
+    target = PurePath(rel_path)
+    for raw in _split_glob_list(globs_field):
+        for pat in _expand_brace_globs(raw):
+            candidates = [pat]
+            if pat.startswith("**/"):
+                candidates.append(pat[3:])
+            if "/**/" in pat:
+                candidates.append(pat.replace("/**/", "/"))
+                if pat.startswith("**/"):
+                    candidates.append(pat[3:].replace("/**/", "/"))
+            if not pat.startswith("**/"):
+                candidates.append("**/" + pat.lstrip("./"))
+            for candidate in candidates:
+                try:
+                    if target.match(candidate):
+                        return True
+                except ValueError:
+                    pass
+                if fnmatch.fnmatch(rel_path, candidate):
+                    return True
+                if fnmatch.fnmatch(target.name, candidate):
+                    return True
+    return False
+
+
 def check_token_budget(rules_dir: Path) -> ValidationResult:
     result = ValidationResult(file="[always-on budget]")
     total_words = 0
@@ -155,7 +242,7 @@ def check_token_budget(rules_dir: Path) -> ValidationResult:
             total_words += word_count
             always_on_files.append(f"{path.name} ({word_count} words)")
 
-    estimated_tokens = int(total_words * 1.3)
+    estimated_tokens = int(total_words * TOKEN_FACTOR)
 
     if estimated_tokens > MAX_ALWAYS_ON_TOKENS:
         result.errors.append(
@@ -171,6 +258,43 @@ def check_token_budget(rules_dir: Path) -> ValidationResult:
     return result
 
 
+def check_glob_tax(rules_dir: Path) -> ValidationResult:
+    """Warn when fixture edit paths would load too many rule tokens (glob-tax)."""
+    result = ValidationResult(file="[glob-tax]")
+    rules: list[tuple[str, dict[str, str], str, int]] = []
+    always_on_tokens = 0
+
+    for path in sorted(rules_dir.glob("*.mdc")):
+        text = path.read_text()
+        fm, body = parse_frontmatter(text)
+        toks = estimate_tokens(body)
+        rules.append((path.name, fm, body, toks))
+        if fm.get("alwaysApply", "false").lower() == "true":
+            always_on_tokens += toks
+
+    for fixture, limit in GLOB_TAX_FIXTURES:
+        hits: list[str] = []
+        scoped = 0
+        for name, fm, _body, toks in rules:
+            if fm.get("alwaysApply", "false").lower() == "true":
+                continue
+            if glob_matches(fm.get("globs", ""), fixture):
+                scoped += toks
+                hits.append(f"{name}(~{toks})")
+        total = always_on_tokens + scoped
+        detail = f"{fixture}: ~{total} tokens (always-on ~{always_on_tokens} + globs ~{scoped})"
+        if hits:
+            detail += f" [{', '.join(hits)}]"
+        if total > limit:
+            result.warnings.append(
+                f"glob-tax over budget: {detail} > {limit} — slim matching rules or narrow globs"
+            )
+        else:
+            result.warnings.append(f"glob-tax ok: {detail} / {limit}")
+
+    return result
+
+
 def main() -> int:
     results: list[ValidationResult] = []
 
@@ -178,6 +302,7 @@ def main() -> int:
         for path in sorted(RULES_DIR.glob("*.mdc")):
             results.append(validate_rule(path))
         results.append(check_token_budget(RULES_DIR))
+        results.append(check_glob_tax(RULES_DIR))
 
     if SKILLS_DIR.exists():
         for skill_dir in sorted(SKILLS_DIR.iterdir()):

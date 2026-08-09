@@ -11,9 +11,6 @@
 #   - .harness/contract.json present (harness has its own enforcement)
 #   - source_writes < 2 (single-write)
 #   - source_writes == 0 / missing .session-stats.json (docs-only or fail-open)
-#
-# Tier 2 (unchanged): 4+ git-changed files with a valid breadcrumb and no
-# contract → HARNESS CHECK nag (skipped under lean profile).
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/hooks-lib.sh"
@@ -86,39 +83,6 @@ EOF
   exit 0
 fi
 
-# Below source_writes threshold or breadcrumb valid → no progress block.
-# Tier 2 harness nag remains git-count based (non-lean only).
-TOTAL=$(hooks_git_total_count)
-
-if [ "$TOTAL" -lt 2 ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: source_writes=$SOURCE_WRITES total_files=$TOTAL, below git threshold" >> "$HOOK_LOG" 2>/dev/null
-  echo '{}'
-  exit 0
-fi
-
-PROFILE=$(cat .cursor/.hooks-profile 2>/dev/null || echo "lean")
-if [ "$PROFILE" = "lean" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: lean profile, skipping tier 2 (source_writes=$SOURCE_WRITES valid=$BREADCRUMB_VALID)" >> "$HOOK_LOG" 2>/dev/null
-  echo '{}'
-  exit 0
-fi
-
-if [ "$TOTAL" -ge 4 ] && [ "$BREADCRUMB_VALID" = "true" ]; then
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: $TOTAL files, breadcrumbs valid, but no contract — harness warning" >> "$HOOK_LOG" 2>/dev/null
-
-  CHANGED_LIST=$(git diff --name-only 2>/dev/null | head -10)
-  STAGED_LIST=$(git diff --cached --name-only 2>/dev/null | head -10)
-  UNTRACKED_LIST=$(git ls-files --others --exclude-standard 2>/dev/null | head -10)
-  ALL_FILES=$(printf "%s\n%s\n%s" "$CHANGED_LIST" "$STAGED_LIST" "$UNTRACKED_LIST" | sort -u | head -10)
-
-  cat <<EOF
-{
-  "followup_message": "HARNESS CHECK: You modified $TOTAL files without an active harness contract. For non-trivial work (3+ files, user-facing behavior, architectural changes), the adversarial harness should be used: /planner → contract negotiation → /evaluator.\n\nIf this IS simple work, add a breadcrumb explaining why harness was skipped:\n{\"ts\":\"...\",\"role\":\"builder\",\"type\":\"decision\",\"feat\":null,\"msg\":\"Skipped harness: <reason>\",\"result\":\"pass\"}\n\nFiles changed:\n$ALL_FILES"
-}
-EOF
-  exit 0
-fi
-
-echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: passed (source_writes=$SOURCE_WRITES files=$TOTAL valid=$BREADCRUMB_VALID)" >> "$HOOK_LOG" 2>/dev/null
+echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] enforce-progress: passed (source_writes=$SOURCE_WRITES valid=$BREADCRUMB_VALID)" >> "$HOOK_LOG" 2>/dev/null
 echo '{}'
 exit 0

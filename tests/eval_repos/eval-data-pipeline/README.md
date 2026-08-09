@@ -2,7 +2,7 @@
 
 A fragile nightly sales ETL script with a deliberately vague, symptom-first
 prompt. Used to validate that the harness pushes back on vagueness (via
-`critical_thinking.mdc` / the `prompt-coaching` skill), scopes the work into
+the `prompt-coaching` skill), scopes the work into
 a small task list via `/planner`, and that the evaluator checks for actual
 robustness rather than "it ran once."
 
@@ -19,7 +19,7 @@ robustness rather than "it ran once."
 
 See `PROMPT.md`. It's intentionally vague ("make it production-ready") —
 the point is to see whether the agent pushes back and scopes before writing
-code, per `critical_thinking.mdc`.
+code, per the `prompt-coaching` skill.
 
 ## What "Good" Looks Like
 

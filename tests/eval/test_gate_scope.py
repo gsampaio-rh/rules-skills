@@ -183,6 +183,93 @@ class TestVerifyHarnessScope:
         assert out == {}
         assert not (tmp_path / ".harness" / "contract.json").exists()
 
+    def test_post_commit_does_not_advance_on_evaluator_pass_alone(
+        self, tmp_path: Path
+    ) -> None:
+        """Regression: evaluator PASS must not archive contract / mark committed."""
+        tid = "chore-agent-audit-fix"
+        _write_state(
+            tmp_path,
+            [
+                {
+                    "id": tid,
+                    "name": "audit fix",
+                    "type": "chore",
+                    "status": "verified",
+                    "scope": "fixture",
+                }
+            ],
+        )
+        _write_contract(tmp_path, task_id=tid, phase="evaluating", verified=True)
+        (_harness(tmp_path) / "breadcrumbs.jsonl").write_text(
+            json.dumps(
+                {
+                    "ts": "2026-08-09T02:07:11Z",
+                    "role": "evaluator",
+                    "type": "evaluate",
+                    "feat": tid,
+                    "msg": "Retest PASS: 15/15 AC",
+                    "result": "pass",
+                }
+            )
+            + "\n"
+        )
+
+        out = _parse_stdout(_run_hook(VERIFY_HARNESS, tmp_path, "{}"))
+        assert "POST-COMMIT" not in json.dumps(out)
+        assert (tmp_path / ".harness" / "contract.json").exists()
+        state = json.loads((tmp_path / ".harness" / "state.json").read_text())
+        assert state["tasks"][0]["status"] == "verified"
+
+    def test_post_commit_advances_on_commit_checkpoint(self, tmp_path: Path) -> None:
+        tid = "chore-agent-audit-fix"
+        _write_state(
+            tmp_path,
+            [
+                {
+                    "id": tid,
+                    "name": "audit fix",
+                    "type": "chore",
+                    "status": "verified",
+                    "scope": "fixture",
+                }
+            ],
+        )
+        _write_contract(tmp_path, task_id=tid, phase="evaluating", verified=True)
+        (_harness(tmp_path) / "breadcrumbs.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "ts": "2026-08-09T02:07:11Z",
+                            "role": "evaluator",
+                            "type": "evaluate",
+                            "feat": tid,
+                            "msg": "PASS",
+                            "result": "pass",
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "ts": "2026-08-09T02:12:00Z",
+                            "role": "builder",
+                            "type": "checkpoint",
+                            "feat": tid,
+                            "msg": "Commit: chore-agent-audit-fix (12 files)",
+                            "result": "pass",
+                        }
+                    ),
+                ]
+            )
+            + "\n"
+        )
+
+        out = _parse_stdout(_run_hook(VERIFY_HARNESS, tmp_path, "{}"))
+        assert "POST-COMMIT" in out.get("followup_message", "")
+        assert not (tmp_path / ".harness" / "contract.json").exists()
+        state = json.loads((tmp_path / ".harness" / "state.json").read_text())
+        assert state["tasks"][0]["status"] == "committed"
+
 
 # ── AC2 / AC3 / AC4 / EC3 / EC5 — contract-gate ───────────────────────────────
 

@@ -37,7 +37,6 @@ VALID_PHASES = [
     "negotiated",
     "building",
     "evaluating",
-    "verified",
 ]
 
 
@@ -97,10 +96,7 @@ def lint_contract(contract: dict) -> tuple[list[str], list[str]]:
     if phase and phase not in VALID_PHASES:
         errors.append(f"Invalid phase: '{phase}' (valid: {', '.join(VALID_PHASES)})")
 
-    if contract.get("verified") and phase not in ("verified",):
-        warnings.append(
-            f"verified=true but phase is '{phase}' — expected phase='verified'"
-        )
+    # verified is a boolean; phase stays evaluating (or earlier). Do not require phase=verified.
 
     rounds = contract.get("negotiation_rounds", 0)
     if isinstance(rounds, int) and rounds > 3:

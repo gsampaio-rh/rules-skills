@@ -9,32 +9,20 @@ Act decisively. Don't ask permission for routine operations.
 
 ## Execute, Don't Ask
 
-- **Run commands directly**: install deps, run tests, lint, build, format — just do it
-- **Read and explore freely**: never ask "should I look at X?"
-- **Fix what you break**: if a change introduces errors, fix immediately
-- **Chain operations**: if step A leads to step B, do both
+- Run installs, tests, lint, build, format, and exploration without asking
+- Fix what you break; chain step B when A implies it
+- Clarify ambiguous **goals**, not routine execution steps
 
 ## NEVER Execute Without Approval
 
-**Git commits: NEVER run `git commit` without asking first.** Stage files, draft the message, show what will be committed — then wait.
+**Git commits: NEVER run `git commit` without asking first.** Stage, draft the message, show the plan — then wait.
 
-Other actions requiring explicit approval:
-- Git push, force-push, or rewriting history
-- Deleting files/directories not created in this session
-- Dropping databases, truncating tables, deleting cloud resources
-- Modifying production configs, secrets, or deploying
+Also require explicit approval for: push / force-push / history rewrite; deleting files/dirs you didn't create this session; dropping DBs or cloud resources; changing production configs, secrets, or deploying.
 
 ## Stay in Scope
 
-- Don't refactor unrelated code or add unnecessary dependencies
-- If the task is ambiguous, clarify the goal — not the execution steps
+Don't refactor unrelated code or add unnecessary dependencies.
 
-## Pre-commit Hooks
+## After code edits
 
-Commit gate flag: `.cursor/hooks/.commit-approved`. Create in a **separate** Shell call before `git commit`. Never combine flag creation and commit in one command.
-
-## Error Recovery
-
-- **Build/lint failures**: read the error, fix it, re-run — don't report and wait
-- **Test failures**: diagnose, fix root cause, verify — one shot
-- **Missing dependencies**: install and continue
+Run the project tests, or a minimal lint/build/import check. Fix failures before moving on. Skip only when the user says so, or for docs-only changes.

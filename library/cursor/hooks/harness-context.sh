@@ -1,5 +1,5 @@
 #!/bin/bash
-# sessionStart hook: injects current harness state into conversation context.
+# sessionStart hook: injects lean harness state (task + AC slice + last 3 crumbs).
 # Calls context-package.py (co-located in this hooks directory) for the main
 # context block, then appends session counter, SESSION BOUNDARY ADVISORY,
 # and prune advisory.
@@ -27,8 +27,7 @@ fi
 # Temp files for safe multiline content composition.
 TMP_PKG=$(mktemp)
 TMP_SUFFIX=$(mktemp)
-TMP_SKILLS=$(mktemp)
-trap 'rm -f "$TMP_PKG" "$TMP_SUFFIX" "$TMP_SKILLS"' EXIT
+trap 'rm -f "$TMP_PKG" "$TMP_SUFFIX"' EXIT
 
 # Write session_start breadcrumb for session boundary tracking.
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -208,32 +207,11 @@ parts.append(f'Session tasks completed: {session_task_count}')
 if session_task_count >= 3:
     parts.append(
         f'SESSION BOUNDARY ADVISORY: {session_task_count} tasks completed in the prior session window. '
-        f'Per planning_discipline.mdc, checkpoint uncommitted work, write a handoff breadcrumb, '
-        f'and suggest a fresh thread before continuing.'
+        f'Checkpoint uncommitted work, append a handoff breadcrumb to .harness/breadcrumbs.jsonl '
+        f'(Last: / Next:), and suggest a fresh thread before continuing.'
     )
 print('\n'.join(parts))
 PYEOF
-
-# ── Skill suggestions (match prompt against skill triggers) ───────────────────
-SKILL_SUGGEST="$SCRIPT_DIR/skill-suggest.py"
-
-if [ -n "$PYTHON_BIN" ] && [ -f "$SKILL_SUGGEST" ]; then
-  SKILLS_DIR="$HARNESS_ROOT/.cursor/skills"
-  if [ ! -d "$SKILLS_DIR" ]; then
-    SKILLS_DIR="$HARNESS_ROOT/library/cursor/skills"
-  fi
-  if [ -d "$SKILLS_DIR" ]; then
-    PROMPT_TEXT=$(echo "$HOOK_INPUT" | "$PYTHON_BIN" -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    print(data.get('prompt', data.get('message', data.get('input', ''))))
-except Exception:
-    print('')
-" 2>/dev/null)
-    "$PYTHON_BIN" "$SKILL_SUGGEST" --skills-dir "$SKILLS_DIR" --prompt "$PROMPT_TEXT" --format text > "$TMP_SKILLS" 2>/dev/null
-  fi
-fi
 
 # ── Prune advisory (>40 non-empty breadcrumb lines — shouldn't happen with auto-truncate)
 PRUNE_NOTE=""
@@ -245,17 +223,16 @@ if [ -f "$BREADCRUMBS" ]; then
 fi
 
 # ── Compose final JSON output ─────────────────────────────────────────────────
-CONTEXT=$(${PYTHON_BIN:-python3} - "$TMP_PKG" "$TMP_SUFFIX" "$PRUNE_NOTE" "$TMP_SKILLS" << 'PYEOF'
+CONTEXT=$(${PYTHON_BIN:-python3} - "$TMP_PKG" "$TMP_SUFFIX" "$PRUNE_NOTE" << 'PYEOF'
 import json, sys
 
-pkg_path, suffix_path, prune_note, skills_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+pkg_path, suffix_path, prune_note = sys.argv[1], sys.argv[2], sys.argv[3]
 
 pkg_md = open(pkg_path).read().strip() if __import__('os').path.isfile(pkg_path) else ''
 suffix = open(suffix_path).read().strip() if __import__('os').path.isfile(suffix_path) else ''
 prune = prune_note.strip()
-skills = open(skills_path).read().strip() if __import__('os').path.isfile(skills_path) else ''
 
-parts = [p for p in [pkg_md, skills, suffix, prune] if p]
+parts = [p for p in [pkg_md, suffix, prune] if p]
 additional_context = '\n\n'.join(parts)
 print(json.dumps({'additional_context': additional_context}))
 PYEOF

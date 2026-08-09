@@ -5,16 +5,18 @@ alwaysApply: false
 
 # Security Patterns
 
-Essential security checklist — see `references/security-patterns.md` for detailed guidance.
+Essential checklist — details in `references/security-patterns.md`.
+
+**Structural — hooks, not this rule:** default `pre-commit-harness` denies committing staged `.env` / common secret filenames. Optional profile (`hooks.optional.json`): `secret-read-guard` blocks reading live secret paths into context; `security-shell` blocks curl/wget pipe-to-shell. Do not restate those denies here.
 
 - **Validate all inputs** at API boundaries (Pydantic, Zod, JSON Schema)
 - **Sanitize user inputs** before LLM prompts (prevent prompt injection)
 - **Authenticate all API requests**: JWT, OAuth, or API keys
 - **Least privilege**: minimum permissions per operation
 - **Encrypt data** at rest and in transit (TLS/HTTPS)
-- **Never store secrets** in source code — use env vars or vault
+- **Never hardcode secrets** in source — use env vars or a vault at runtime
 - **Mask PII** in logs, error messages, and notebook outputs
-- **No `.env` files in git** — add to `.gitignore`
+- **Keep `.env` out of the repo** — `.gitignore` + templates like `.env.example` only
 - **Sanitize user content** before rendering (XSS prevention)
 - **Pin dependency versions**, use lockfiles, run `pip-audit`/`npm audit` in CI
 - **Minimize dependencies** — fewer deps = smaller attack surface

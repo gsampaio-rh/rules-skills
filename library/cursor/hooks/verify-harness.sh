@@ -33,7 +33,9 @@ try:
         print('SKIP')
         raise SystemExit(0)
 
-    # Check if a commit breadcrumb exists in last 3 entries
+    # Post-commit advance requires an explicit commit checkpoint breadcrumb.
+    # Do NOT treat evaluator PASS as a commit — that falsely archives contracts
+    # and marks tasks committed while the working tree is still dirty.
     lines = [l.strip() for l in open(breadcrumbs_path).readlines() if l.strip()]
     recent = []
     for line in lines[-3:]:
@@ -42,10 +44,8 @@ try:
         except Exception:
             pass
 
-    # Accept either a commit checkpoint OR an evaluator PASS breadcrumb (fix-3: less fragile trigger)
     has_commit = any(
-        (e.get('type') == 'checkpoint' and 'Commit:' in e.get('msg', ''))
-        or (e.get('role') == 'evaluator' and str(e.get('result', '')).lower() == 'pass')
+        e.get('type') == 'checkpoint' and 'Commit:' in e.get('msg', '')
         for e in recent
     )
 

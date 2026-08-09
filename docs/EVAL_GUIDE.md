@@ -2,6 +2,9 @@
 
 How we test that the rules, skills, and harness actually work.
 
+> **Status (2026-08):** Local / opt-in only. There are **no** GitHub Actions workflows in this repo.
+> `make eval-fast` is validate + contract/harness lint (no ACAM KPI). Session tiers need `CURSOR_API_KEY` and run on your machine via the Cursor SDK.
+
 ## Quick Reference
 
 ```
@@ -60,12 +63,12 @@ python .cursor/hooks/context-package.py --format markdown  # Markdown for agent 
 | `tests/validate.py` | Rules/skills structural compliance (frontmatter, token budget, required sections) |
 | `tests/eval/contract_lint.py` | Contract structure, criteria quality, vague-language detection |
 | `tests/eval/harness_lint.py` | Breadcrumb integrity, state.json consistency, cross-file coherence |
-| `scripts/acam-score.py` | Static ACAM dimension scoring (configuration/workflows/multi_agent/interaction levels) |
+
+`scripts/acam-score.py` is optional legacy tooling — **not** part of `make eval-fast`.
 
 ### When to run
 
 - Before every commit (catches malformed harness state)
-- In CI as the first gate
 - After any harness-related code change
 
 ### What "pass" means
@@ -417,15 +420,11 @@ The eval now measures **enforced protocol compliance** — hooks block bad behav
 
 ## CI Integration
 
-Three workflows are implemented in `.github/workflows/`:
+**No GitHub Actions ship in this repo today** (workflows were removed). Treat the tables below as the **local** scenario sets for `make eval-session` / Makefile `eval-ci-*` targets (SDK on your machine), not as hosted CI.
 
-| Workflow | Trigger | What it runs |
-|----------|---------|-------------|
-| `eval-fast.yml` | Every PR + push to `main` | `pytest tests/` + `make eval-fast` (no secrets, <2 min) |
-| `eval-regression-pr.yml` | PR to `main` (paths: tests/eval, library, Makefile) | PR tier: 11 protocol scenarios (~90–120 min), regression check |
-| `eval-regression-nightly.yml` | Cron 06:00 UTC + `workflow_dispatch` | Nightly tier: 31 scenarios, structural tier judge |
+Optional future: a minimal workflow that runs `make validate` + unit tests only — not session eval.
 
-### Minimum scenario set (PR tier)
+### Minimum scenario set (local PR-tier filter)
 
 The **11 protocol scenarios** in `tests/eval/fixtures/ci_suites.json` (`ci_tier: pr`) are the canonical minimum set that protects the five-problem harness core:
 
@@ -476,26 +475,25 @@ git commit -m "chore: seed PR tier regression baseline"
 
 ## Measurement Cadence Runbook
 
-When to run each eval tier, how to capture a dated ACAM snapshot, how to interpret baselines, and how to compare measurements over time.
+Local cadence only (no hosted CI).
 
 ### Cadence
 
 | When | Command | What it covers |
 |------|---------|----------------|
-| Every PR / daily | `make eval-fast` | Static lints (contract, harness, ACAM score) — no API key required |
-| On PR merge to `main` | `make eval-ci-pr` | 11 protocol scenarios + regression check vs `eval_baseline.json` |
-| Weekly / nightly | `make eval-ci-nightly` | 31 scenarios + ACAM dimension rollup + baseline comparison |
+| Before commit / daily | `make eval-fast` | validate + contract/harness lint — no API key |
+| When changing harness behavior | `make eval-session` (local) | Protocol scenarios via Cursor SDK |
+| Occasional deep check | `make eval-ci-nightly` (local Makefile target) | Larger scenario set + regression check |
 
-Run `make eval-fast` as the minimum check before every commit. The full session tiers require `CURSOR_API_KEY`.
+Run `make eval-fast` as the minimum check before every commit. Session tiers require `CURSOR_API_KEY`.
 
 ### Snapshot Capture
 
-A snapshot is a dated record of static ACAM scores plus any available session scores. Take one at least weekly (or after any significant rule/skill change) to enable trend comparison.
+Optional: save a dated session summary after a green local run.
 
-1. Run `make eval-fast` to confirm the repo is structurally clean (contract lint, harness lint, ACAM score).
-2. Save the dated ACAM scorecard: `python scripts/acam-score.py > .harness/snapshots/acam-$(date +%Y-%m-%d).json`
-3. If session eval results exist from a recent run, save the summary: `cp tests/eval_results/$(ls -t tests/eval_results/ | head -1)/summary.json .harness/snapshots/session-summary-$(date +%Y-%m-%d).json`
-4. Commit the snapshot: `git add .harness/snapshots/ && git commit -m "chore: ACAM snapshot $(date +%Y-%m-%d)"`
+1. Run `make eval-fast`.
+2. If session eval results exist: `cp tests/eval_results/$(ls -t tests/eval_results/ | head -1)/summary.json .harness/snapshots/session-summary-$(date +%Y-%m-%d).json`
+3. Commit only if you intentionally track snapshots.
 
 Snapshots live in `.harness/snapshots/` (create the directory if absent). Commit them — they are the historical record.
 

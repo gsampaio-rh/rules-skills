@@ -49,7 +49,7 @@ for dir in rules skills hooks agents references; do
     cp -R "$LIBRARY_CURSOR/$dir" "$TARGET/.cursor/$dir"
   fi
 done
-cp "$LIBRARY_CURSOR/hooks.lean.json" "$TARGET/.cursor/hooks.json"
+cp "$LIBRARY_CURSOR/hooks.json" "$TARGET/.cursor/hooks.json"
 mkdir -p "$TARGET/.harness"
 
 echo "Done. Next steps:"

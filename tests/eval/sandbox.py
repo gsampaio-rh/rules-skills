@@ -113,7 +113,7 @@ class CaptureWorkspace:
 
         self._copy_rules(library_cursor / "rules", dst_cursor / "rules")
 
-        hooks_src = library_cursor / "hooks.lean.json"
+        hooks_src = library_cursor / "hooks.json"
         if hooks_src.exists():
             shutil.copy2(hooks_src, dst_cursor / "hooks.json")
 

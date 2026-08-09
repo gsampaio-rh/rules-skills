@@ -47,6 +47,7 @@ def lint_breadcrumbs(path: Path) -> tuple[list[str], list[str], list[str]]:
         "evaluate", "dispatch", "checkpoint", "decision", "scrap",
         "session_start", "cleanup",
     }
+    # Canonical breadcrumb type for Mode 2 results is "evaluate"; "eval" is legacy.
 
     prev_ts = None
     bad_json_count = 0
@@ -77,6 +78,10 @@ def lint_breadcrumbs(path: Path) -> tuple[list[str], list[str], list[str]]:
         entry_type = entry.get("type", "")
         if entry_type and entry_type not in valid_types:
             warnings.append(f"Line {i + 1}: unknown type '{entry_type}'")
+        elif entry_type == "eval":
+            warnings.append(
+                f"Line {i + 1}: legacy type 'eval' — prefer canonical 'evaluate'"
+            )
 
         ts = entry.get("ts", "")
         if ts and prev_ts:
@@ -134,12 +139,13 @@ def lint_state(path: Path) -> tuple[list[str], list[str]]:
         return errors, warnings
 
     valid_statuses = {"pending", "building", "evaluating", "verified", "committed", "cancelled"}
-    valid_types = {"feature", "bug", "spike", "chore"}
+    valid_types = {"feature", "bug", "spike", "chore", "docs"}
     legacy_type_aliases = {"gap": "bug", "fix": "bug"}
     id_type_hints = {
         "feat-": {"feature", "bug"},
         "spike-": {"spike"},
         "chore-": {"chore"},
+        "docs-": {"docs", "chore"},
     }
     seen_ids: set[str] = set()
 
@@ -229,6 +235,7 @@ def lint_cross_consistency(
             except json.JSONDecodeError:
                 pass
 
+    contract: dict | None = None
     if contract_path.exists():
         try:
             contract = json.loads(contract_path.read_text())
@@ -243,16 +250,23 @@ def lint_cross_consistency(
                         f"Contract references '{contract_tid}' but state.json has no such task"
                     )
 
-            if contract.get("verified") and contract.get("phase") != "verified":
-                warnings.append("Contract verified=true but phase != 'verified'")
+            # verified is a boolean; phase may remain "evaluating" after PASS.
 
         except (json.JSONDecodeError, OSError):
-            pass
+            contract = None
 
-    stuck = [
-        t for t in tasks
-        if t.get("status") == "evaluating"
-    ]
+    stuck = []
+    for t in tasks:
+        if t.get("status") != "evaluating":
+            continue
+        # Not stuck if contract for this task is already verified (awaiting git commit).
+        if (
+            contract
+            and contract.get("verified")
+            and contract.get("task_id") == t.get("id")
+        ):
+            continue
+        stuck.append(t)
     if stuck:
         ids = [t.get("id", "?") for t in stuck]
         warnings.append(f"Potentially stuck tasks (status=evaluating): {', '.join(ids)}")

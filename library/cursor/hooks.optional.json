@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "description": "Optional dogfood hooks — merge via scripts/hooks-profile.sh optional",
+  "hooks": {
+    "beforeReadFile": [
+      {
+        "command": ".cursor/hooks/secret-read-guard.sh",
+        "matcher": "Read|TabRead",
+        "timeout": 5,
+        "failClosed": true
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/security-shell.sh",
+        "matcher": "curl|wget|fetch|nc ",
+        "timeout": 5,
+        "failClosed": true
+      },
+      {
+        "command": ".cursor/hooks/dedup-server.sh",
+        "matcher": "npm|yarn|pnpm|vite|next|flask|uvicorn|gunicorn|cargo run|go run|python.*http",
+        "timeout": 5
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/context-health.sh",
+        "timeout": 5,
+        "loop_limit": 1
+      }
+    ]
+  }
+}

@@ -51,7 +51,7 @@ hooks_log "evaluator-guard" "DENIED impl write: $target_path"
 cat <<EOF
 {
   "permission": "deny",
-  "agent_message": "EVALUATOR WRITE BLOCKED: You are in evaluator mode. You may ONLY write to:\n- .harness/contract.json\n- .harness/.archive/evals/*\n- .harness/breadcrumbs.jsonl\n\nYou must NOT modify implementation code. If you found issues:\n1. Document them in your eval report with specific fix_suggestion per criterion\n2. Set recommendation to 'fix_and_retest'\n3. The builder will implement the fixes\n\nBlocked file: $target_path"
+  "agent_message": "EVALUATOR WRITE BLOCKED: You are in evaluator mode (.evaluator-active flag set). You may ONLY write under .harness/ (contract, breadcrumbs, .archive/evals/*, audits/*).\n\nYou must NOT modify implementation code. If you found issues:\n1. Document them in your eval report with specific fix_suggestion per criterion\n2. Set recommendation to 'fix_and_retest'\n3. The builder will implement the fixes\n\nBlocked file: $target_path"
 }
 EOF
 exit 0

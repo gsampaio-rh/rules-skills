@@ -8,11 +8,11 @@ Every rule must use one of these valid configurations. No other combinations are
 
 | Configuration | When to use | Example |
 |---|---|---|
-| `alwaysApply: true` | Universal rules that apply to every task | Coding standards, agent behavior, security |
-| `globs: "<pattern>"` + `alwaysApply: false` | File-type-specific rules | Python patterns on `*.py`, test patterns on `**/test*.py` |
-| `description: "<keywords>"` + `alwaysApply: false` (no globs) | Agent-intelligently-loaded rules | Design principles loaded when UI work is detected |
+| `alwaysApply: true` | Universal rules that apply to every task | Harness routing, agent behavior, autonomous execution |
+| `globs: "<pattern>"` + `alwaysApply: false` | File-type-specific rules | Test patterns on `**/test*.py`, notebook patterns on `**/*.ipynb` |
+| `description: "<keywords>"` + `alwaysApply: false` (no globs) | Agent-intelligently-loaded rules | Design principles or security when the task matches the description |
 
-**Never** leave both `globs` and `alwaysApply` empty — the rule is effectively dead.
+Valid activation requires **at least one** of: `alwaysApply: true`, non-empty `globs`, or a non-empty `description` (description-only is valid). A rule with no alwaysApply, no globs, and no description is dead.
 
 ## Frontmatter Template
 
@@ -27,7 +27,11 @@ alwaysApply: false
 ## Sizing
 
 - Individual rules: **under 200 lines**
-- Total always-on (`alwaysApply: true`) budget: **under 2000 tokens** combined
+- Total always-on (`alwaysApply: true`) budget: **under 1200 tokens** combined
+- **glob-tax** (always-on + matching glob rules for a fixture path): warn in `tests/validate.py` when
+  - `src/foo.py` total **> 800** estimated tokens
+  - `experiments/run.py` total **> 1200** estimated tokens
+  Broad globs (`**/*.{py,…}`) act like always-on during coding sessions — keep those rules thin.
 - If a rule exceeds 200 lines, split it or move procedural content to a skill
 
 ## Tone
@@ -84,14 +88,14 @@ alwaysApply: false
 
 Rules are **guides** (Fowler's taxonomy) — feedforward steering that shapes agent behavior before it acts, as opposed to sensors that provide feedback after. The design encodes these principles:
 
-- **Progressive context management** — always-on rules consume the most valuable resource (context window). The 2000-token budget forces ruthless prioritization: only behaviors that must apply to every task earn always-on status. Everything else is scoped by globs or description keywords, loaded on demand.
+- **Progressive context management** — always-on rules consume the most valuable resource (context window). The 1200-token budget forces ruthless prioritization: only behaviors that must apply to every task earn always-on status. Everything else is scoped by globs or description keywords, loaded on demand.
 - **Activation modes as a spectrum** — `alwaysApply` for universal behaviors, `globs` for file-type-specific patterns, `description` for agent-inferred relevance. This mirrors how a senior engineer applies different mental models depending on what file they're editing.
 - **Opinionated over permissive** — "Use X" not "Consider using X." Models follow directive instructions more reliably than suggestions. Hedging produces hedged output.
 - **Rules vs. skills boundary** — rules are passive constraints (always in context, no workflow), skills are active procedures (invoked, multi-step). If it has numbered steps, it's a skill. If it's a stance or constraint, it's a rule.
 
 ## Hypotheses
 
-- **H1: Always-on budget under 2000 tokens prevents context pollution while covering critical behaviors.** Exceeding this threshold degrades task performance on unrelated work. Measurement: eval pass rates before/after budget enforcement.
+- **H1: Always-on budget under 1200 tokens prevents context pollution while covering critical behaviors.** Exceeding this threshold degrades task performance on unrelated work. Measurement: eval pass rates before/after budget enforcement.
 - **H2: Scoped rules with keyword descriptions activate more reliably than glob-only rules.** Description-based matching lets the agent load rules for conceptual relevance (e.g., "design principles" when doing UI work), not just file type. Measurement: activation accuracy in eval pipeline.
 - **H3: Practitioner voice produces more decisive agent behavior than neutral technical writing.** Direct, opinionated tone reduces agent hedging and "I could do X or Y" responses. Measurement: behavioral eval rubric scores for decisiveness.
 - **H4: Referencing files instead of inlining content prevents staleness.** When rules point to `references/` rather than copying content, updates propagate automatically. Measurement: zero stale-content bugs after reference updates.
@@ -101,7 +105,8 @@ Rules are **guides** (Fowler's taxonomy) — feedforward steering that shapes ag
 | Signal | Source | What it tells us |
 |--------|--------|------------------|
 | Token count per rule | `tests/validate.py` | Whether individual rules and always-on budget stay within limits |
-| Always-on total tokens | `tests/validate.py` | Whether the combined budget is under 2000 |
+| Always-on total tokens | `tests/validate.py` | Whether the combined budget is under 1200 |
+| glob-tax on fixture paths | `tests/validate.py` | Whether `src/` / `experiments/` edits pull too many scoped rules (warn >800 / >1200) |
 | Behavioral eval pass rate | `tests/eval/` pipeline | Whether rules actually change agent behavior vs. baseline |
 | Activation accuracy | Manual testing + eval | Whether the right rules fire for the right tasks |
 | Rule overlap | `tests/validate.py` | Whether rules duplicate each other's content |

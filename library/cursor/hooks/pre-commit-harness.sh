@@ -38,6 +38,20 @@ fi
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] pre-commit: git commit detected" >> "$HOOK_LOG" 2>/dev/null
 
+# --- 0a. Block staged secret / dotenv filenames (prompt checklist is not enough) ---
+STAGED_SECRETS=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '(^|/)\.env(\.|$)|(^|/)\.env$|\.pem$|credentials\.json$|id_rsa$|id_ed25519$|\.secret$' || true)
+if [ -n "$STAGED_SECRETS" ]; then
+  hooks_log "pre-commit" "DENIED — staged secret-like paths"
+  ESCAPED_SECRETS=$(echo "$STAGED_SECRETS" | python3 -c "
+import sys, json
+files = sys.stdin.read().strip()
+msg = 'COMMIT BLOCKED: staged files look like secrets/dotenv. Unstage them and use env vars or a vault.\n\nBlocked paths:\n' + files
+print(json.dumps(msg))
+" 2>/dev/null)
+  printf '{"permission":"deny","agent_message":%s}\n' "$ESCAPED_SECRETS"
+  exit 0
+fi
+
 # --- 0. Commit gate: require user approval ---
 
 if [ -f "$COMMIT_GATE" ]; then

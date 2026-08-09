@@ -1,6 +1,28 @@
 {
   "project": "rules-skills",
   "schema_version": 2,
-  "vision": "Close the six RCA gaps: handoff, gate misfires, SVG friction, missing breadcrumbs, numeric hallucination, and mid-session guideline drift \u2014 via hooks, rules, and a session-review skill.",
-  "tasks": []
+  "vision": "Close out the optional essential security pack after the context-eng pivot: gap-check only, keep default hooks sacred, formally re-verify.",
+  "tasks": [
+    {
+      "id": "chore-security-gap-check",
+      "name": "Gap-check security pack vs original vision",
+      "type": "chore",
+      "status": "verified",
+      "scope": "includes: compare disk/docs/sync/tests to original 5-task essential security vision; fix only real gaps. excludes: greenfield features, gitleaks, AppSec essays, promoting optional hooks to default, new always-on security rules"
+    },
+    {
+      "id": "chore-security-hooks-sacred",
+      "name": "Confirm default hooks remain sacred",
+      "type": "chore",
+      "status": "verified",
+      "scope": "includes: verify default hooks.json still wires contract-gate, evaluator-guard, pre-commit and does not wire secret-read-guard/security-shell. excludes: changing default hook set, optional profile redesign"
+    },
+    {
+      "id": "chore-security-verify-closeout",
+      "name": "Re-verify security pack with evaluator",
+      "type": "chore",
+      "status": "verified",
+      "scope": "includes: pytest secret-read-guard + security-shell + pre-commit harness; make eval-fast; formal /evaluator PASS. excludes: expanding test matrix, CI workflows, promoting optional hooks"
+    }
+  ]
 }

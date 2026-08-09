@@ -17,8 +17,10 @@ A tiny engineering team in your IDE: `/planner` sets direction → builder and `
 ### Mode 1: Full Harness
 Multi-task workflow with planner, contract negotiation, build, and adversarial evaluation. Use for non-trivial work touching 3+ files.
 
-### Mode 2: Standalone Audit
-Launch a rubric audit without a full task build. Uses the evaluator in rubric-only mode.
+### Mode 2: Resume Cycle
+`.harness/state.json` has pending tasks or an unverified contract — continue negotiate → build → `/evaluator` without re-planning from scratch.
+
+Optional rubric pass (contract `rubrics` or user ask): `references/rubrics-and-tuning.md`. Audit skills are archived; no separate standalone-audit skill mode.
 
 ## Proactive Triggers
 
@@ -35,11 +37,16 @@ Launch a rubric audit without a full task build. Uses the evaluator in rubric-on
 | Builder | Main agent (you) | Implements tasks against the negotiated contract |
 | Evaluator | `/evaluator` | Adversarial QA — negotiates contracts AND tests the actual app |
 
-Subagent definitions live in `.cursor/agents/`. Hooks enforce the workflow:
-- `sessionStart` → injects harness state into context
-- `beforeSubmitPrompt` → detects non-trivial prompts and injects planner routing (does NOT block)
-- `subagentStop` → routes based on `phase` field
-- `stop` → blocks if contract is unverified
+Subagent definitions live in `.cursor/agents/`. Default hooks (`library/cursor/hooks.json`) enforce the workflow:
+- `sessionStart` (`harness-context`) → injects harness state into context
+- `beforeSubmitPrompt` (`harness-gate`) → cold-start: sets `.harness/.routing-pending` + planner advisory; `skip harness` clears the marker
+- `preToolUse` (`contract-gate`) → **denies** impl writes while routing-pending (no `state.json`, unless skip breadcrumb / 600s TTL) or building without `contract.json`
+- `preToolUse` (`evaluator-guard`) → **denies** evaluator writes outside `.harness/`
+- `subagentStop` (`chain-evaluator`) → phase orchestration only for empty/`planner`/`evaluator` stops (not explore/shell/etc.)
+- `beforeShellExecution` (`pre-commit-harness`) → **denies** commit without approval flag; blocks staged `.env`/secret filenames
+- `stop` (`verify-harness`, `enforce-progress`) → soft-blocks unverified contracts / missing breadcrumbs
+
+Optional (`hooks.optional.json`): `secret-read-guard` (deny Read of live secrets), `security-shell` (deny download-exec pipes), `dedup-server`, `context-health`.
 
 ## Phase 1: Planning
 
@@ -51,23 +58,22 @@ Launch `/planner` with the user's request:
 
 The planner produces `.harness/state.json` (one-line vision + max 5 tasks). Trade-offs and open questions go in the planner's breadcrumb, not the state file. Present to user for confirmation.
 
-### Pushback → Scoped Contract
+### Pushback → Scoped Plan
 
-When the request is vague ("make it better") or over-scoped (10 features at once), **don't stop at pushback**. Complete the cycle:
+When the request is vague ("make it better") or over-scoped (10 features at once), **don't stop at pushback**:
 
 1. **Push back** — explain why the scope is too broad or vague
-2. **Scope down** — propose 1-2 concrete tasks as a first phase. Update `state.json` with broken-down tasks.
-3. **Create contract** — write `.harness/contract.json` for the first scoped task with specific, binary-testable acceptance criteria
-4. **Present to user** — show the scoped plan + contract, ask for confirmation
+2. **Scope down** — propose 1-2 concrete tasks as a first phase. Update `state.json` with broken-down tasks
+3. **Present to user** — show the scoped plan; ask for confirmation before Phase 1.5
 
-The goal: the user sees a concrete proposal they can approve, not just a question they need to answer. Pushback without a scoped contract is incomplete.
+Do **not** write `contract.json` in Phase 1 — that is Phase 1.5 (builder proposes, evaluator negotiates).
 
 ## Phase 1.5: Contract Negotiation
 
 Before writing code, builder and evaluator negotiate what "done" means.
 
 1. **Builder proposes:** Write contract to `.harness/contract.json` with `"phase": "negotiating"`. Log as breadcrumb (`type: negotiate`).
-2. **Evaluator reviews:** Launch `/evaluator` in negotiation mode — pushes back on weak criteria. Evaluator logs challenge as breadcrumb.
+2. **Evaluator reviews:** `touch .cursor/hooks/.evaluator-active` then launch `/evaluator` in negotiation mode — pushes back on weak criteria. Evaluator logs challenge as breadcrumb.
 3. **Iterate:** Max 3 rounds. Both sides log as breadcrumbs.
 4. **Agreement:** Evaluator marks `"phase": "negotiated"`
 
@@ -162,14 +168,14 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 ```jsonl
 {"ts":"2026-05-23T09:49","role":"planner","type":"plan","feat":"feat-1","msg":"Created state.json with 5 tasks"}
 {"ts":"2026-05-23T09:52","role":"builder","type":"negotiate","feat":"feat-1","msg":"Proposed contract: 4 criteria, 2 edge cases"}
-{"ts":"2026-05-23T10:15","role":"evaluator","type":"eval","feat":"feat-1","msg":"PASS 6/6 criteria","result":"pass"}
+{"ts": "2026-05-23T10:15", "role": "evaluator", "type": "evaluate", "feat": "feat-1", "msg": "PASS 6/6 criteria", "result": "pass"}
 ```
 
 | Field | Required | Values |
 |-------|----------|--------|
 | `ts` | yes | ISO-8601 timestamp |
 | `role` | yes | `planner`, `builder`, `evaluator` |
-| `type` | yes | `plan`, `negotiate`, `build`, `verify`, `eval`, `checkpoint`, `decision`, `scrap` |
+| `type` | yes | `plan`, `negotiate`, `build`, `verify`, `evaluate` (legacy: `eval`), `checkpoint`, `decision`, `scrap` |
 | `feat` | no | Task ID (e.g. `feat-1`) or `null` for non-harness work |
 | `msg` | yes | One-line summary |
 | `result` | no | `pass`, `fail`, `blocked` |
@@ -190,4 +196,7 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 
 ## References
 
-For evaluator rubrics (per-domain criteria tables), model-adaptive tuning guidance, and invocation examples, see `references/rubrics-and-tuning.md`. For evaluator calibration, see `references/evaluator-calibration.md`.
+- `references/rubrics-and-tuning.md` — rubrics, model-adaptive tuning, optional rubric audit
+- `references/evaluator-calibration.md` — good/bad grading examples
+- `references/testing-methods.md` — domain playbooks for Mode 2
+- `references/harvest.md` — post-eval harvest_recommendation signals

@@ -8,7 +8,7 @@ into agent prompts for handoffs (evaluator launch, session resume).
 Output keys:
   task          — first active task (pending/building/evaluating) or null
   contract      — slice of contract.json or null
-  breadcrumbs   — last ≤8 parsed breadcrumb entries
+  breadcrumbs   — last ≤3 parsed breadcrumb entries
   open_questions — non-RESOLVED/non-DEFERRED open_questions from state.json
 """
 
@@ -22,7 +22,9 @@ _DEFAULT_ROOT = Path.cwd()
 _ACTIVE_STATUSES = {"pending", "building", "evaluating"}
 _EXCLUDE_PREFIXES = ("RESOLVED", "DEFERRED")
 
-BREADCRUMB_WINDOW = 8
+BREADCRUMB_WINDOW = 3
+MAX_AC_DISPLAY = 5
+MAX_AC_CHARS = 100
 
 
 def _resolve_paths(root: Path) -> dict:
@@ -62,12 +64,26 @@ def _active_task(state: dict) -> dict | None:
     return None
 
 
+def _truncate_ac(items: list) -> list[str]:
+    out: list[str] = []
+    for ac in items[:MAX_AC_DISPLAY]:
+        s = str(ac)
+        if len(s) > MAX_AC_CHARS:
+            s = s[: MAX_AC_CHARS - 1] + "…"
+        out.append(s)
+    omitted = len(items) - MAX_AC_DISPLAY
+    if omitted > 0:
+        out.append(f"… +{omitted} more (see .harness/contract.json)")
+    return out
+
+
 def _contract_slice(contract: dict | None) -> dict | None:
     if contract is None:
         return None
+    ac = contract.get("acceptance_criteria", []) or []
     return {
         "task_id": contract.get("task_id"),
-        "acceptance_criteria": contract.get("acceptance_criteria", []),
+        "acceptance_criteria": _truncate_ac(ac),
         "phase": contract.get("phase"),
         "verified": contract.get("verified", False),
     }
@@ -105,6 +121,10 @@ def build_package(paths: dict) -> dict:
     }
 
 
+def _bc_text(bc: dict) -> str:
+    return bc.get("msg") or bc.get("summary") or "?"
+
+
 def _format_markdown(pkg: dict) -> str:
     lines = []
 
@@ -129,7 +149,9 @@ def _format_markdown(pkg: dict) -> str:
         for bc in pkg["breadcrumbs"]:
             ts = bc.get("ts", "?")
             role = bc.get("role", "?")
-            msg = bc.get("msg", "?")
+            msg = _bc_text(bc)
+            if len(msg) > 120:
+                msg = msg[:119] + "…"
             result = bc.get("result", "")
             suffix = f" [{result}]" if result else ""
             lines.append(f"- `{ts}` **{role}**: {msg}{suffix}")
@@ -139,8 +161,11 @@ def _format_markdown(pkg: dict) -> str:
     lines.append("")
     lines.append("## Open Questions")
     if pkg["open_questions"]:
-        for q in pkg["open_questions"]:
+        for q in pkg["open_questions"][:3]:
             lines.append(f"- {q}")
+        extra = len(pkg["open_questions"]) - 3
+        if extra > 0:
+            lines.append(f"- … +{extra} more")
     else:
         lines.append("(none)")
 

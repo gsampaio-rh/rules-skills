@@ -23,7 +23,7 @@ Ablation mode (--ablate-rule):
       run_dir/ablation/<rule_stem>/judgments/{control,ablated}/<scenario_id>.json
       run_dir/ablation/<rule_stem>/report.json  (Wilcoxon + Cohen's d summary)
     Priority rules: adversarial_harness.mdc, autonomous_execution.mdc,
-                    progress_tracking.mdc, planning_discipline.mdc
+                    planning_discipline.mdc
 
 Environment:
     CURSOR_API_KEY    - Required
@@ -568,7 +568,7 @@ def main() -> int:
             "Ablation mode: run each scenario 2x (control + ablated). "
             "The named rule file is removed from .cursor/rules/ in the ablated workspace. "
             "Priority rules: adversarial_harness.mdc, autonomous_execution.mdc, "
-            "progress_tracking.mdc, planning_discipline.mdc"
+            "planning_discipline.mdc"
         ),
     )
     parser.add_argument(

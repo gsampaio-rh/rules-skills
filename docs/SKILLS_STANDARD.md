@@ -29,7 +29,7 @@ Cursor accesses skills from `.cursor/skills/`, populated via `make setup` (copie
 
 Skills that reference harness state use `.harness/` paths (e.g., `.harness/breadcrumbs.jsonl`, `.harness/contract.json`).
 
-For Claude Code distribution, mirror skills in `library/claude/skills/` with adapted paths.
+Claude Code / other tools: regenerate adapters from `library/cursor/skills/` as needed — no parallel port is maintained.
 
 ## SKILL.md Structure
 

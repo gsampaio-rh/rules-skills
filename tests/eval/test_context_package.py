@@ -165,22 +165,22 @@ class TestMissingFiles:
 # --- Breadcrumb truncation and filtering ---
 
 class TestBreadcrumbs:
-    def test_last_8_of_many(self, tmp_path):
+    def test_last_3_of_many(self, tmp_path):
         bcs = [_bc(i) for i in range(15)]
         _setup(tmp_path, state=_state(tasks=[_task()]), breadcrumbs=bcs)
         result = run_pkg(root=tmp_path)
         d = json.loads(result.stdout)
-        assert len(d["breadcrumbs"]) == 8
-        # Last 8: indices 7..14
+        assert len(d["breadcrumbs"]) == 3
+        # Last 3: indices 12..14
         assert d["breadcrumbs"][-1]["msg"] == "breadcrumb 14"
-        assert d["breadcrumbs"][0]["msg"] == "breadcrumb 7"
+        assert d["breadcrumbs"][0]["msg"] == "breadcrumb 12"
 
-    def test_fewer_than_8_all_included(self, tmp_path):
-        bcs = [_bc(i) for i in range(5)]
+    def test_fewer_than_window_all_included(self, tmp_path):
+        bcs = [_bc(i) for i in range(2)]
         _setup(tmp_path, state=_state(tasks=[_task()]), breadcrumbs=bcs)
         result = run_pkg(root=tmp_path)
         d = json.loads(result.stdout)
-        assert len(d["breadcrumbs"]) == 5
+        assert len(d["breadcrumbs"]) == 2
 
     def test_empty_breadcrumbs_file_returns_empty(self, tmp_path):
         _setup(tmp_path, state=_state(tasks=[_task()]), raw_breadcrumbs="")

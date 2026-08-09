@@ -193,14 +193,24 @@ def test_ec3_contract_skip_retained(tmp_path: Path) -> None:
     assert out == {}
 
 
-def test_ec4_tier2_lean_no_regression(tmp_path: Path) -> None:
-    """EC4: lean profile + valid breadcrumb + 4 git files → {} (no HARNESS CHECK)."""
+def test_ec4_no_tier2_harness_check_path(tmp_path: Path) -> None:
+    """EC4: tier-2 removed — script has no HARNESS CHECK / hooks-profile path."""
+    script = (
+        Path(__file__).resolve().parent.parent.parent
+        / "library"
+        / "cursor"
+        / "hooks"
+        / "enforce-progress.sh"
+    ).read_text()
+    assert "HARNESS CHECK" not in script
+    assert "hooks-profile" not in script
+    assert "PROFILE=" not in script
+    # Behavioral: valid breadcrumb + multi-file still {}
     _git_init(tmp_path)
     _write_stats(tmp_path, source_writes=2)
     _write_breadcrumbs(tmp_path, [_valid_bc()])
     for i in range(4):
         (tmp_path / f"file_{i}.py").write_text(f"# file {i}\n")
-    # lean is default when .cursor/.hooks-profile is absent
     out = _parse_stdout(_run_hook(tmp_path))
     assert out == {}
     assert "HARNESS CHECK" not in json.dumps(out)

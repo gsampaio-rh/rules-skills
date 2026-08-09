@@ -1,6 +1,6 @@
 ---
-description: Structured task tracking, thread hygiene, and single-objective discipline
-alwaysApply: true
+description: Structured task tracking, thread hygiene, and single-objective discipline. Use for multi-step work, long sessions, or replanning.
+alwaysApply: false
 ---
 
 # Planning Discipline
@@ -13,28 +13,14 @@ For multi-step tasks (3+ distinct steps):
 
 ## Thread Hygiene
 
-Long conversations degrade context quality:
-- Suggest fresh thread when a task is complete
+- Suggest a fresh thread when a task is complete
 - After 30+ turns, read files fresh rather than relying on memory
-- Persist constraints in `.cursor/rules/`, not conversation repetition
-
-## Session Boundaries
-
-**Primary:** SESSION BOUNDARY ADVISORY from `harness-context` (`session_tasks_completed >= 3`):
-1. Checkpoint uncommitted work
-2. Write handoff breadcrumb
-3. Suggest fresh thread
-
-**P6 handoff:** if `turns>=5` AND `source_writes>=2` with no checkpoint/handoff → before idle end emit:
-`Continue working on <id>. Read .harness/breadcrumbs.jsonl and .harness/state.json.` / `Last:` … / `Next:` …
-
-**Time:** 60min=warn, 2h=strong, 3h+=critical. **Always:** commit before new feature.
+- Persist durable constraints in rules/skills, not conversation repetition
 
 ## Replanning
 
 When direction changes: **archive and replace, don't patch.**
-- Current state auto-archives to `.harness/.archive/archive.jsonl`
-- Launch `/planner` → fresh `state.json`
+- Launch `/planner` → fresh `state.json` (auto-archives prior state)
 - Never accumulate tasks across initiatives
 
 Ops/infra (3+ manifests, production) is non-trivial → `/planner`.

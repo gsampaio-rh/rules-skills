@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_CURSOR="$SCRIPT_DIR/library/cursor"
-HOOKS_FULL="$SCRIPT_DIR/library/cursor/hooks.full.json"
+HOOKS_DEFAULT="$SCRIPT_DIR/library/cursor/hooks.json"
 SEARCH_ROOT="$HOME/redhat"
 
 DRY_RUN=false
@@ -62,26 +62,20 @@ find "$SOURCE_CURSOR" -type f \
     ! -name '.commit-approved' \
     | sort > "$SOURCE_FILES_LIST"
 
-# Add hooks.full.json as the hooks.json for targets (full enforcement)
-echo "$HOOKS_FULL" >> "$SOURCE_FILES_LIST"
+# Ensure default hooks.json is in the source list (also present under library/cursor/)
+if ! grep -qxF "$HOOKS_DEFAULT" "$SOURCE_FILES_LIST"; then
+    echo "$HOOKS_DEFAULT" >> "$SOURCE_FILES_LIST"
+fi
 
 resolve_target_path() {
     local src_file="$1"
     local target_cursor="$2"
-    if [[ "$src_file" == "$HOOKS_FULL" ]]; then
-        echo "$target_cursor/hooks.json"
-    else
-        echo "$target_cursor/${src_file#$SOURCE_CURSOR/}"
-    fi
+    echo "$target_cursor/${src_file#$SOURCE_CURSOR/}"
 }
 
 resolve_rel_path() {
     local src_file="$1"
-    if [[ "$src_file" == "$HOOKS_FULL" ]]; then
-        echo "hooks.json (full enforcement)"
-    else
-        echo "${src_file#$SOURCE_CURSOR/}"
-    fi
+    echo "${src_file#$SOURCE_CURSOR/}"
 }
 
 compare_project() {

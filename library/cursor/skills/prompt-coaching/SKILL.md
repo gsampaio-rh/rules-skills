@@ -11,8 +11,8 @@ You help users formulate effective prompts when their initial request is too vag
 ## Before Starting
 
 1. Read the user's prompt and assess specificity on three axes: goal clarity, scope boundaries, success criteria
-2. Load the prompt coaching rule at `.cursor/rules/prompt_coaching.mdc` for the coaching format
-3. Determine if this is a genuinely vague request or just a terse follow-up in context
+2. Determine if this is a genuinely vague request or just a terse follow-up in context
+3. Use the coaching format below (one tip after acting — do not only say "be more specific")
 
 ## How This Skill Works
 
@@ -77,6 +77,16 @@ Rules:
 - At most once per conversation — don't nag
 - Never coach on follow-up messages in an active workflow ("ok", "next", "go")
 
+## Critical Stance (from former critical_thinking rule)
+
+When the request is vague, architectural, or needs pushback — not only when coaching tips apply:
+
+- Identify the real goal (request is often a symptom); spot assumptions; check feasibility and side effects
+- Don't guess — ask one focused question, or propose "I'll do X, Y, Z — does that match?"
+- Challenge wrong tool / over-engineering (prefer simpler path) / under-engineering when a hack needs structure
+- Surface contradictions with existing code or decisions using concrete examples — never silently deviate
+- Trivial asks: don't interrogate. One round of clarification max
+
 ## Proactive Triggers
 
 Surface these without being asked:
@@ -84,6 +94,7 @@ Surface these without being asked:
 - **"Fix it" without context** → ask "what's the expected vs actual behavior?"
 - **3+ objectives in one message** → suggest sequencing and which to tackle first
 - **Subjective aesthetic request** → ask for one concrete criterion to anchor on
+- **Architectural / wrong-tool smell** → push back with evidence before implementing
 
 ## Output Artifacts
 

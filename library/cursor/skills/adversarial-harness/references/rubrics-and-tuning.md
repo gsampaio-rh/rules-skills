@@ -69,29 +69,21 @@ User: "Add dark mode support to the dashboard"
 → [evaluator reports PASS/FAIL with evidence]
 ```
 
-Standalone rubric audit (no feature build):
+## Optional rubric audit (no dedicated Mode 3 in the agent)
+
+Audit skills are archived. When needed:
+
+1. Load rubric JSON from `.cursor/references/rubrics/{domain}.json`
+2. Grade each criterion PASS/FAIL/NOT_APPLICABLE/BLOCKED with evidence
+3. Save report to `.harness/audits/audit-{domain}-{timestamp}.json`
+4. If the active contract has `"rubrics": [...]`: after Mode 2, run rubric audit on changed files; `rubric_mode: warn` reports only, `strict` blocks verification on high-severity fails
 
 ```text
 User: "Audit this project's architecture"
 
-→ [skill architecture-audit activates]
-→ [loads rubric from .cursor/references/rubrics/architecture.json]
-→ [scans codebase: file structure, imports, dependency direction, naming]
-→ [launches /evaluator in rubric audit mode]
 → /evaluator Run rubric audit for architecture on src/. Load .cursor/references/rubrics/architecture.json
-→ [evaluator grades each criterion PASS/FAIL with evidence]
-→ [produces report at .harness/audits/audit-architecture-{timestamp}.json]
+→ [grades each criterion with evidence]
+→ [report at .harness/audits/audit-architecture-{timestamp}.json]
 ```
 
-Feature build with rubric integration:
-
-```text
-User: "Add payment processing"
-
-→ [harness flow: plan → negotiate → build → evaluate]
-→ [contract includes: "rubrics": ["architecture", "code-quality"], "rubric_mode": "strict"]
-→ [evaluator does Mode 2 (feature eval) — PASS]
-→ [evaluator does Mode 3 (rubric audit) on changed files]
-→ [rubric finds: new PaymentService violates dependency direction — imports from infrastructure]
-→ [rubric_mode is strict → feature BLOCKED until architecture fix applied]
-```
+Available rubrics: `architecture`, `code-quality`, `organization`, `design-ui`, `llm-skeptic`, `cost-efficiency`.

@@ -1,47 +1,25 @@
 ---
-description: Research quality standards for experiment design, statistical rigor, and honest reporting
+description: Research quality standards for experiment design, statistical rigor, causal inference, and honest reporting
 globs: "experiments/**/*.{py,ipynb,md}, analysis/**/*.{py,ipynb,md}"
 alwaysApply: false
 ---
 
 # Research Quality Standards
 
-All experiments must meet publication-grade rigor. Design for skeptical peer review, not confirmation.
+Design for skeptical peer review, not confirmation.
 
-## Pre-registration
-- State hypotheses BEFORE running experiments. Never retrofit hypotheses to match results.
-- Document expected direction and magnitude of effects in `EXPERIMENT.md` before data collection.
-- Label exploratory analysis explicitly as exploratory — separate from confirmatory tests.
+## Causal checks (before any finding)
+- **Tautology**: predicting Y with a restatement of Y (or post-outcome info) is a mirror — dig for the upstream cause
+- **Confounder**: if A beats B, control what else differs; if the effect vanishes after stratification, it was spurious correlation
+- **Fair compare**: only rank entities in the same comparability group; state the group
+- **Actionability**: "there is a correlation" is not a finding — name mechanism + recommended action
+- **Proxy variables**: labels (region, org type) stand in for latents — name the mechanism or caveat
 
-## Controls and Baselines
-- Every experiment MUST have a null baseline (alpha=0, no intervention, no treatment).
-- Report baseline performance prominently — all results are deltas from baseline.
-- Change exactly ONE variable at a time. If multiple change, document this as a limitation.
+## Pre-registration & controls
+- State hypotheses before runs; label exploratory work as exploratory
+- Every experiment needs a null baseline; change one variable at a time
 
-## Statistical Rigor
-- Report **effect sizes** (Cohen's d, percentage change) with **confidence intervals**, not just "it went up"
-- For N < 100 per condition, use **bootstrap confidence intervals** (95% CI) instead of assuming normality
-- Never claim "significant" without a proper test. Use permutation tests or Mann-Whitney U for non-parametric data.
-- Report **exact p-values** with test statistic and degrees of freedom
-- **Bonferroni-correct** when testing multiple hypotheses simultaneously
-
-## Sample Size
-- Justify sample size. For pilot studies, state explicitly: "This is a pilot (N=50 per condition)."
-- When results are inconclusive, acknowledge low statistical power rather than claiming null effects.
-
-## Reproducibility
-- Pin ALL versions: model names, library versions, Python version, random seeds
-- Log raw data (all candidates, all scores) — not just aggregates
-- Configuration must be declarative (YAML) and committed alongside results
-- Every experiment must be re-runnable: `git clone → install → run → identical analysis`
-
-## Honest Reporting
-- Report ALL results, including nulls and surprises. Never hide non-confirmatory findings.
-- If a hypothesis is not supported, say so clearly. Do not reframe failure as success.
-- Distinguish between "no effect found" (inconclusive) and "effect is absent" (strong null evidence).
-
-## Figures and Tables
-- All plots MUST include error bars (std or 95% CI). A curve without error bars is not a result.
-- Y-axis must start at a meaningful value (usually 0). Truncated axes require justification.
-- Use consistent color coding across all figures in an experiment.
-- Every number in findings must be traceable to the analysis script.
+## Stats & reporting
+- Effect sizes + CIs, not vibes; exact p-values; Bonferroni when multi-testing
+- Pin versions/seeds; log raw data; YAML config committed with results
+- Report nulls and surprises; plots need error bars; every number traces to a script

@@ -5,42 +5,19 @@ alwaysApply: true
 
 # Adversarial Verification Harness
 
-## Route Before Building
-
-**Self-test:** "Can I name the exact files I'll modify?" If NO → plan first.
+**Self-test:** Can I name the exact files I'll modify? If NO → plan first.
 
 | Complexity | Approach |
 |---|---|
-| Simple (can name files, no architectural impact) | Just do it. |
-| Non-trivial (can't name files, vague, 3+ files) | **`/planner` FIRST.** |
+| Simple (named files, no architectural impact) | Just do it. |
+| Non-trivial (vague, 3+ files, architectural) | **`/planner` FIRST.** |
 
-**No `state.json`:** `/planner`. **Has `state.json`:** Resume next pending task. User says "skip harness" to opt out.
+- No `state.json` → `/planner`. Has `state.json` → resume next pending task.
+- Building → need `.harness/contract.json` before impl (hooks deny ungated writes).
+- Do not self-certify → `/evaluator` PASS before `verified: true`.
+- Multi-file work → TodoWrite + breadcrumb in `.harness/breadcrumbs.jsonl` (hook-enforced).
+- User says `skip harness` → opt out.
 
-## Roles
+Roles: `/planner` (vision, max 5 tasks, no code) · Builder (contract + impl) · `/evaluator` (negotiate + verify; `.harness/` only).
 
-- `/planner` — Vision + max 5 tasks. No code.
-- Builder — Contracts, negotiates, implements one task at a time.
-- `/evaluator` — Negotiates contracts, tests live app. Never modifies source.
-
-## Flow
-
-```
-Non-trivial → /planner → state.json → user confirms
-→ contract → /evaluator negotiates (max 3 rounds) → build
-→ sensors → /evaluator verifies → PASS → commit → next
-```
-
-## Contract Gate
-
-**Before any Write when `state.json` has a building task:**
-1. No contract? → write `.harness/contract.json` first
-2. Negotiate with `/evaluator` → then implement
-
-Self-checks: "Building + no contract?" "Last feature unevaluated?"
-
-## State Discipline
-
-- `state.json` < 50 lines. Max 5 active tasks.
-- Hooks auto-archive completed tasks and auto-compress stale metadata.
-- Research goes in project `docs/`, never `.harness/docs/`.
-- All tasks done → `/planner`. Never write state directly.
+Procedure: skill `adversarial-harness`. Design: `docs/HARNESS_ESSENCE.md`.

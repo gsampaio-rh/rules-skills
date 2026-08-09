@@ -25,7 +25,7 @@ session against a realistic repo.
 | Repo | Domain | Stress-tests |
 |---|---|---|
 | `eval-api-security/` | REST API with staged security gaps | `security.mdc`, contract-gate on multi-file feature work |
-| `eval-data-pipeline/` | Fragile ETL script needing hardening | `code_standards.mdc`, `testing.mdc`, planner scoping of a vague ask |
+| `eval-data-pipeline/` | Fragile ETL script needing hardening | `testing.mdc`, planner scoping of a vague ask |
 | `eval-infra-deploy/` | Kubernetes manifests missing deploy safety | `infra-deploy-checklist` skill, `iac-templates` skill auto-activation |
 
 Each repo is intentionally small (a handful of files with realistic, seeded

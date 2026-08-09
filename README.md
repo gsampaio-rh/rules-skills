@@ -1,195 +1,103 @@
 # Cursor Rules & Skills
 
-A curated library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for Cursor and Claude Code.
+A curated library of AI coding assistant rules, skills, hooks, and an adversarial verification harness for **Cursor**. Canonical source: `library/cursor/`.
 
 ## Architecture
 
-This repo separates three concerns:
-
 | Layer | Location | Purpose |
 |-------|----------|---------|
-| **Project state** | `.harness/` | Tracked harness state — contracts, evals, breadcrumbs |
+| **Project state** | `.harness/` | Harness state — contracts, breadcrumbs |
 | **IDE config** | `.cursor/` | Local copies from `library/cursor/` via `make setup` (gitignored) |
-| **Product library** | `library/` | The distributable rules, skills, hooks, agents, references |
+| **Product library** | `library/cursor/` | Distributable rules, skills, hooks, agents, references |
 
 ```
 rules-skills/
-├── .harness/                    # This project's harness state (git-tracked)
-├── .cursor/                     # IDE config (local copies, gitignored)
-│   └── (populated by make setup from library/cursor/)
-├── docs/                        # Authoring standards and guides
-│   ├── EVAL_GUIDE.md
-│   ├── HARNESS_ESSENCE.md
-│   ├── RULES_STANDARD.md
-│   └── SKILLS_STANDARD.md
-├── library/
-│   ├── cursor/                  # Cursor config library
-│   │   ├── rules/              # 16 .mdc rule files
-│   │   ├── skills/             # 14 skill workflows
-│   │   ├── agents/             # Planner + evaluator definitions
-│   │   ├── hooks/              # 11 shell scripts + 2 Python helpers (context-package.py, prune-harness.py)
-│   │   └── references/         # Patterns, design, rubrics
-│   └── claude/                  # Claude Code config (parallel port)
-├── scripts/                     # Dev tooling
-├── tests/eval/                  # Behavioral eval pipeline
-└── sync-cursor.sh               # Distribute to other projects
+├── .harness/                    # This project's harness state
+├── .cursor/                     # IDE config (gitignored; from make setup)
+├── docs/                        # Standards and guides
+├── library/cursor/              # Canonical library
+│   ├── rules/
+│   ├── skills/
+│   ├── agents/
+│   ├── hooks/
+│   ├── hooks.json               # Default hook profile
+│   ├── hooks.optional.json      # Dogfood advisories
+│   └── references/
+├── scripts/
+├── tests/eval/
+└── sync-cursor.sh
 ```
 
 ## Quick Start
 
-### Developing rules/skills (working on this repo)
-
 ```bash
 git clone <this-repo>
-# Lean profile is default — lightweight harness enforcement (contract gate, verify, progress)
-# Edit library/cursor/rules/*.mdc, library/cursor/skills/*/SKILL.md directly
+make setup                 # populate .cursor/ from library/cursor/
+# Edit library/cursor/… then:
+make validate && make sync-local
 ```
 
-Run `make setup` to populate `.cursor/` with copies from `library/cursor/`. After editing rules/skills, run `make validate` then `make sync-local` to update the IDE config.
-
-### Installing in your project
+### Installing in another project
 
 ```bash
-# Automated (syncs rules, hooks, references to all ~/redhat projects)
-./sync-cursor.sh
-
-# Manual (single project)
+./sync-cursor.sh           # syncs to ~/redhat projects
+# Or manual:
 cp -R library/cursor/rules/ /path/to/project/.cursor/rules/
 cp -R library/cursor/hooks/ /path/to/project/.cursor/hooks/
 cp -R library/cursor/references/ /path/to/project/.cursor/references/
-cp library/cursor/hooks.full.json /path/to/project/.cursor/hooks.json
-mkdir -p /path/to/project/.harness/{evals,audits}
+cp library/cursor/hooks.json /path/to/project/.cursor/hooks.json
+mkdir -p /path/to/project/.harness
 ```
 
-## Rules (`library/cursor/rules/`)
+## Hooks
 
-| Rule | Activation | What it does |
-|------|-----------|--------------|
-| `agent_behavior` | Always on | Communication style, change management |
-| `autonomous_execution` | Always on | Act without asking, fix errors, pause on destructive ops |
-| `code_standards` | Always on | Explicit > implicit, SRP, naming, DRY |
-| `critical_thinking` | Always on | Analyze requests, challenge assumptions |
-| `planning_discipline` | Always on | Structured task tracking, thread hygiene |
-| `progress_tracking` | Always on | Breadcrumbs, TodoWrite for multi-file work |
-| `prompt_coaching` | Scoped | Coach users toward effective prompts |
-| `security` | Scoped | Input validation, secrets, supply chain |
-| `verification` | Always on | Test/lint/build after every code change |
-| `adversarial_harness` | Always on | Planner/evaluator workflow routing for non-trivial features |
-| `architecture` | `*.py, *.ts, *.tsx` | SOLID, dependency direction, pattern trade-offs |
-| `python_ml` | `*.py, *.ipynb` | Type hints, pandas, ML conventions |
-| `testing` | `**/test*.py` | Pytest conventions, contract testing |
-| `research_standards` | `experiments/**` | Pre-registration, statistical rigor |
-| `causal_rigor` | `experiments/**` | 5-test framework for non-circular findings |
-| `design_principles` | Agent-loaded | Dieter Rams, BJ Fogg, Jony Ive design philosophy |
+**Default** (`library/cursor/hooks.json`): harness-context, harness-gate (cold-start), contract-gate, evaluator-guard, pre-commit-harness, verify-harness, enforce-progress, chain-evaluator.
 
-## Skills (`library/cursor/skills/`)
-
-| Skill | What it does |
-|-------|-------------|
-| `adversarial-harness` | Multi-agent planner/builder/evaluator workflow |
-| `code-review` | Multi-category review with severity model |
-| `commit` | Conventional commits with pre-flight checks |
-| `experiment-workflow` | 6-phase experiment lifecycle |
-| `data-science-analysis` | Hypothesis generation, feature engineering |
-| `architecture-audit` | DDD, Clean Architecture, Hexagonal compliance |
-| `code-quality-audit` | SOLID, complexity, coupling analysis |
-| `design-audit` | Accessibility, design tokens, visual hierarchy |
-| `organization-audit` | File structure, module boundaries, cohesion |
-| `iac-templates` | Infrastructure-as-Code template management |
-| `project-scaffolding` | Multi-mode project structure generation |
-| `info-architecture` | Information architecture patterns |
-| `llm-skeptic` | Challenges LLM/GenAI usage — prefers deterministic alternatives |
-| `tech-writing` | Technical writing page patterns |
-
-## Hooks (`library/cursor/hooks/`)
-
-| Hook | Event | What it does |
-|------|-------|-------------|
-| `harness-context.sh` | `sessionStart` | Injects harness state into conversation |
-| `harness-gate.sh` | `beforeSubmitPrompt` | Fast-path routing for complexity |
-| (LLM prompt) | `beforeSubmitPrompt` | Classifies non-trivial work |
-| `contract-gate.sh` | `preToolUse` (Write) | Blocks impl writes without a contract |
-| `evaluator-guard.sh` | `preToolUse` (Write) | Sandboxes evaluator to harness paths |
-| `dedup-server.sh` | `beforeShellExecution` | Prevents duplicate dev servers |
-| `pre-commit-harness.sh` | `beforeShellExecution` | Requires commit approval |
-| `verify-harness.sh` | `stop` | Blocks completion if contract unverified |
-| `enforce-progress.sh` | `stop` | Enforces breadcrumbs + harness usage |
-| `context-health.sh` | `stop` | Detects session fatigue signals |
-| (LLM prompt) | `stop` | Checks harness compliance |
-| `chain-evaluator.sh` | `subagentStop` | Routes between harness phases |
-| `validate-hooks.sh` | (manual) | Validates hook configuration |
-
-## Hook Profiles
-
-Two profiles control which hooks are active:
-
-| Profile | Use case | Active hooks |
-|---------|----------|-------------|
-| **lean** (default here) | Rules/skills development | harness-context, contract-gate, dedup-server, verify-harness, enforce-progress, context-health |
-| **full** | Real projects, dogfooding | All 11 shell hooks + 2 Python helpers (adds harness-gate, evaluator-guard, pre-commit, chain-evaluator) |
+**Optional** (`library/cursor/hooks.optional.json`): secret-read-guard, security-shell, dedup-server, context-health — `scripts/hooks-profile.sh optional`.
 
 ```bash
-scripts/hooks-profile.sh lean     # lightweight harness enforcement
-scripts/hooks-profile.sh full     # full enforcement with LLM routing
-scripts/hooks-profile.sh status   # show current
+make sync-local            # installs default hooks.json
 ```
 
-## Harness Workflow (`.harness/`)
+## Harness Workflow
 
-The adversarial harness is a structured build/verify cycle:
+1. **Plan** — `/planner` → `.harness/state.json` (vision + tasks)
+2. **Negotiate** — contract → `/evaluator`
+3. **Build** — one task at a time
+4. **Verify** — `/evaluator` with evidence
+5. **Commit** — after PASS (commit gate requires approval flag)
 
-1. **Plan** — `/planner` decomposes work into `state.json` (vision, direction, tasks)
-2. **Negotiate** — Builder proposes contract, evaluator challenges
-3. **Build** — Implement one feature at a time
-4. **Verify** — `/evaluator` tests against contract with evidence
-5. **Commit** — Only after evaluator passes
+Details: [`docs/HARNESS_ESSENCE.md`](docs/HARNESS_ESSENCE.md), skill `adversarial-harness`.
 
-State lives in `.harness/` (git-tracked):
-- `state.json` — single source of truth (vision, direction, trade-offs, tasks)
-- `contract.json` — negotiated acceptance criteria
-- `breadcrumbs.jsonl` — append-only decision trace
-- `evals/` — evaluator reports (quality evidence)
-- `audits/` — rubric audit results
+## Skills
 
-## Eval Pipeline (`tests/eval/`)
+**Active:** `adversarial-harness`, `fact-check`, `session-review`, `svg-edit`, `code-review`, `commit`, `llm-skeptic`, `prompt-coaching`.
 
-Two-tier behavioral testing that verifies rules actually change agent behavior. See [`EVAL_GUIDE.md`](docs/EVAL_GUIDE.md) for full documentation.
+**Archived:** `library/cursor/skills/_archive/` (restore by moving a folder back up).
+
+## Eval
 
 ```bash
-make eval-fast              # Tier 1: static checks (seconds, no API keys)
-make eval-session           # Tier 3: 23 standard scenarios via Cursor SDK
-make eval-session-long      # Tier 3: 3 long scenarios (10-15 min each)
-make eval-session-judge     # Judge completed sessions
-make eval-session-report    # Aggregated report table
-make eval                   # Both tiers
+make eval-fast              # validate + contract/harness lint (no API)
+make eval-session           # needs CURSOR_API_KEY — local SDK only
 ```
 
-| Component | Purpose |
-|-----------|---------|
-| `contract_lint.py` | Tier 1: contract structure and criteria quality |
-| `harness_lint.py` | Tier 1: breadcrumb integrity, state consistency |
-| `session_runner.py` | Tier 3: runs scenarios in isolated git worktrees via SDK bridge |
-| `session_judge.py` | Tier 3: computational + structural + LLM scoring |
-| `session_report.py` | Tier 3: aggregated reporting across all scenarios |
-| `scenarios/*.yaml` | 23 standard + 3 long behavioral scenario definitions |
+No hosted CI for now — run `make eval-fast` locally. Session eval is opt-in (`CURSOR_API_KEY`). See [`docs/EVAL_GUIDE.md`](docs/EVAL_GUIDE.md).
 
-## Sync (`sync-cursor.sh`)
-
-Distributes `library/cursor/` content to all projects under `~/redhat`:
+## Sync
 
 ```bash
-./sync-cursor.sh              # interactive sync
-./sync-cursor.sh --dry-run    # preview changes
-./sync-cursor.sh --yes        # skip confirmation
+./sync-cursor.sh              # interactive
+./sync-cursor.sh --dry-run
+./sync-cursor.sh --yes
 ```
 
-**Per-project** (`.cursor/`): rules, references, hooks (scripts + full hooks.json)
+**Per-project** (`.cursor/`): rules, references, hooks + `hooks.json`  
 **Global** (`~/.cursor/`): agents, skills
 
 ## Authoring Standards
 
-Each standard is a self-contained reference: authoring guidelines, design rationale, hypotheses, and measurement criteria.
-
-- [`RULES_STANDARD.md`](docs/RULES_STANDARD.md) — how to write `.mdc` rules
-- [`SKILLS_STANDARD.md`](docs/SKILLS_STANDARD.md) — how to write `SKILL.md` skills
-- [`HARNESS_ESSENCE.md`](docs/HARNESS_ESSENCE.md) — five-problem model, core files, enforcement architecture
+- [`docs/RULES_STANDARD.md`](docs/RULES_STANDARD.md)
+- [`docs/SKILLS_STANDARD.md`](docs/SKILLS_STANDARD.md)
+- [`docs/HARNESS_ESSENCE.md`](docs/HARNESS_ESSENCE.md)
+- [`AGENTS.md`](AGENTS.md) — short agent-facing guide

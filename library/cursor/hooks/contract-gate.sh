@@ -25,22 +25,53 @@ fi
 
 # Cold-start enforcement: routing-pending marker means harness-gate detected
 # a non-trivial prompt but state.json hasn't been created yet (planner hasn't
-# run). Block implementation writes until the agent creates state.json.
+# run). Block implementation writes until state.json exists, user says
+# "skip harness" (clears marker), a skip breadcrumb appears, or TTL expires.
 ROUTING_PENDING=".harness/.routing-pending"
+ROUTING_PENDING_TTL_SEC="${ROUTING_PENDING_TTL_SEC:-600}"
 if [ ! -f "$STATE" ] && [ -f "$ROUTING_PENDING" ]; then
   target_path=$(hooks_extract_path "$HOOK_INPUT")
 
   if [ -n "$target_path" ]; then
-    if echo "$target_path" | grep -qE '\.harness/|\.cursor/hooks/'; then
+    if echo "$target_path" | grep -qE '(^|/)\.harness/|(^|/)\.cursor/hooks/'; then
       hooks_log "contract-gate" "cold-start, allowed harness path: $target_path"
       echo '{}'
       exit 0
     fi
-    hooks_log "contract-gate" "DENIED cold-start write to $target_path (routing-pending, no state.json)"
+
+    # Opt-out breadcrumb (tail-5 "Skipped harness") — allow; marker may remain.
+    if hooks_skip_detected; then
+      hooks_log "contract-gate" "cold-start skip breadcrumb found, allowing: $target_path"
+      echo '{}'
+      exit 0
+    fi
+
+    # TTL: stale marker → remove and allow. Unreadable mtime → fail closed (deny).
+    _rp_mtime=$(stat -f %m "$ROUTING_PENDING" 2>/dev/null || stat -c %Y "$ROUTING_PENDING" 2>/dev/null || true)
+    if [ -z "$_rp_mtime" ] || [ "$_rp_mtime" = "0" ]; then
+      hooks_log "contract-gate" "DENIED cold-start (unreadable routing-pending mtime): $target_path"
+      cat <<EOF
+{
+  "permission": "deny",
+  "agent_message": "WRITE BLOCKED (cold start): A non-trivial task was detected but no .harness/state.json exists yet. You must launch the /planner subagent to create state.json before writing implementation code.\n\nTo proceed:\n1. Launch /planner to decompose the task into state.json\n2. After state.json is created, implementation writes will be allowed\n\nIf this is actually simple work, ask the user to say 'skip harness' (clears .routing-pending) or append a breadcrumb containing 'Skipped harness'.\n\nBlocked file: $target_path"
+}
+EOF
+      exit 0
+    fi
+    _rp_now=$(date +%s)
+    _rp_age=$((_rp_now - _rp_mtime))
+    if [ "$_rp_age" -gt "$ROUTING_PENDING_TTL_SEC" ]; then
+      rm -f "$ROUTING_PENDING" 2>/dev/null
+      hooks_log "contract-gate" "cold-start routing-pending stale (${_rp_age}s > ${ROUTING_PENDING_TTL_SEC}s), cleared, allowing: $target_path"
+      echo '{}'
+      exit 0
+    fi
+
+    hooks_log "contract-gate" "DENIED cold-start write to $target_path (routing-pending age=${_rp_age}s, no state.json)"
     cat <<EOF
 {
   "permission": "deny",
-  "agent_message": "WRITE BLOCKED (cold start): A non-trivial task was detected but no .harness/state.json exists yet. You must launch the /planner subagent to create state.json before writing implementation code.\n\nTo proceed:\n1. Launch /planner to decompose the task into state.json\n2. After state.json is created, implementation writes will be allowed\n\nIf this is actually simple work, ask the user to say 'skip harness'.\n\nBlocked file: $target_path"
+  "agent_message": "WRITE BLOCKED (cold start): A non-trivial task was detected but no .harness/state.json exists yet. You must launch the /planner subagent to create state.json before writing implementation code.\n\nTo proceed:\n1. Launch /planner to decompose the task into state.json\n2. After state.json is created, implementation writes will be allowed\n\nIf this is actually simple work, ask the user to say 'skip harness' (clears .routing-pending) or append a breadcrumb containing 'Skipped harness'.\n\nBlocked file: $target_path"
 }
 EOF
     exit 0
