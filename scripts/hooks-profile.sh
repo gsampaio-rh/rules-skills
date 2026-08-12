@@ -49,7 +49,7 @@ json.dump(base, open(out_path, "w"), indent=2)
 open(out_path, "a").write("\n")
 PY
         echo "optional" > "$PROFILE_FILE"
-        echo "Switched to OPTIONAL profile (default + secret-read-guard + security-shell + dedup)"
+        echo "Switched to OPTIONAL profile (default + secret-read-guard + security-shell + dedup + agents-md-nudge)"
         ;;
     status)
         if [[ -f "$PROFILE_FILE" ]]; then

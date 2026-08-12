@@ -22,6 +22,7 @@ rules-skills/
 │   ├── hooks/
 │   ├── hooks.json               # Default hook profile
 │   ├── hooks.optional.json      # Dogfood advisories
+│   ├── templates/               # Consumer starters (e.g. AGENTS.md)
 │   └── references/
 ├── scripts/
 ├── tests/eval/
@@ -40,20 +41,23 @@ make validate && make sync-local
 ### Installing in another project
 
 ```bash
-./sync-cursor.sh           # syncs to ~/redhat projects
+./sync-cursor.sh           # syncs to ~/redhat projects (seeds AGENTS.md if missing)
 # Or manual:
 cp -R library/cursor/rules/ /path/to/project/.cursor/rules/
 cp -R library/cursor/hooks/ /path/to/project/.cursor/hooks/
 cp -R library/cursor/references/ /path/to/project/.cursor/references/
 cp library/cursor/hooks.json /path/to/project/.cursor/hooks.json
 mkdir -p /path/to/project/.harness
+# Seed project memory only when absent:
+scripts/adopt-agents-md.sh /path/to/project library/cursor
+# Optional: /agents-bootstrap to fill Commands from Makefile/package.json
 ```
 
 ## Hooks
 
 **Default** (`library/cursor/hooks.json`): harness-context, harness-gate (cold-start), contract-gate, evaluator-guard, pre-commit-harness, verify-harness, enforce-progress, chain-evaluator.
 
-**Optional** (`library/cursor/hooks.optional.json`): secret-read-guard, security-shell, dedup-server — `scripts/hooks-profile.sh optional`.
+**Optional** (`library/cursor/hooks.optional.json`): secret-read-guard, security-shell, dedup-server, agents-md-nudge — `scripts/hooks-profile.sh optional`.
 
 ```bash
 make sync-local            # installs default hooks.json
@@ -71,7 +75,7 @@ Details: [`docs/HARNESS_ESSENCE.md`](docs/HARNESS_ESSENCE.md), skill `adversaria
 
 ## Skills
 
-**Active:** `adversarial-harness`, `fact-check`, `session-review`, `svg-edit`, `code-review`, `commit`, `llm-skeptic`, `prompt-coaching`.
+**Active:** `adversarial-harness`, `agents-bootstrap`, `fact-check`, `session-review`, `svg-edit`, `code-review`, `commit`, `llm-skeptic`, `prompt-coaching`.
 
 **Archived:** `library/cursor/skills/_archive/` (restore by moving a folder back up).
 

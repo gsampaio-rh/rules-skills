@@ -3,14 +3,21 @@
 Distributable Cursor library: rules, skills, hooks, and a file-based adversarial harness
 (`.harness/`). Canonical source: `library/cursor/`.
 
+This file is **project memory** (portable, cross-tool). Session memory lives in `.harness/`
+and is injected by `harness-context` on session start — do not confuse the two.
+
 ## Commands
 
 ```bash
-make setup          # populate .cursor/ from library/cursor/
+make setup          # populate .cursor/ from library/cursor/ (+ seed AGENTS.md if missing)
 make sync-local     # re-copy after editing the library
-make validate       # structural checks (rules/skills)
+make validate       # structural checks (rules/skills/template)
 make eval-fast      # validate + contract_lint + harness_lint (local, no API)
 ```
+
+Consumer onboarding: `library/cursor/templates/AGENTS.md` → `scripts/adopt-agents-md.sh`
+(missing-only) → `/agents-bootstrap` (fill Commands). Optional absence nudge:
+`agents-md-nudge` via `scripts/hooks-profile.sh optional`.
 
 ## Harness (5 bullets)
 
@@ -43,11 +50,11 @@ Procedure: skill `adversarial-harness`. Design: [`docs/HARNESS_ESSENCE.md`](docs
 
 Default profile: [`library/cursor/hooks.json`](library/cursor/hooks.json) — harness-context, **harness-gate** (cold-start → `.routing-pending`), contract-gate, evaluator-guard, pre-commit, verify, enforce-progress, chain-evaluator.
 
-Optional dogfood: [`library/cursor/hooks.optional.json`](library/cursor/hooks.optional.json) — `secret-read-guard` (failClosed Read deny on `.env`/keys), `security-shell` (failClosed deny curl|wget pipe-to-shell), `dedup-server`.
+Optional dogfood: [`library/cursor/hooks.optional.json`](library/cursor/hooks.optional.json) — `secret-read-guard`, `security-shell`, `dedup-server`, `agents-md-nudge` (sessionStart if no AGENTS.md).
 
 ## Skills (active catalog)
 
-`adversarial-harness`, `fact-check`, `session-review`, `svg-edit`, `code-review`, `commit`, `llm-skeptic`, `prompt-coaching` — see `library/cursor/skills/`. Archived extras: `library/cursor/skills/_archive/`.
+`adversarial-harness`, `agents-bootstrap`, `fact-check`, `session-review`, `svg-edit`, `code-review`, `commit`, `llm-skeptic`, `prompt-coaching` — see `library/cursor/skills/`. Archived extras: `library/cursor/skills/_archive/`.
 
 ## Cross-tool
 

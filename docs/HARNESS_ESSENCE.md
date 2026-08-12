@@ -32,7 +32,7 @@ A file-based task system that keeps AI agents honest across sessions.
 | Phase advance | `chain-evaluator.sh` (subagentStop) | orchestration (side-effect) |
 | Session context | `harness-context.sh` (sessionStart) | inject |
 
-**Optional (not in default `hooks.json`):** `secret-read-guard.sh` (`beforeReadFile`, failClosed — deny live `.env`/key paths), `security-shell.sh` (`beforeShellExecution`, failClosed — deny curl/wget pipe-to-shell), `dedup-server.sh` (dev-server utility) — see `library/cursor/hooks.optional.json`. Session fatigue/handoff (P6) is skill `session-review`, not a stop hook.
+**Optional (not in default `hooks.json`):** `secret-read-guard.sh` (`beforeReadFile`, failClosed — deny live `.env`/key paths), `security-shell.sh` (`beforeShellExecution`, failClosed — deny curl/wget pipe-to-shell), `dedup-server.sh` (dev-server utility), `agents-md-nudge.sh` (`sessionStart` — one-line pointer when root AGENTS.md is missing) — see `library/cursor/hooks.optional.json`. Session fatigue/handoff (P6) is skill `session-review`, not a stop hook.
 
 **Design principle:** Critical steps must be structurally impossible to skip (**structural deny** hooks). Soft hooks are **side-effect-thin** (flags, phase patches, short `followup_message` pointers) — not prose sermons. Semantic advisories live in skill `adversarial-harness` / `/evaluator` / `session-review`.
 
@@ -83,16 +83,19 @@ No `direction`, `trade_offs`, or `open_questions` in `state.json` — those go i
 
 `harness-context`, `harness-gate`, `contract-gate`, `evaluator-guard`, `pre-commit-harness`, `verify-harness`, `enforce-progress`, `chain-evaluator`.
 
-**Optional** — merge `library/cursor/hooks.optional.json` for `secret-read-guard` + `security-shell` + `dedup-server`.
+**Optional** — merge `library/cursor/hooks.optional.json` for `secret-read-guard` + `security-shell` + `dedup-server` + `agents-md-nudge`.
 
 There is no lean/full dual product; older `hooks.lean.json` / `hooks.full.json` names are retired.
 
 ## Consumer Adoption
 
-1. Copy `library/cursor/{rules,skills,hooks,agents,references}` (or run `./sync-cursor.sh`).
+1. Copy `library/cursor/{rules,skills,hooks,agents,references,templates}` (or run `./sync-cursor.sh`).
 2. Install `library/cursor/hooks.json` as `.cursor/hooks.json`.
 3. `mkdir -p .harness`
-4. On first non-trivial task, `/planner` writes `state.json` — harness activates.
+4. Seed project memory if missing: `scripts/adopt-agents-md.sh <project> library/cursor` (from `templates/AGENTS.md`); optionally `/agents-bootstrap` to fill Commands.
+5. On first non-trivial task, `/planner` writes `state.json` — harness activates.
+
+`AGENTS.md` is **project memory**; `.harness/` + `harness-context` is **session memory**. Optional `agents-md-nudge` reminds when the former is absent.
 
 See also skill `adversarial-harness`.
 

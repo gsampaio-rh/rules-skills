@@ -6,6 +6,10 @@
       {
         "command": ".cursor/hooks/harness-dashboard.sh",
         "timeout": 10
+      },
+      {
+        "command": ".cursor/hooks/agents-md-nudge.sh",
+        "timeout": 5
       }
     ],
     "stop": [

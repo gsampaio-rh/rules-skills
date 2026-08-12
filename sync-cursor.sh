@@ -52,7 +52,7 @@ YELLOW="\033[33m"
 CYAN="\033[36m"
 RESET="\033[0m"
 
-MANAGED_DIRS=(rules hooks references)
+MANAGED_DIRS=(rules hooks references templates)
 # Retired dual-profile names (docs/HARNESS_ESSENCE.md) — wipe from .cursor/ root.
 RETIRED_ROOT_FILES=(hooks.lean.json hooks.full.json)
 
@@ -186,6 +186,11 @@ sync_project() {
 
         find "$target_dir" -type d -empty -delete 2>/dev/null || true
     done
+
+    # Seed root AGENTS.md only when missing; refresh .cursor/templates/
+    if ! $DRY_RUN; then
+        bash "$SCRIPT_DIR/scripts/adopt-agents-md.sh" "$SEARCH_ROOT/$rel" "$SOURCE_CURSOR"
+    fi
 }
 
 sync_global() {

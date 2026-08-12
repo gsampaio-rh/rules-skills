@@ -1,28 +1,42 @@
 {
   "project": "rules-skills",
   "schema_version": 2,
-  "vision": "Close out the optional essential security pack after the context-eng pivot: gap-check only, keep default hooks sacred, formally re-verify.",
+  "vision": "Make AGENTS.md the portable project-memory onboarding path (template + missing-only adopt + bootstrap skill + optional absence nudge) without inventing content or duplicating session harness.",
   "tasks": [
     {
-      "id": "chore-security-gap-check",
-      "name": "Gap-check security pack vs original vision",
-      "type": "chore",
-      "status": "verified",
-      "scope": "includes: compare disk/docs/sync/tests to original 5-task essential security vision; fix only real gaps. excludes: greenfield features, gitleaks, AppSec essays, promoting optional hooks to default, new always-on security rules"
+      "id": "feat-agents-template",
+      "name": "Ship minimal AGENTS.md template in the library",
+      "type": "feature",
+      "status": "committed",
+      "scope": "includes: skeleton with commands/landmines/pointers sections as consumer starter; excludes: full codebase overview dump, rewriting this repo's root AGENTS.md as the product"
     },
     {
-      "id": "chore-security-hooks-sacred",
-      "name": "Confirm default hooks remain sacred",
-      "type": "chore",
-      "status": "verified",
-      "scope": "includes: verify default hooks.json still wires contract-gate, evaluator-guard, pre-commit and does not wire secret-read-guard/security-shell. excludes: changing default hook set, optional profile redesign"
+      "id": "feat-agents-adopt",
+      "name": "Adopt/sync installs AGENTS.md only when missing",
+      "type": "feature",
+      "status": "committed",
+      "scope": "includes: setup/sync path places template as AGENTS.md for consumers lacking one; excludes: overwriting an existing AGENTS.md, auto-create via hooks"
     },
     {
-      "id": "chore-security-verify-closeout",
-      "name": "Re-verify security pack with evaluator",
+      "id": "feat-agents-bootstrap",
+      "name": "Opt-in agents-bootstrap skill adapts the template",
+      "type": "feature",
+      "status": "committed",
+      "scope": "includes: light skill that fills/adapts template with real project commands; excludes: /init-style auto-dump of tree/stack, always-on invocation"
+    },
+    {
+      "id": "feat-agents-nudge",
+      "name": "Optional sessionStart nudge when AGENTS.md is absent",
+      "type": "feature",
+      "status": "committed",
+      "scope": "includes: side-effect-thin one-line pointer to template/skill if missing; excludes: auto-create, long sermon, alwaysApply onboarding rule"
+    },
+    {
+      "id": "chore-align-dogfood",
+      "name": "Align dogfood root AGENTS.md and catalog pointers",
       "type": "chore",
-      "status": "verified",
-      "scope": "includes: pytest secret-read-guard + security-shell + pre-commit harness; make eval-fast; formal /evaluator PASS. excludes: expanding test matrix, CI workflows, promoting optional hooks"
+      "status": "committed",
+      "scope": "includes: light alignment of this repo's AGENTS.md + skill/catalog mentions with the new mental model; excludes: turning root AGENTS.md into the shipped template or a full rewrite"
     }
   ]
 }

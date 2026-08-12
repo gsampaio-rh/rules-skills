@@ -1,43 +1,67 @@
 {
-  "task_id": "chore-security-gap-check",
-  "feature": "Security pack closeout: gap-check, sacred default hooks, formal pytest + eval-fast",
+  "task_id": "chore-align-dogfood",
+  "feature": "Align dogfood root AGENTS.md and catalog pointers with AGENTS.md onboarding model",
+  "problem": "Root AGENTS.md and README/AGENTS catalogs omit template/adopt/bootstrap/nudge and the project-vs-session memory split.",
+  "proposed_solution": "Light-touch updates to root AGENTS.md, README.md, and AGENTS.md skill catalog (and optional AGENTS/HARNESS docs pointers) naming the new pieces without rewriting root AGENTS.md into the consumer template.",
   "acceptance_criteria": [
-    "test -f library/cursor/hooks/secret-read-guard.sh && test -f library/cursor/hooks/security-shell.sh",
-    "python3 -c \"import json; o=json.load(open('library/cursor/hooks.optional.json')); es=[e for h in o.get('hooks',{}).values() for e in h if 'secret-read-guard' in e.get('command','') or 'security-shell' in e.get('command','')]; assert len(es)==2 and all(e.get('failClosed') is True for e in es)\"",
-    "! rg -q 'secret-read-guard|security-shell' library/cursor/hooks.json",
-    "rg -q 'contract-gate' library/cursor/hooks.json && rg -q 'evaluator-guard' library/cursor/hooks.json && rg -q 'pre-commit-harness' library/cursor/hooks.json",
-    "rg -q 'secret-read-guard' AGENTS.md && rg -q 'security-shell' AGENTS.md && rg -q 'secret-read-guard' docs/HARNESS_ESSENCE.md && rg -q 'security-shell' docs/HARNESS_ESSENCE.md && rg -q 'secret-read-guard' library/cursor/skills/adversarial-harness/SKILL.md && rg -q 'security-shell' library/cursor/skills/adversarial-harness/SKILL.md && rg -q 'secret-read-guard' scripts/hooks-profile.sh && rg -q 'security-shell' scripts/hooks-profile.sh",
-    "rg -q 'pre-commit-harness' library/cursor/rules/security.mdc && rg -q 'hooks.optional' library/cursor/rules/security.mdc && rg -q 'alwaysApply: false' library/cursor/rules/security.mdc",
-    "! rg -qi 'never commit \\.env|do not commit.*\\.env' library/cursor/rules/security.mdc && rg -q 'Structural \u2014 hooks, not this rule' library/cursor/rules/security.mdc",
-    "test -f tests/eval/test_secret_read_guard.py && test -f tests/eval/test_security_shell.py",
-    "python3 -m pytest tests/eval/test_secret_read_guard.py tests/eval/test_security_shell.py tests/eval/test_pre_commit_harness.py -q; test $? -eq 0",
-    "make sync-local >/dev/null && bash scripts/hooks-profile.sh optional >/dev/null && rg -q 'secret-read-guard' .cursor/hooks.json && rg -q 'security-shell' .cursor/hooks.json && bash scripts/hooks-profile.sh default >/dev/null && ! rg -q 'secret-read-guard' .cursor/hooks.json",
-    "make eval-fast; test $? -eq 0"
+    "python3 -c \"from pathlib import Path; t=Path('AGENTS.md').read_text(); needles=['adopt-agents-md','agents-bootstrap','agents-md-nudge','templates/AGENTS']; assert all(n in t for n in needles), f'missing: {[n for n in needles if n not in t]}'\"",
+    "rg -q 'agents-bootstrap' AGENTS.md && rg -q 'agents-bootstrap' README.md && rg -q 'adopt-agents-md|templates/AGENTS' README.md",
+    "python3 -c \"from pathlib import Path; t=Path('AGENTS.md').read_text(); lo=t.lower(); assert 'project memory' in lo; assert 'session' in lo and ('.harness' in t or 'harness-context' in lo)\"",
+    "! rg -q '^## Landmines' AGENTS.md && ! rg -q '^## Security considerations' AGENTS.md",
+    "python3 -c \"from pathlib import Path; t=Path('AGENTS.md').read_text(); assert '## Commands' in t; assert 'make validate' in t or 'make eval-fast' in t; assert '## Harness' in t; assert '## Key artifacts' in t; assert '## Agents' in t; assert len(t.splitlines())<=120\"",
+    "python3 -c \"from pathlib import Path; t=Path('docs/HARNESS_ESSENCE.md').read_text(); lo=t.lower(); onboarding=sum(1 for n in ['adopt-agents-md','agents-bootstrap','agents-md-nudge','templates/AGENTS'] if n in t); assert onboarding>=2 or ('project memory' in lo and 'session' in lo and 'agents.md' in lo)\"",
+    "make eval-fast"
   ],
   "edge_cases": [
-    "Optional guards wired only via hooks-profile.sh optional merge; default profile restores library hooks.json without secret-read-guard/security-shell (AC10)",
-    "security.mdc stays alwaysApply: false and defers structural denies to hooks (AC6\u2013AC7)",
-    "Gap-check may be no-op if tree already complete \u2014 evaluator still runs full AC list including pytest and eval-fast"
+    "Root AGENTS.md remains dogfood exemplar: has ## Harness; not byte-identical to library/cursor/templates/AGENTS.md; no consumer-template primary headings (## Landmines, ## Security considerations)",
+    "Do not remove existing harness/commands guidance (make validate/eval-fast still in ## Commands; Harness 5-bullet block retained)",
+    "No further product features beyond alignment \u2014 doc/catalog pointers only; no new scripts, hooks, or validate gates",
+    "README onboarding pointer names adopt/template path for consumers without duplicating full dogfood AGENTS.md body"
   ],
-  "verification_method": "From repo root: run each AC in order; AC10 restores default .cursor profile before AC11 eval-fast",
-  "phase": "evaluating",
-  "verified": true,
-  "last_eval": "2026-08-09T10:19:32Z",
-  "last_eval_overall": "PASS",
+  "verification_method": "python3/rg structural checks on AGENTS.md, README.md, docs/HARNESS_ESSENCE.md; make eval-fast regression",
+  "rubrics": [],
+  "rubric_mode": "warn",
+  "negotiation_rounds": 1,
   "negotiation_notes": {
     "round": 1,
     "decisions": [
-      "AC1 ACCEPTED \u2014 guard scripts present in library",
-      "AC2 STRENGTHENED \u2014 failClosed required on both optional guard entries (not any failClosed in file)",
-      "AC3 ACCEPTED \u2014 default hooks.json excludes optional guards",
-      "AC4 STRENGTHENED \u2014 pre-commit-harness (exact hook) not generic pre-commit",
-      "AC5 STRENGTHENED \u2014 docs + hooks-profile must name both guards; HARNESS_ESSENCE security-shell added",
-      "AC6 STRENGTHENED \u2014 alwaysApply: false on security.mdc (edge case shell-testable)",
-      "AC7 STRENGTHENED \u2014 no duplicate .env commit prose; require structural deferral line",
-      "AC8 ACCEPTED \u2014 pytest modules exist",
-      "AC9 ACCEPTED \u2014 behavioral hook + pre-commit tests green",
-      "AC10 NEW \u2014 hooks-profile optional/default round-trip on synced .cursor",
-      "AC11 SPLIT \u2014 eval-fast separate from sync (AC10 leaves default profile)"
+      {
+        "ac": 1,
+        "verdict": "STRENGTHENED",
+        "reason": "Was rg one-of-four; now requires all onboarding pieces (adopt, bootstrap skill, nudge hook, template path) named in root AGENTS.md"
+      },
+      {
+        "ac": 2,
+        "verdict": "STRENGTHENED",
+        "reason": "Added README adopt/template pointer \u2014 skills catalog alone is insufficient for consumer onboarding"
+      },
+      {
+        "ac": 3,
+        "verdict": "REJECTED\u2192STRENGTHENED",
+        "reason": "Vacuous OR (title always matches AGENTS.md); now requires explicit project memory prose plus session/.harness or harness-context contrast"
+      },
+      {
+        "ac": 4,
+        "verdict": "STRENGTHENED",
+        "reason": "Added consumer-template heading guard (## Security considerations) alongside ## Landmines ban"
+      },
+      {
+        "ac": 5,
+        "verdict": "STRENGTHENED",
+        "reason": "Added ## Key artifacts + ## Agents retention asserts \u2014 light-touch, not template swap"
+      },
+      {
+        "ac": 6,
+        "verdict": "STRENGTHENED",
+        "reason": "Was vacuous OR on any AGENTS.md mention; now \u22652 onboarding needles or explicit project/session memory split in HARNESS_ESSENCE"
+      },
+      {
+        "ac": 7,
+        "verdict": "ACCEPTED",
+        "reason": "Regression gate unchanged"
+      }
     ]
-  }
+  },
+  "phase": "evaluating",
+  "verified": true
 }

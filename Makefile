@@ -43,7 +43,7 @@ sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents,
 		echo "  Trimmed hooks.log (kept last 200 lines)"; \
 	fi
 	@# Sync directories (rm + cp = full cleanup of deleted files)
-	@for dir in rules skills hooks agents references; do \
+	@for dir in rules skills hooks agents references templates; do \
 		if [ -L ".cursor/$$dir" ]; then rm ".cursor/$$dir"; fi; \
 		if [ -d "library/cursor/$$dir" ]; then \
 			rm -rf ".cursor/$$dir"; \
@@ -55,6 +55,7 @@ sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents,
 	@cp library/cursor/hooks.optional.json .cursor/hooks.optional.json
 	@echo "default" > .cursor/.hooks-profile
 	@cp library/cursor/harness-model-routing.json .cursor/harness-model-routing.json
+	@bash scripts/adopt-agents-md.sh . library/cursor
 	@echo "Done. Profile: default (run scripts/hooks-profile.sh optional to add advisories)"
 
 validate: ## Validate rules and skills against authoring standards

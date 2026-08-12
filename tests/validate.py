@@ -14,11 +14,21 @@ from pathlib import Path
 
 RULES_DIR = Path("library/cursor/rules")
 SKILLS_DIR = Path("library/cursor/skills")
+AGENTS_TEMPLATE = Path("library/cursor/templates/AGENTS.md")
 
 MAX_RULE_LINES = 200
 MAX_SKILL_LINES = 300
+MAX_AGENTS_TEMPLATE_LINES = 80
 MAX_ALWAYS_ON_TOKENS = 1200  # words * ~1.3 ≈ tokens; keep always-on lean
 MAX_ALWAYS_ON_WORDS = int(MAX_ALWAYS_ON_TOKENS / 1.3)
+
+_AGENTS_TEMPLATE_BANNED = (
+    "Directory structure",
+    "Tech stack",
+    "## Overview",
+    "## Harness",
+    "## Key artifacts",
+)
 
 # Glob-tax: always-on + matching glob-scoped rules for representative edit paths.
 # Warn-only (does not fail validate) — broad globs act like semi-always-on.
@@ -229,6 +239,49 @@ def glob_matches(globs_field: str, rel_path: str) -> bool:
     return False
 
 
+def validate_agents_template(path: Path = AGENTS_TEMPLATE) -> ValidationResult:
+    """Structural gate for the portable AGENTS.md consumer template."""
+    result = ValidationResult(file=str(path))
+    if not path.is_file():
+        result.errors.append("AGENTS.md template missing")
+        return result
+
+    text = path.read_text()
+    lines = text.splitlines()
+    if not text.lstrip().startswith("# AGENTS.md"):
+        result.errors.append("Title must start with '# AGENTS.md'")
+    if "## Commands" not in text:
+        result.errors.append("Missing required section: '## Commands'")
+    # Prefer agents.md-style headings; keep Constraints/Do not as aliases.
+    has_constraints = any(
+        h in text
+        for h in (
+            "## Security considerations",
+            "## Constraints",
+            "## Do not",
+            "## Don't",
+        )
+    ) or "Do not" in text
+    if not has_constraints:
+        result.errors.append(
+            "Missing constraints section ('## Security considerations', "
+            "'## Constraints', '## Do not', or 'Do not' in body)"
+        )
+    has_see_also = any(h in text for h in ("## See also", "## Docs"))
+    if not has_see_also:
+        result.errors.append(
+            "Missing see-also section ('## See also' or '## Docs')"
+        )
+    if len(lines) > MAX_AGENTS_TEMPLATE_LINES:
+        result.errors.append(
+            f"Exceeds {MAX_AGENTS_TEMPLATE_LINES} line limit ({len(lines)} lines)"
+        )
+    for bad in _AGENTS_TEMPLATE_BANNED:
+        if bad in text:
+            result.errors.append(f"Forbidden overview/dogfood heading or phrase: {bad!r}")
+    return result
+
+
 def check_token_budget(rules_dir: Path) -> ValidationResult:
     result = ValidationResult(file="[always-on budget]")
     total_words = 0
@@ -297,6 +350,8 @@ def check_glob_tax(rules_dir: Path) -> ValidationResult:
 
 def main() -> int:
     results: list[ValidationResult] = []
+
+    results.append(validate_agents_template())
 
     if RULES_DIR.exists():
         for path in sorted(RULES_DIR.glob("*.mdc")):
