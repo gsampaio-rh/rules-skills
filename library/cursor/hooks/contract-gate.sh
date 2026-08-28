@@ -1,13 +1,10 @@
 #!/bin/bash
-# preToolUse hook (matcher: Write): Denies writes to product files in two cases:
-#   1. Cold start: routing-pending marker exists but no state.json (planner not run)
-#   2. Active harness: state.json exists but no contract.json (negotiation not done)
+# preToolUse hook (matcher: Write): Denies writes to product files when harness is ACTIVE:
+#   1. Opt-in cold start: routing-pending marker exists but no state.json
+#   2. Active harness: pending|building|evaluating task and no contract.json
 #
-# Design:
-#   - routing-pending + no state.json → block impl writes (cold-start enforcement)
-#   - No state.json + no marker → allow (simple task, no harness)
-#   - Contract exists → allow (negotiation done, builder working)
-#   - State exists + no contract → allow ONLY .harness/ and .cursor/hooks/ writes
+# Idle (free default): no state, or only committed/cancelled/verified tasks → allow.
+# Contract exists → allow. .harness/ and .cursor/hooks/ always allowed when gating.
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/hooks-lib.sh"
@@ -23,10 +20,10 @@ if [ -n "$_p6_target" ]; then
   hooks_session_stats_maybe_inc_source_write "$_p6_target"
 fi
 
-# Cold-start enforcement: routing-pending marker means harness-gate detected
-# a non-trivial prompt but state.json hasn't been created yet (planner hasn't
-# run). Block implementation writes until state.json exists, user says
-# "skip harness" (clears marker), a skip breadcrumb appears, or TTL expires.
+# Opt-in arm: routing-pending means harness-gate armed but state.json hasn't
+# been created yet (planner hasn't run). Block implementation writes until
+# state.json exists, user says "skip harness" (clears marker), a skip
+# breadcrumb appears, or TTL expires.
 ROUTING_PENDING=".harness/.routing-pending"
 ROUTING_PENDING_TTL_SEC="${ROUTING_PENDING_TTL_SEC:-600}"
 if [ ! -f "$STATE" ] && [ -f "$ROUTING_PENDING" ]; then
@@ -53,7 +50,7 @@ if [ ! -f "$STATE" ] && [ -f "$ROUTING_PENDING" ]; then
       cat <<EOF
 {
   "permission": "deny",
-  "agent_message": "WRITE BLOCKED (cold start): A non-trivial task was detected but no .harness/state.json exists yet. You must launch the /planner subagent to create state.json before writing implementation code.\n\nTo proceed:\n1. Launch /planner to decompose the task into state.json\n2. After state.json is created, implementation writes will be allowed\n\nIf this is actually simple work, ask the user to say 'skip harness' (clears .routing-pending) or append a breadcrumb containing 'Skipped harness'.\n\nBlocked file: $target_path"
+  "agent_message": "WRITE BLOCKED (harness opt-in): .routing-pending is set but no .harness/state.json yet. Launch /planner to create state.json, or say skip harness to cancel.\n\nBlocked file: $target_path"
 }
 EOF
       exit 0
@@ -71,10 +68,10 @@ EOF
     cat <<EOF
 {
   "permission": "deny",
-  "agent_message": "WRITE BLOCKED (cold start): A non-trivial task was detected but no .harness/state.json exists yet. You must launch the /planner subagent to create state.json before writing implementation code.\n\nTo proceed:\n1. Launch /planner to decompose the task into state.json\n2. After state.json is created, implementation writes will be allowed\n\nIf this is actually simple work, ask the user to say 'skip harness' (clears .routing-pending) or append a breadcrumb containing 'Skipped harness'.\n\nBlocked file: $target_path"
+  "agent_message": "WRITE BLOCKED (harness opt-in): .routing-pending is set but no .harness/state.json yet. Launch /planner to create state.json, or say skip harness to cancel.\n\nBlocked file: $target_path"
 }
 EOF
-    exit 0
+      exit 0
   fi
 fi
 
@@ -130,9 +127,9 @@ EOF
   exit 0
 fi
 
-# Determine the current task for the gate message.
-# P5: hard-deny source writes when a building OR pending task exists and
+# P5: hard-deny source writes when a building, evaluating, OR pending task exists and
 # there is no contract. Docs-only already soft-warned above.
+# Idle = no pending/building/evaluating → allow (committed/cancelled/verified-only state).
 STATE_DATA=$(hooks_read_state "$STATE")
 GATE_RESULT=$(echo "$STATE_DATA" | python3 -c "
 import sys, json
@@ -142,13 +139,16 @@ try:
     bname = data.get('building_name', '')
     pid = data.get('pending_id', '')
     pname = data.get('pending_name', '')
+    eid = data.get('evaluating_id', '')
 
     if bid:
         print(f'GATE|{bname or bid}')
+    elif eid:
+        print(f'GATE|{eid}')
     elif pid:
         print(f'GATE|{pname or pid}')
     else:
-        print('SKIP|unknown')
+        print('SKIP|idle')
 except Exception:
     print('GATE|unknown')
 " 2>/dev/null)
@@ -186,7 +186,7 @@ except Exception:
 cat <<EOF
 {
   "permission": "deny",
-  "agent_message": "WRITE BLOCKED: The harness is active (state.json exists with feature \"$CURRENT_FEATURE\") but no contract.json was found. You must negotiate a contract before writing implementation code.\n\nTo proceed:\n1. Propose a contract for the current feature (write to .harness/contract.json)\n2. Launch the evaluator subagent for contract negotiation\n3. After negotiation completes, implementation writes will be allowed\n\nIf this is a simple fix unrelated to harness features, write a breadcrumb to .harness/breadcrumbs.jsonl explaining why you're skipping the contract, then the user can say 'skip harness' to proceed.\n\nBlocked file: $target_path"
+  "agent_message": "WRITE BLOCKED: Harness is active (task \"$CURRENT_FEATURE\") but no contract.json was found. Propose .harness/contract.json and negotiate with /evaluator before implementation writes.\n\nTo leave harness mode, say skip harness or finish/cancel active tasks.\n\nBlocked file: $target_path"
 }
 EOF
 exit 0

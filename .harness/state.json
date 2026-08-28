@@ -1,42 +1,42 @@
 {
   "project": "rules-skills",
   "schema_version": 2,
-  "vision": "Make AGENTS.md the portable project-memory onboarding path (template + missing-only adopt + bootstrap skill + optional absence nudge) without inventing content or duplicating session harness.",
+  "vision": "Make the adversarial harness opt-in so everyday work is free by default; full planner\u2192contract\u2192gates only when the user arms it or an active harness task exists.",
   "tasks": [
     {
-      "id": "feat-agents-template",
-      "name": "Ship minimal AGENTS.md template in the library",
+      "id": "feat-optin-harness-gate",
+      "name": "Stop cold-start auto-arming of routing-pending",
       "type": "feature",
       "status": "committed",
-      "scope": "includes: skeleton with commands/landmines/pointers sections as consumer starter; excludes: full codebase overview dump, rewriting this repo's root AGENTS.md as the product"
+      "scope": "includes: harness-gate no longer arms .routing-pending on every long prompt; arm only on explicit opt-in (phrases and/or /planner/skill intent); skip harness remains harmless clear; excludes: removing harness-gate entirely, changing contract deny logic"
     },
     {
-      "id": "feat-agents-adopt",
-      "name": "Adopt/sync installs AGENTS.md only when missing",
+      "id": "feat-idle-contract-gate",
+      "name": "Gate writes only when harness is active",
       "type": "feature",
       "status": "committed",
-      "scope": "includes: setup/sync path places template as AGENTS.md for consumers lacking one; excludes: overwriting an existing AGENTS.md, auto-create via hooks"
+      "scope": "includes: idle = no state or only committed/cancelled/empty pending \u2192 allow impl writes without contract; active = pending/building/evaluating \u2192 keep contract/verify deny; leftover dogfood committed state counts as idle; excludes: removing contract-gate, weakening evaluator-guard"
     },
     {
-      "id": "feat-agents-bootstrap",
-      "name": "Opt-in agents-bootstrap skill adapts the template",
+      "id": "feat-optin-rule-skill",
+      "name": "Flip always-apply rule and skill to opt-in primary",
       "type": "feature",
       "status": "committed",
-      "scope": "includes: light skill that fills/adapts template with real project commands; excludes: /init-style auto-dump of tree/stack, always-on invocation"
+      "scope": "includes: adversarial_harness.mdc and adversarial-harness skill default to free work; full harness when user opts in or active tasks; drop 'No state \u2192 /planner' and skip-as-required framing; excludes: deleting the skill/product or Mode 2 resume when active"
     },
     {
-      "id": "feat-agents-nudge",
-      "name": "Optional sessionStart nudge when AGENTS.md is absent",
-      "type": "feature",
+      "id": "docs-optin-align",
+      "name": "Align AGENTS.md and harness docs with opt-in default",
+      "type": "docs",
       "status": "committed",
-      "scope": "includes: side-effect-thin one-line pointer to template/skill if missing; excludes: auto-create, long sermon, alwaysApply onboarding rule"
+      "scope": "includes: AGENTS.md harness bullets, HARNESS_ESSENCE, consumer-facing pointers flip default\u2192opt-in and active-vs-idle; excludes: rewriting unrelated onboarding/template content"
     },
     {
-      "id": "chore-align-dogfood",
-      "name": "Align dogfood root AGENTS.md and catalog pointers",
+      "id": "chore-optin-tests",
+      "name": "Flip hook tests and validate-hooks expectations",
       "type": "chore",
       "status": "committed",
-      "scope": "includes: light alignment of this repo's AGENTS.md + skill/catalog mentions with the new mental model; excludes: turning root AGENTS.md into the shipped template or a full rewrite"
+      "scope": "includes: validate-hooks.sh + harness-gate/contract-gate unit tests assert free default, opt-in arm, idle allow, active deny; excludes: new eval-API suites or unrelated hook coverage expansion"
     }
   ]
 }

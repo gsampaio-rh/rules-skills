@@ -8,7 +8,7 @@ A file-based task system that keeps AI agents honest across sessions.
 2. **Task Definition** — Discrete tasks with `id`, `name`, `type` (`feature`/`bug`/`spike`/`chore`/`docs`), `status`, and optional `scope`.
 3. **Status Tracking** — Lifecycle: `pending` → `building` → `evaluating` → `verified` → `committed` (+ `cancelled`). Breadcrumbs trace actions.
 4. **Acceptance Criteria** — `contract.json` with binary-testable criteria negotiated before implementation.
-5. **Contract Enforcement** — Structural hooks deny implementation writes without a contract. Agents cannot self-grade.
+5. **Contract Enforcement** — When harness is **active** (opt-in arm or pending/building/evaluating task), structural hooks deny implementation writes without a contract. Agents cannot self-grade. Idle/default work is ungated.
 
 ## Three Core Files
 
@@ -22,8 +22,8 @@ A file-based task system that keeps AI agents honest across sessions.
 
 | Workflow Step | Mechanism | Type |
 |--------------|-----------|------|
-| Cold-start routing | `harness-gate.sh` (sets `.routing-pending`) + `contract-gate` deny | **paired** |
-| Contract before impl | `contract-gate.sh` (preToolUse) | **structural deny** |
+| Opt-in arm | `harness-gate.sh` (sets `.routing-pending` only on `use/with harness`, `/planner`, `adversarial-harness`) + `contract-gate` deny | **paired** |
+| Contract before impl (active only) | `contract-gate.sh` (preToolUse) — idle/committed-only allows free writes | **structural deny** |
 | Evaluator isolation | `evaluator-guard.sh` (preToolUse) | **structural deny** |
 | Verification before done | `verify-harness.sh` (stop) | side-effect-thin soft followup |
 | User commit approval | `pre-commit-harness.sh` (beforeShellExecution) | **structural deny** |
@@ -31,6 +31,8 @@ A file-based task system that keeps AI agents honest across sessions.
 | Progress breadcrumbs | `enforce-progress.sh` (stop) | side-effect-thin soft followup |
 | Phase advance | `chain-evaluator.sh` (subagentStop) | orchestration (side-effect) |
 | Session context | `harness-context.sh` (sessionStart) | inject |
+
+**Default:** free writes (no auto planner). **Opt-in:** user phrases or `/planner` / skill. **Active:** pending/building/evaluating tasks keep contract gates. **Idle:** committed/cancelled/verified-only (or no state) does not deny.
 
 **Optional (not in default `hooks.json`):** `secret-read-guard.sh` (`beforeReadFile`, failClosed — deny live `.env`/key paths), `security-shell.sh` (`beforeShellExecution`, failClosed — deny curl/wget pipe-to-shell), `dedup-server.sh` (dev-server utility), `agents-md-nudge.sh` (`sessionStart` — one-line pointer when root AGENTS.md is missing) — see `library/cursor/hooks.optional.json`. Session fatigue/handoff (P6) is skill `session-review`, not a stop hook.
 
@@ -93,7 +95,7 @@ There is no lean/full dual product; older `hooks.lean.json` / `hooks.full.json` 
 2. Install `library/cursor/hooks.json` as `.cursor/hooks.json`.
 3. `mkdir -p .harness`
 4. Seed project memory if missing: `scripts/adopt-agents-md.sh <project> library/cursor` (from `templates/AGENTS.md`); optionally `/agents-bootstrap` to fill Commands.
-5. On first non-trivial task, `/planner` writes `state.json` — harness activates.
+5. Everyday work stays free. Opt in with `use harness` / `/planner` when you want full planner→contract→gates.
 
 `AGENTS.md` is **project memory**; `.harness/` + `harness-context` is **session memory**. Optional `agents-md-nudge` reminds when the former is absent.
 

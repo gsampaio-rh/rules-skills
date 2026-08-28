@@ -10,7 +10,7 @@ usage() {
     echo "Usage: $(basename "$0") <default|optional|status>"
     echo ""
     echo "Switch hook profiles:"
-    echo "  default  — Core deny/inject hooks including harness-gate cold-start"
+    echo "  default  — Core deny/inject hooks including harness-gate opt-in"
     echo "  optional — Core + secret-read-guard + security-shell + dedup-server"
     echo "  status   — Show current profile"
     exit 1

@@ -1,8 +1,7 @@
-"""Unit tests for library/cursor/hooks/harness-gate.sh.
+"""Unit tests for library/cursor/hooks/harness-gate.sh (opt-in default).
 
 Invokes the hook directly from a temp directory (no .harness/ files) so
-Case 1 (harness active) does not fire, letting us test the glue and routing
-logic in isolation.
+Case 1 (harness active) does not fire, letting us test free-default and opt-in.
 """
 
 import json
@@ -44,91 +43,73 @@ def run_hook(prompt: str, cwd: Path) -> dict:
     return json.loads(raw)
 
 
-# ---------------------------------------------------------------------------
-# PT-BR short feature prompts must trigger HARNESS ROUTING
-# ---------------------------------------------------------------------------
+class TestFreeDefaultNoAutoArm:
+    """Long / feature prompts must NOT arm routing-pending without opt-in."""
 
-class TestShortPTBRPromptsRouted:
-    """The three canonical short Portuguese feature prompts must NOT be
-    classified as glue — they must trigger the cold-start routing message."""
-
-    def test_refatora_tudo_triggers_routing(self, tmp_path):
-        """'refatora tudo' — 13 chars, 2 words — must not be classified as glue."""
+    def test_refatora_tudo_is_free(self, tmp_path):
         d = run_hook("refatora tudo", tmp_path)
-        assert "followup_message" in d, f"Expected routing but got: {d}"
-        assert "HARNESS ROUTING" in d["followup_message"]
+        assert d == {}, f"Expected free default but got: {d}"
+        assert not (tmp_path / ".harness" / ".routing-pending").exists()
 
-    def test_migra_o_banco_triggers_routing(self, tmp_path):
-        """'migra o banco' — 13 chars, 3 words — must trigger routing."""
-        d = run_hook("migra o banco", tmp_path)
-        assert "followup_message" in d, f"Expected routing but got: {d}"
-        assert "HARNESS ROUTING" in d["followup_message"]
+    def test_long_auth_prompt_is_free(self, tmp_path):
+        d = run_hook(
+            "implement a new authentication service with OAuth2 across microservices",
+            tmp_path,
+        )
+        assert d == {}, f"Expected free default but got: {d}"
+        assert not (tmp_path / ".harness" / ".routing-pending").exists()
 
-    def test_adiciona_autenticacao_triggers_routing(self, tmp_path):
-        """'adiciona autenticação' — 21 chars, 2 words — must trigger routing."""
-        d = run_hook("adiciona autenticação", tmp_path)
-        assert "followup_message" in d, f"Expected routing but got: {d}"
-        assert "HARNESS ROUTING" in d["followup_message"]
+    def test_review_prompt_is_free(self, tmp_path):
+        d = run_hook("review the auth module", tmp_path)
+        assert d == {}, f"Expected free default but got: {d}"
+        assert not (tmp_path / ".harness" / ".routing-pending").exists()
 
+    def test_what_question_is_free(self, tmp_path):
+        d = run_hook("what does this function do", tmp_path)
+        assert d == {}, f"Expected free default but got: {d}"
+        assert not (tmp_path / ".harness" / ".routing-pending").exists()
 
-# ---------------------------------------------------------------------------
-# True glue messages must pass through silently ({})
-# ---------------------------------------------------------------------------
 
 class TestGluePassThrough:
-    """Single-word and very-short two-word conversational responses must
-    exit silently without injecting a routing message."""
-
     @pytest.mark.parametrize("prompt", ["ok", "yes", "no", "sure", "sim"])
     def test_single_word_glue(self, tmp_path, prompt):
         d = run_hook(prompt, tmp_path)
         assert d == {}, f"Expected glue pass-through {{}} but got: {d}"
 
     def test_got_it_is_glue(self, tmp_path):
-        """'got it' — 6 chars, 2 words — must be treated as glue."""
         d = run_hook("got it", tmp_path)
         assert d == {}, f"Expected glue pass-through but got: {d}"
 
-    def test_proceed_is_glue(self, tmp_path):
-        """'proceed' — 7 chars, 1 word — must be treated as glue."""
-        d = run_hook("proceed", tmp_path)
-        assert d == {}, f"Expected glue pass-through but got: {d}"
+
+class TestOptInArms:
+    @pytest.mark.parametrize(
+        "prompt",
+        [
+            "use harness to implement OAuth2",
+            "with harness refactor auth",
+            "/planner break this into tasks",
+            "follow adversarial-harness skill to plan",
+            "USE HARNESS for this feature",
+        ],
+    )
+    def test_opt_in_phrases_arm(self, tmp_path, prompt):
+        d = run_hook(prompt, tmp_path)
+        assert "followup_message" in d, f"Expected opt-in arm but got: {d}"
+        assert (tmp_path / ".harness" / ".routing-pending").is_file()
 
 
-# ---------------------------------------------------------------------------
-# Explicit opt-out and simple queries must pass through
-# ---------------------------------------------------------------------------
-
-class TestOptOutAndSimple:
+class TestOptOutAndActive:
     def test_skip_harness_passes(self, tmp_path):
-        """'skip harness and just code' must exit silently (Case 3)."""
         d = run_hook("skip harness and just code", tmp_path)
         assert d == {}, f"Expected silent pass-through but got: {d}"
 
-    def test_what_question_routes_without_faux_judge(self, tmp_path):
-        """Slim: no SIMPLE_PATTERNS — long Q&A prompts still arm .routing-pending."""
-        d = run_hook("what does this function do", tmp_path)
-        assert "followup_message" in d, f"Expected routing but got: {d}"
-        assert (tmp_path / ".harness" / ".routing-pending").is_file()
-
-    def test_review_prompt_routes_without_faux_judge(self, tmp_path):
-        """Slim: 'review the auth module' routes after SIMPLE_PATTERNS removal."""
-        d = run_hook("review the auth module", tmp_path)
-        assert "followup_message" in d, f"Expected routing but got: {d}"
-        assert (tmp_path / ".harness" / ".routing-pending").is_file()
-
-
-# ---------------------------------------------------------------------------
-# Harness already active — Case 1 must always pass silently
-# ---------------------------------------------------------------------------
-
-class TestHarnessActive:
     def test_state_json_present_allows_any_prompt(self, tmp_path):
-        """When state.json exists, even a non-trivial prompt exits silently."""
         harness_dir = tmp_path / ".harness"
         harness_dir.mkdir()
         state = {
-            "project": "test", "schema_version": 2, "vision": "v",
+            "project": "test",
+            "schema_version": 2,
+            "vision": "v",
             "tasks": [{"id": "t1", "name": "test", "status": "pending"}],
         }
         (harness_dir / "state.json").write_text(json.dumps(state))

@@ -1,22 +1,23 @@
 ---
-description: Adversarial verification harness — route non-trivial work through planner/builder/evaluator cycle
+description: Adversarial verification harness — opt-in planner/builder/evaluator cycle
 alwaysApply: true
 ---
 
 # Adversarial Verification Harness
 
-**Self-test:** Can I name the exact files I'll modify? If NO → plan first.
+**Default: work freely.** Full harness is **opt-in**.
 
-| Complexity | Approach |
-|---|---|
-| Simple (named files, no architectural impact) | Just do it. |
-| Non-trivial (vague, 3+ files, architectural) | **`/planner` FIRST.** |
+| Mode | When | Approach |
+|---|---|---|
+| Free (default) | Everyday work; no active harness task | Just do it. No planner/contract required. |
+| Opt-in full harness | User says `use harness` / `with harness`, or launches `/planner` / skill `adversarial-harness` | Planner → contract → build → `/evaluator` |
+| Resume | Active task (`pending`/`building`/`evaluating`) | Continue negotiate → build → verify |
 
-- No `state.json` → `/planner`. Has `state.json` → resume next pending task.
-- Building → need `.harness/contract.json` before impl (hooks deny ungated writes).
+- Idle harness (no state, or only committed/cancelled/verified) → free writes.
+- Active harness → need `.harness/contract.json` before impl (hooks deny ungated writes).
 - Do not self-certify → `/evaluator` PASS before `verified: true`.
-- Multi-file work → TodoWrite + breadcrumb in `.harness/breadcrumbs.jsonl` (hook-enforced).
-- User says `skip harness` → opt out.
+- Multi-file harness work → TodoWrite + breadcrumb in `.harness/breadcrumbs.jsonl`.
+- Say `skip harness` to cancel an opt-in arm / leave active mode.
 
 Roles: `/planner` (vision, max 5 tasks, no code) · Builder (contract + impl) · `/evaluator` (negotiate + verify; `.harness/` only).
 

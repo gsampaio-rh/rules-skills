@@ -1,67 +1,24 @@
 {
-  "task_id": "chore-align-dogfood",
-  "feature": "Align dogfood root AGENTS.md and catalog pointers with AGENTS.md onboarding model",
-  "problem": "Root AGENTS.md and README/AGENTS catalogs omit template/adopt/bootstrap/nudge and the project-vs-session memory split.",
-  "proposed_solution": "Light-touch updates to root AGENTS.md, README.md, and AGENTS.md skill catalog (and optional AGENTS/HARNESS docs pointers) naming the new pieces without rewriting root AGENTS.md into the consumer template.",
+  "task_id": "chore-optin-tests",
+  "feature": "Flip hook tests and validate-hooks expectations to opt-in default",
+  "problem": "Unit/e2e tests and validate-hooks still expect auto cold-start arming on long prompts.",
+  "proposed_solution": "Update test_harness_gate*.py, test_cold_start_skip.py, test_harness_context_hook.py, protocol-fresh-repo-bootstrap.yaml, validate-hooks.sh, hooks-profile wording so free default + explicit opt-in are asserted.",
   "acceptance_criteria": [
-    "python3 -c \"from pathlib import Path; t=Path('AGENTS.md').read_text(); needles=['adopt-agents-md','agents-bootstrap','agents-md-nudge','templates/AGENTS']; assert all(n in t for n in needles), f'missing: {[n for n in needles if n not in t]}'\"",
-    "rg -q 'agents-bootstrap' AGENTS.md && rg -q 'agents-bootstrap' README.md && rg -q 'adopt-agents-md|templates/AGENTS' README.md",
-    "python3 -c \"from pathlib import Path; t=Path('AGENTS.md').read_text(); lo=t.lower(); assert 'project memory' in lo; assert 'session' in lo and ('.harness' in t or 'harness-context' in lo)\"",
-    "! rg -q '^## Landmines' AGENTS.md && ! rg -q '^## Security considerations' AGENTS.md",
-    "python3 -c \"from pathlib import Path; t=Path('AGENTS.md').read_text(); assert '## Commands' in t; assert 'make validate' in t or 'make eval-fast' in t; assert '## Harness' in t; assert '## Key artifacts' in t; assert '## Agents' in t; assert len(t.splitlines())<=120\"",
-    "python3 -c \"from pathlib import Path; t=Path('docs/HARNESS_ESSENCE.md').read_text(); lo=t.lower(); onboarding=sum(1 for n in ['adopt-agents-md','agents-bootstrap','agents-md-nudge','templates/AGENTS'] if n in t); assert onboarding>=2 or ('project memory' in lo and 'session' in lo and 'agents.md' in lo)\"",
-    "make eval-fast"
+    "python3 -m pytest tests/eval/test_harness_gate.py tests/eval/test_harness_gate_skill_suggest.py tests/eval/test_cold_start_skip.py tests/eval/test_harness_context_hook.py -q --tb=line",
+    "rg -n 'free default|HARNESS OPT-IN|does NOT arm' library/cursor/hooks/validate-hooks.sh",
+    "rg -n 'use harness' tests/eval/scenarios/protocol-fresh-repo-bootstrap.yaml",
+    "rg -n 'harness-gate opt-in' scripts/hooks-profile.sh",
+    "make sync-local >/dev/null && make eval-fast"
   ],
   "edge_cases": [
-    "Root AGENTS.md remains dogfood exemplar: has ## Harness; not byte-identical to library/cursor/templates/AGENTS.md; no consumer-template primary headings (## Landmines, ## Security considerations)",
-    "Do not remove existing harness/commands guidance (make validate/eval-fast still in ## Commands; Harness 5-bullet block retained)",
-    "No further product features beyond alignment \u2014 doc/catalog pointers only; no new scripts, hooks, or validate gates",
-    "README onboarding pointer names adopt/template path for consumers without duplicating full dogfood AGENTS.md body"
+    "routing-pending without state still denies (sacred opt-in arm path)",
+    "Long prompt without opt-in phrases stays silent and does not create marker",
+    "Scenario bootstrap requires explicit use harness in initial_prompt"
   ],
-  "verification_method": "python3/rg structural checks on AGENTS.md, README.md, docs/HARNESS_ESSENCE.md; make eval-fast regression",
+  "verification_method": "pytest focused suite + make eval-fast after sync-local",
   "rubrics": [],
   "rubric_mode": "warn",
   "negotiation_rounds": 1,
-  "negotiation_notes": {
-    "round": 1,
-    "decisions": [
-      {
-        "ac": 1,
-        "verdict": "STRENGTHENED",
-        "reason": "Was rg one-of-four; now requires all onboarding pieces (adopt, bootstrap skill, nudge hook, template path) named in root AGENTS.md"
-      },
-      {
-        "ac": 2,
-        "verdict": "STRENGTHENED",
-        "reason": "Added README adopt/template pointer \u2014 skills catalog alone is insufficient for consumer onboarding"
-      },
-      {
-        "ac": 3,
-        "verdict": "REJECTED\u2192STRENGTHENED",
-        "reason": "Vacuous OR (title always matches AGENTS.md); now requires explicit project memory prose plus session/.harness or harness-context contrast"
-      },
-      {
-        "ac": 4,
-        "verdict": "STRENGTHENED",
-        "reason": "Added consumer-template heading guard (## Security considerations) alongside ## Landmines ban"
-      },
-      {
-        "ac": 5,
-        "verdict": "STRENGTHENED",
-        "reason": "Added ## Key artifacts + ## Agents retention asserts \u2014 light-touch, not template swap"
-      },
-      {
-        "ac": 6,
-        "verdict": "STRENGTHENED",
-        "reason": "Was vacuous OR on any AGENTS.md mention; now \u22652 onboarding needles or explicit project/session memory split in HARNESS_ESSENCE"
-      },
-      {
-        "ac": 7,
-        "verdict": "ACCEPTED",
-        "reason": "Regression gate unchanged"
-      }
-    ]
-  },
   "phase": "evaluating",
   "verified": true
 }

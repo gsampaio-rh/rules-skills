@@ -172,7 +172,7 @@ class TestFallback:
         assert "SESSION BOUNDARY" not in ctx
 
     def test_cold_start_no_harness_files(self, tmp_path):
-        """No state.json or contract.json → cold-start message, exit 0."""
+        """No state.json or contract.json → free-default / opt-in message, exit 0."""
         (tmp_path / ".harness").mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
             ["bash", str(HOOK)],
@@ -186,4 +186,5 @@ class TestFallback:
         assert result.returncode == 0
         d = json.loads(result.stdout.strip())
         assert "additional_context" in d
-        assert "planner" in d["additional_context"].lower() or "non-trivial" in d["additional_context"]
+        ctx = d["additional_context"].lower()
+        assert "work freely" in ctx or "opt in" in ctx

@@ -55,7 +55,7 @@ scripts/adopt-agents-md.sh /path/to/project library/cursor
 
 ## Hooks
 
-**Default** (`library/cursor/hooks.json`): harness-context, harness-gate (cold-start), contract-gate, evaluator-guard, pre-commit-harness, verify-harness, enforce-progress, chain-evaluator.
+**Default** (`library/cursor/hooks.json`): harness-context, harness-gate (opt-in), contract-gate, evaluator-guard, pre-commit-harness, verify-harness, enforce-progress, chain-evaluator.
 
 **Optional** (`library/cursor/hooks.optional.json`): secret-read-guard, security-shell, dedup-server, agents-md-nudge — `scripts/hooks-profile.sh optional`.
 
@@ -63,7 +63,9 @@ scripts/adopt-agents-md.sh /path/to/project library/cursor
 make sync-local            # installs default hooks.json
 ```
 
-## Harness Workflow
+## Harness Workflow (opt-in)
+
+Everyday work is free by default. When you opt in (`use harness` / `/planner`):
 
 1. **Plan** — `/planner` → `.harness/state.json` (vision + tasks)
 2. **Negotiate** — contract → `/evaluator`

@@ -1,10 +1,10 @@
 ---
 name: adversarial-harness
 description: >-
-  Multi-agent harness with planner/builder/evaluator subagent roles, contract
-  negotiation, adversarial verification, and breadcrumbs tracing. Use when: build
-  task, implement feature, harness workflow, adversarial testing, QA workflow,
-  contract-first, multi-agent, complex implementation.
+  Opt-in multi-agent harness with planner/builder/evaluator, contract
+  negotiation, adversarial verification, and breadcrumbs. Use when: use harness,
+  with harness, /planner, harness workflow, adversarial testing, contract-first,
+  multi-agent, complex implementation under harness.
 disable-model-invocation: false
 ---
 
@@ -12,22 +12,24 @@ disable-model-invocation: false
 
 A tiny engineering team in your IDE: `/planner` sets direction → builder and `/evaluator` negotiate a contract → you build → computational sensors gate → `/evaluator` tests the live app → breadcrumbs trace everything.
 
+**Opt-in by default.** Everyday coding does **not** require this workflow. Arm it only when the user asks (`use harness` / `with harness` / `/planner` / this skill) or when an active harness task already exists.
+
 ## How This Skill Works
 
-### Mode 1: Full Harness
-Multi-task workflow with planner, contract negotiation, build, and adversarial evaluation. Use for non-trivial work touching 3+ files.
+### Mode 1: Full Harness (opt-in)
+Multi-task workflow with planner, contract negotiation, build, and adversarial evaluation. Use when the user explicitly opts in, or for non-trivial work they asked to run under the harness.
 
 ### Mode 2: Resume Cycle
-`.harness/state.json` has pending tasks or an unverified contract — continue negotiate → build → `/evaluator` without re-planning from scratch.
+`.harness/state.json` has **active** tasks (`pending`/`building`/`evaluating`) or an unverified contract — continue negotiate → build → `/evaluator` without re-planning from scratch. Idle state (only committed/cancelled/verified) is not a resume signal.
 
 Optional rubric pass (contract `rubrics` or user ask): `references/rubrics-and-tuning.md`. Audit skills are archived; no separate standalone-audit skill mode.
 
 ## Proactive Triggers
 
-- Non-trivial request touching 3+ files or requiring architectural decisions
-- User says "build feature", "implement", "harness", "adversarial", "multi-agent"
-- `.harness/state.json` exists with pending tasks — resume the workflow
-- Contract exists but is unverified — continue the build/evaluate cycle
+- User says `use harness`, `with harness`, `/planner`, or invokes this skill
+- Active harness task exists (`pending`/`building`/`evaluating`) — resume the workflow
+- Contract exists but is unverified while a task is active — continue the build/evaluate cycle
+- Do **not** auto-start full harness merely because a prompt is long or touches 3+ files
 
 ## Subagent Architecture
 
@@ -37,10 +39,10 @@ Optional rubric pass (contract `rubrics` or user ask): `references/rubrics-and-t
 | Builder | Main agent (you) | Implements tasks against the negotiated contract |
 | Evaluator | `/evaluator` | Adversarial QA — negotiates contracts AND tests the actual app |
 
-Subagent definitions live in `.cursor/agents/`. Default hooks (`library/cursor/hooks.json`) enforce the workflow:
+Subagent definitions live in `.cursor/agents/`. Default hooks (`library/cursor/hooks.json`) enforce the workflow **when armed/active**:
 - `sessionStart` (`harness-context`) → injects lean context-package (state/AC/crumbs); maintenance only
-- `beforeSubmitPrompt` (`harness-gate`) → cold-start: sets `.harness/.routing-pending`; `skip harness` clears the marker (short followup; deny is `contract-gate`)
-- `preToolUse` (`contract-gate`) → **denies** impl writes while routing-pending (no `state.json`, unless skip breadcrumb / 600s TTL) or building without `contract.json`
+- `beforeSubmitPrompt` (`harness-gate`) → **opt-in**: arms `.harness/.routing-pending` only on `use/with harness`, `/planner`, or `adversarial-harness`; `skip harness` clears the marker (deny is `contract-gate`)
+- `preToolUse` (`contract-gate`) → **denies** impl writes while routing-pending (no `state.json`) or when an **active** task exists without `contract.json`; idle (committed-only / no state) allows free writes
 - `preToolUse` (`evaluator-guard`) → **denies** evaluator writes outside `.harness/`
 - `subagentStop` (`chain-evaluator`) → phase orchestration only: `building→evaluating` + `.evaluator-active` for empty/`planner`/`evaluator` stops (not explore/shell/etc.)
 - `beforeShellExecution` (`pre-commit-harness`) → **denies** commit without approval flag; blocks staged `.env`/secret filenames
@@ -48,7 +50,7 @@ Subagent definitions live in `.cursor/agents/`. Default hooks (`library/cursor/h
 
 Soft hooks stay **side-effect-thin**. Plan confirmation, negotiate→build guidance, eval-fail retry prose, and session fatigue/handoff advisories live in this skill, `/evaluator`, or skill `session-review` — not long hook sermons.
 
-Optional (`hooks.optional.json`): `secret-read-guard` (deny Read of live secrets), `security-shell` (deny download-exec pipes), `dedup-server`.
+Optional (`hooks.optional.json`): `secret-read-guard` (deny Read of live secrets), `security-shell` (deny download-exec pipes), `dedup-server`, `agents-md-nudge`.
 
 ## Phase 1: Planning
 
@@ -191,8 +193,8 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 
 ## Stop Conditions
 
-- All tasks in `state.json` are `"committed"` — harness complete
-- User says "skip harness" or "just do it" — exit harness, work directly
+- All tasks in `state.json` are `"committed"` — harness complete; return to free default
+- User says `skip harness` or `just do it` — cancel opt-in arm / leave active mode; work freely
 - Evaluator recommends `scrap_and_restart` after 2 retries — stop and report to user
 - Contract negotiation exceeds 3 rounds — escalate to user for decision
 

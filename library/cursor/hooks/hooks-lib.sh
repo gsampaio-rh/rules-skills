@@ -62,25 +62,29 @@ try:
     tasks = data.get('tasks', [])
     sorted_tasks = sorted(tasks, key=lambda t: (t.get('priority', 99), tasks.index(t)))
     building = [t for t in sorted_tasks if t.get('status') == 'building']
+    evaluating = [t for t in sorted_tasks if t.get('status') == 'evaluating']
     pending = [t for t in sorted_tasks if t.get('status') == 'pending']
-    gatable = {'feature', 'bug', 'gap', 'fix'}
+    gatable = {'feature', 'bug', 'gap', 'fix', 'chore', 'docs', 'spike'}
     has_gatable = any(
         t.get('type', 'feature') in gatable
-        for t in tasks if t.get('status') in ('pending', 'building')
+        for t in tasks if t.get('status') in ('pending', 'building', 'evaluating')
     )
-    done = sum(1 for t in tasks if t.get('status') in ('verified', 'committed'))
-    b = building[0] if building else {}
+    done = sum(1 for t in tasks if t.get('status') in ('verified', 'committed', 'cancelled'))
+    # Prefer building, then evaluating, for the "active" task identity used by gates.
+    active = building[0] if building else (evaluating[0] if evaluating else {})
+    b = active
     p = pending[0] if pending else {}
     result = {
-        'building_id': b.get('id', ''),
-        'building_name': b.get('name', ''),
-        'building_type': b.get('type', ''),
+        'building_id': b.get('id', '') if building or evaluating else '',
+        'building_name': b.get('name', '') if building or evaluating else '',
+        'building_type': b.get('type', '') if building or evaluating else '',
         'pending_id': p.get('id', ''),
         'pending_name': p.get('name', ''),
         'pending_type': p.get('type', ''),
         'has_gatable': has_gatable,
         'task_count': len(tasks),
         'done_count': done,
+        'evaluating_id': evaluating[0].get('id', '') if evaluating else '',
     }
     print(json.dumps(result))
 except Exception:
@@ -88,6 +92,7 @@ except Exception:
         'building_id': '', 'building_name': '', 'building_type': '',
         'pending_id': '', 'pending_name': '', 'pending_type': '',
         'has_gatable': False, 'task_count': 0, 'done_count': 0,
+        'evaluating_id': '',
     }))
 " 2>/dev/null
 }

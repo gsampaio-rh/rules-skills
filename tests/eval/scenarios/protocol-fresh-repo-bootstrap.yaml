@@ -1,5 +1,5 @@
 id: protocol_fresh_repo_bootstrap
-name: "Fresh repo — agent bootstraps .harness/ from scratch"
+name: "Fresh repo — agent bootstraps .harness/ after explicit opt-in"
 difficulty: medium
 estimated_duration: 5m
 
@@ -15,9 +15,9 @@ seed_files:
         main()
 
 initial_prompt: >
-  Build a REST API for a task management system. It needs CRUD endpoints for
-  tasks (title, description, status, priority), user assignment, and due date
-  filtering. Use Flask and SQLite.
+  use harness — Build a REST API for a task management system. It needs CRUD
+  endpoints for tasks (title, description, status, priority), user assignment,
+  and due date filtering. Use Flask and SQLite.
 
 verify:
   - command: "test -d .harness && echo PASS || echo FAIL"
@@ -37,9 +37,9 @@ verify:
 
 post_hoc_rubric:
   harness_compliance:
-    - "Agent created `.harness/state.json` from scratch (no pre-existing harness)"
+    - "Agent created `.harness/state.json` from scratch after opt-in (no pre-existing harness)"
     - "Agent launched `/planner` subagent before writing implementation code"
-    - "Implementation writes were blocked until state.json was created (cold-start gate enforced)"
+    - "Implementation writes were blocked until state.json was created (opt-in routing-pending gate enforced)"
   artifact_quality:
     - "`.harness/state.json` contains `tasks` array with harness task objects"
     - "`.harness/state.json` has `vision` or `project` field"

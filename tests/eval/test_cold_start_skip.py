@@ -126,7 +126,7 @@ class TestContractGateColdStartSkipAndTtl:
         assert not (tmp_path / ".harness" / ".routing-pending").exists()
 
     def test_fresh_routing_pending_denies_library_write(self, tmp_path: Path) -> None:
-        """AC4: sacred cold-start deny."""
+        """AC4: sacred opt-in deny while routing-pending."""
         _marker(tmp_path, age_sec=30)
         out = _run(
             CONTRACT_GATE,
@@ -134,7 +134,8 @@ class TestContractGateColdStartSkipAndTtl:
             _write_payload("library/cursor/hooks/example.sh"),
         )
         assert out.get("permission") == "deny"
-        assert "cold start" in out.get("agent_message", "").lower()
+        msg = out.get("agent_message", "").lower()
+        assert "opt-in" in msg or "routing-pending" in msg
         assert (tmp_path / ".harness" / ".routing-pending").exists()
 
     def test_skip_outside_tail5_still_denies(self, tmp_path: Path) -> None:
@@ -186,16 +187,16 @@ class TestContractGateColdStartSkipAndTtl:
 
 
 class TestColdStartSkipE2E:
-    def test_cold_start_then_skip_then_contract_gate_allows(
+    def test_optin_then_skip_then_contract_gate_allows(
         self, tmp_path: Path
     ) -> None:
-        """AC5: routing → skip clears → contract-gate allows without breadcrumb."""
+        """AC5: opt-in arm → skip clears → contract-gate allows without breadcrumb."""
         routed = _run(
             HARNESS_GATE,
             tmp_path,
-            json.dumps({"prompt": "migra o banco de dados agora"}),
+            json.dumps({"prompt": "use harness to migra o banco de dados agora"}),
         )
-        assert "HARNESS ROUTING" in routed.get("followup_message", "")
+        assert "HARNESS OPT-IN" in routed.get("followup_message", "")
         assert (tmp_path / ".harness" / ".routing-pending").is_file()
 
         skipped = _run(

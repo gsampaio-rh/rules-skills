@@ -73,7 +73,7 @@ if [ -f "$HOOK_LOG_FILE" ] && [ "$(wc -l < "$HOOK_LOG_FILE" 2>/dev/null | tr -d 
 fi
 
 if [ ! -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
-  echo '{"additional_context":"No harness active (.harness/state.json not found). Non-trivial work → /planner."}'
+  echo '{"additional_context":"No harness active. Work freely by default. Opt in with use harness / /planner when you want full planner→contract→gates."}'
   exit 0
 fi
 

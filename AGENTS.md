@@ -19,13 +19,13 @@ Consumer onboarding: `library/cursor/templates/AGENTS.md` → `scripts/adopt-age
 (missing-only) → `/agents-bootstrap` (fill Commands). Optional absence nudge:
 `agents-md-nudge` via `scripts/hooks-profile.sh optional`.
 
-## Harness (5 bullets)
+## Harness (opt-in)
 
-1. Non-trivial work (3+ files, architectural, vague) → `/planner` before impl writes.
-2. Build tasks need `.harness/contract.json` with binary criteria (hooks deny ungated writes).
-3. Do not self-certify — `/evaluator` verifies; only then `verified: true`.
-4. On session start, read `.harness/state.json` + last breadcrumbs (or trust harness-context inject).
-5. User can say `skip harness` to opt out.
+1. **Default is free** — no planner/contract required for everyday work.
+2. **Opt in** with `use harness` / `with harness`, `/planner`, or skill `adversarial-harness`.
+3. While harness is **active** (`pending`/`building`/`evaluating`), need `.harness/contract.json` (hooks deny ungated impl writes).
+4. Do not self-certify — `/evaluator` verifies; only then `verified: true`.
+5. Say `skip harness` to cancel an opt-in arm or leave active mode.
 
 Procedure: skill `adversarial-harness`. Design: [`docs/HARNESS_ESSENCE.md`](docs/HARNESS_ESSENCE.md).
 
@@ -48,7 +48,7 @@ Procedure: skill `adversarial-harness`. Design: [`docs/HARNESS_ESSENCE.md`](docs
 
 ## Hooks
 
-Default profile: [`library/cursor/hooks.json`](library/cursor/hooks.json) — harness-context, **harness-gate** (cold-start → `.routing-pending`), contract-gate, evaluator-guard, pre-commit, verify, enforce-progress, chain-evaluator.
+Default profile: [`library/cursor/hooks.json`](library/cursor/hooks.json) — harness-context, **harness-gate** (opt-in → `.routing-pending`), contract-gate, evaluator-guard, pre-commit, verify, enforce-progress, chain-evaluator.
 
 Optional dogfood: [`library/cursor/hooks.optional.json`](library/cursor/hooks.optional.json) — `secret-read-guard`, `security-shell`, `dedup-server`, `agents-md-nudge` (sessionStart if no AGENTS.md).
 

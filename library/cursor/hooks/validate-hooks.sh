@@ -249,13 +249,22 @@ else
   fail "harness-gate should allow short glue messages: $(echo "$OUTPUT" | head -1)"
 fi
 
-# Test: non-trivial prompt without harness → set .routing-pending + short routing followup
+# Test: non-trivial prompt without harness → free default (NO routing-pending)
 rm -f .harness/state.json .harness/contract.json .harness/.routing-pending 2>/dev/null
 OUTPUT=$(echo '{"prompt":"implement a new authentication service with OAuth2 integration, database schema migrations, role-based access control, and session management across multiple microservices"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "HARNESS ROUTING|followup_message.*planner" && [ -f .harness/.routing-pending ]; then
-  pass "harness-gate injects planner routing for non-trivial prompt (does NOT block)"
+if echo "$OUTPUT" | rg -q '^\{\}$' && [ ! -f .harness/.routing-pending ]; then
+  pass "harness-gate free default: long prompt does NOT arm routing-pending"
 else
-  fail "harness-gate should inject routing instructions for non-trivial prompt: $(echo "$OUTPUT" | head -1)"
+  fail "harness-gate should stay silent without opt-in: $(echo "$OUTPUT" | head -1)"
+fi
+
+# Test: explicit opt-in → set .routing-pending + followup
+rm -f .harness/state.json .harness/contract.json .harness/.routing-pending 2>/dev/null
+OUTPUT=$(echo '{"prompt":"use harness to implement OAuth2 auth"}' | .cursor/hooks/harness-gate.sh 2>/dev/null)
+if echo "$OUTPUT" | rg -q "HARNESS OPT-IN|followup_message" && [ -f .harness/.routing-pending ]; then
+  pass "harness-gate arms on use harness opt-in"
+else
+  fail "harness-gate should arm on opt-in: $(echo "$OUTPUT" | head -1)"
 fi
 rm -f .harness/.routing-pending 2>/dev/null
 
@@ -401,13 +410,13 @@ rm -f .harness/state.json .harness/contract.json 2>/dev/null
 
 # --- harness-context (sessionStart) tests ---
 
-# Test: no harness state → inject cold-start routing note
+# Test: no harness state → inject free-default / opt-in note
 rm -f .harness/state.json .harness/contract.json 2>/dev/null
 OUTPUT=$(echo '{}' | .cursor/hooks/harness-context.sh 2>/dev/null)
-if echo "$OUTPUT" | rg -q "additional_context.*non-trivial|No harness active"; then
-  pass "harness-context injects cold-start routing note when no state"
+if echo "$OUTPUT" | rg -qi "No harness active|Work freely|opt in|use harness"; then
+  pass "harness-context injects free-default note when no state"
 else
-  fail "harness-context should inject cold-start note: $(echo "$OUTPUT" | head -1)"
+  fail "harness-context should inject free-default note: $(echo "$OUTPUT" | head -1)"
 fi
 
 # Test: state.json exists → inject context

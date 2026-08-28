@@ -1,6 +1,6 @@
-"""Unit tests for harness-gate.sh cold-start routing.
+"""Unit tests for harness-gate.sh opt-in arming.
 
-Skill discovery is host-owned; harness-gate only sets .routing-pending + planner advisory.
+Skill discovery is host-owned; harness-gate only sets .routing-pending on explicit opt-in.
 """
 
 import json
@@ -51,17 +51,23 @@ def _write_state(path: Path) -> None:
     (harness / "state.json").write_text(json.dumps(state))
 
 
-class TestColdStartRouting:
-    def test_nontrivial_cold_start_routes_and_sets_marker(self, tmp_path):
+class TestFreeDefault:
+    def test_nontrivial_prompt_no_arm(self, tmp_path):
         d = run_hook("migra o banco", tmp_path)
-        assert "followup_message" in d
-        assert "HARNESS ROUTING" in d["followup_message"]
-        assert (tmp_path / ".harness" / ".routing-pending").is_file()
+        assert d == {}
+        assert not (tmp_path / ".harness" / ".routing-pending").exists()
 
-    def test_former_simple_pattern_now_routes(self, tmp_path):
-        """Slim: no SIMPLE_PATTERNS faux-judge — 'review my code' arms routing-pending."""
+    def test_review_prompt_no_arm(self, tmp_path):
         d = run_hook("review my code", tmp_path)
+        assert d == {}
+        assert not (tmp_path / ".harness" / ".routing-pending").exists()
+
+
+class TestOptInArms:
+    def test_use_harness_arms(self, tmp_path):
+        d = run_hook("use harness to migra o banco", tmp_path)
         assert "followup_message" in d
+        assert "HARNESS OPT-IN" in d["followup_message"]
         assert (tmp_path / ".harness" / ".routing-pending").is_file()
 
 
@@ -70,7 +76,7 @@ class TestHarnessActiveSkipsRouting:
         _write_state(tmp_path)
         d = run_hook("migra o banco agora por favor", tmp_path)
         assert d == {}
-        assert "HARNESS ROUTING" not in d.get("followup_message", "")
+        assert "HARNESS OPT-IN" not in d.get("followup_message", "")
 
 
 class TestGlueAndOptOut:
