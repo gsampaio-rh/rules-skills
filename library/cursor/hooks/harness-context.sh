@@ -24,10 +24,10 @@ hooks_session_stats_reset
 
 # Auto-maintenance: archive done tasks, truncate breadcrumbs, compress bloated state.
 if [ -n "$PYTHON_BIN" ] && [ -f "$STATE" ]; then
-  "$PYTHON_BIN" - "$STATE" "$BREADCRUMBS" "$ARCHIVE" << 'MAINT' 2>/dev/null
+  "$PYTHON_BIN" - "$STATE" "$BREADCRUMBS" "$ARCHIVE" "$CONTRACT" << 'MAINT' 2>/dev/null
 import json, os, sys
 from datetime import datetime, timezone
-state_path, breadcrumbs_path, archive_path = sys.argv[1:4]
+state_path, breadcrumbs_path, archive_path, contract_path = sys.argv[1:5]
 ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 try:
@@ -63,6 +63,25 @@ try:
                 af.write(json.dumps({'ts': ts, 'type': 'state_compressed', 'fields': extra}) + '\n')
             slim = {k: state[k] for k in keep if k in state}
             open(state_path, 'w').write(json.dumps(slim, indent=2) + '\n')
+except Exception:
+    pass
+try:
+    # Auto-archive orphan contract: verified=True with no active tasks means the
+    # task was committed/cancelled and the contract is no longer needed.
+    # Runs after task archival above so active_tasks reflects post-cleanup state.
+    if os.path.isfile(contract_path):
+        contract = json.load(open(contract_path))
+        if contract.get('verified'):
+            state = json.load(open(state_path))
+            active_tasks = [t for t in state.get('tasks', []) if t.get('status') in ('pending', 'building', 'evaluating')]
+            if not active_tasks:
+                with open(archive_path, 'a') as af:
+                    af.write(json.dumps({
+                        'ts': ts, 'type': 'contract_archived',
+                        'contract_task_id': contract.get('task_id'),
+                        'phase': contract.get('phase'),
+                    }) + '\n')
+                os.remove(contract_path)
 except Exception:
     pass
 MAINT

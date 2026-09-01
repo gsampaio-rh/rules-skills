@@ -5,7 +5,8 @@
 #   export CURSOR_API_KEY="crsr_..."
 #
 # Quick reference:
-#   make eval-fast      → validate + contract/harness lint (seconds, no API)
+#   make eval-unit      → hook unit tests (~60s, no API)
+#   make eval-fast      → validate + eval-unit + contract/harness lint (~70s, no API)
 #   make eval-session   → LOCAL SDK session eval (needs CURSOR_API_KEY; not hosted CI)
 #   make eval           → eval-fast + eval-session
 
@@ -50,6 +51,9 @@ sync-local: ## Copy library/cursor/ into .cursor/ (rules, skills, hooks, agents,
 			cp -R "library/cursor/$$dir" ".cursor/$$dir"; \
 		fi; \
 	done
+	@# Remove _archive/ from deployed .cursor/ — library/ keeps history; .cursor/ is active catalog only.
+	@# Cursor scans all SKILL.md under .cursor/skills/**; _archive/ skills would leak into the active catalog.
+	@rm -rf .cursor/skills/_archive .cursor/hooks/_archive
 	@rm -f .cursor/hooks.json .cursor/hooks.full.json .cursor/hooks.lean.json
 	@cp library/cursor/hooks.json .cursor/hooks.json
 	@cp library/cursor/hooks.optional.json .cursor/hooks.optional.json
@@ -63,11 +67,14 @@ validate: ## Validate rules and skills against authoring standards
 
 # ─── Eval Pipeline ───────────────────────────────────────────
 
-eval: eval-fast eval-session ## Run full eval (Tier 1 + Tier 3)
+eval: eval-fast eval-session ## Run full eval (Tier 1 + Tier 2 + Tier 3)
 
-eval-fast: validate ## Tier 1: validate + contract/harness lint (no API; no ACAM)
+eval-fast: validate eval-unit ## Tier 1+2: validate + hook unit tests + contract/harness lint (no API)
 	$(PYTHON) tests/eval/contract_lint.py
 	$(PYTHON) tests/eval/harness_lint.py
+
+eval-unit: ## Tier 2: deterministic hook behavior tests (no API; ~60s)
+	$(PYTHON) -m pytest tests/eval/ -q --tb=line
 
 eval-session: ## LOCAL SDK: run scenarios (needs CURSOR_API_KEY; no GitHub Actions)
 	$(PYTHON) tests/eval/session_runner.py --model $(MODEL) --timeout 300

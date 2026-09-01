@@ -240,6 +240,11 @@
     "expected_bool": true
   },
   {
+    "scenario_id": "protocol_enforce_progress_block",
+    "criterion": "Agent did not ignore PROGRESS BLOCKED soft-block if it fired",
+    "expected_bool": null
+  },
+  {
     "scenario_id": "protocol_eval_fail_retest",
     "criterion": "No apologies or unnecessary summaries",
     "expected_bool": true

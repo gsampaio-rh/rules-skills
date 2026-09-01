@@ -9,12 +9,14 @@ Internal quality contract for every `SKILL.md` in `.cursor/skills/`. Not loaded 
 name: skill-name                    # lowercase, hyphens only, must match folder name
 description: "Trigger keywords and phrases. When to use this skill. What it does."
 disable-model-invocation: false     # true for dangerous ops (deploy, commit, destructive)
+paths: "src/**/*.ts, app/**/*.tsx"  # optional — scope skill to matching files (Cursor 2.4+)
 ---
 ```
 
 - **`description`** is the most important field — it drives agent activation. Write it like a search query with trigger phrases the user would say.
 - **`disable-model-invocation: true`** for any skill with side effects (commits, deploys, destructive operations). The user must explicitly invoke these via `/skill-name`.
 - **`name`** must match the folder name exactly.
+- **`paths`** (optional) scopes the skill to files matching the glob pattern — the skill is only surfaced when the agent works with matching files. Use `paths`, not the deprecated `globs` field (accepted as fallback but not recommended for new skills).
 
 ## Directory Structure
 
@@ -141,7 +143,7 @@ Skills are the **augmented LLM** pattern (Anthropic) — they extend the base mo
 
 Before a skill is considered done:
 
-- [ ] Valid frontmatter with `name`, `description`, and `disable-model-invocation`
+- [ ] Valid frontmatter with `name`, `description`, and `disable-model-invocation`; use `paths` (not `globs`) if scoping to specific files
 - [ ] `name` matches folder name exactly
 - [ ] `description` includes trigger keywords/phrases a user would say
 - [ ] Opens with practitioner voice and clear goal

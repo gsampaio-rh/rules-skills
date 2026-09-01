@@ -40,7 +40,9 @@ A file-based task system that keeps AI agents honest across sessions.
 
 **Self-certification:** `verify-harness.sh` honors `verified: true` only when breadcrumbs include an evaluator pass for the contract task (builder self-set `verified` without that crumb gets a soft followup).
 
-**Orphan contracts:** A leftover `contract.json` with `verified: true` and no `building`/`evaluating` task is treated as `NO_BUILD` (stop soft-gate skips). Clear it by a `Commit:` checkpoint breadcrumb (post-commit ADVANCE archives the contract) or delete `.harness/contract.json` manually when abandoning the task.
+**Orphan contracts:** A leftover `contract.json` with `verified: true` and no `building`/`evaluating` task is treated as `NO_BUILD` (stop soft-gate skips). `harness-context.sh` auto-archives the contract on the next sessionStart when the task is verified/committed/cancelled and no active tasks remain. Manual clear: delete `.harness/contract.json` directly.
+
+**Opt-in arm TTL:** The `.routing-pending` marker written by `harness-gate.sh` expires after **600 seconds** (configurable via `ROUTING_PENDING_TTL_SEC`). If the user says "use harness" but does not run `/planner` within 10 minutes, the marker is silently removed and the next Write is allowed without a contract. This prevents zombie markers from blocking work in abandoned sessions. Compare: `.cursor/hooks/.commit-approved` uses a 300s TTL for the same reason.
 
 **Platform limitation:** `contract-gate` gates `Write`/`StrReplace` matchers as configured; shell redirects remain ungated.
 

@@ -423,7 +423,9 @@ class TestBaselineRegression:
 
         # 3 anti-vacuity criteria are known-unmatched: the behavioral judge's
         # heuristic can't determine expected_bool for LLM-evaluated criteria.
-        KNOWN_UNMATCHED_SCENARIOS = {"protocol_anti_vacuity_reject"}
+        # protocol_enforce_progress_block: "did not ignore" is a negative-behavioral
+        # check that requires LLM judgment, not structural heuristics.
+        KNOWN_UNMATCHED_SCENARIOS = {"protocol_anti_vacuity_reject", "protocol_enforce_progress_block"}
 
         baseline = json.loads(baseline_path.read_text())
         unmatched = [
