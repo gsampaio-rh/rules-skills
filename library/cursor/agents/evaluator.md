@@ -50,7 +50,7 @@ Accept when criteria are testable, verification is specific, ≥2 edge cases, no
 4. Write report; set `verified` from results
 5. Harvest: `references/harvest.md` (skip `chore-`/`spike-`/`docs-`)
 
-Domain playbooks: `references/testing-methods.md`. Calibration: `references/evaluator-calibration.md`.
+Domain playbooks: `references/testing-methods.md`. Calibration: `references/evaluator-calibration.md`. Web UI ACs: rule `ui_verification` — `browser_snapshot` YAML, not screenshots, unless the criterion is visual.
 
 ### Grading / anti-sycophancy
 

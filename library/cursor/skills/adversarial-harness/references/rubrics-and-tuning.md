@@ -8,10 +8,10 @@ Tune per domain. Vague criteria produce vague critiques. Granular criteria produ
 
 | Criterion | Weight | How to Test |
 |-----------|--------|-------------|
-| Functionality | 40% | All interactive elements work per contract |
-| Error handling | 20% | Console clean, graceful degradation |
-| Responsiveness | 15% | Mobile, tablet, desktop breakpoints |
-| Accessibility | 15% | Keyboard nav, ARIA, contrast |
+| Functionality | 40% | `browser_snapshot` after each action: roles, names, URL, control state |
+| Error handling | 20% | Console clean; snapshot of error/status text |
+| Responsiveness | 15% | Resize 320/768/1024; overflow via bounding box / `scrollWidth`, not screenshot |
+| Accessibility | 15% | Snapshot roles/names; contrast via `getComputedStyle` |
 | Performance | 10% | No layout shifts, fast load |
 
 ### API / Backend
@@ -64,7 +64,8 @@ User: "Add dark mode support to the dashboard"
 → [builder implements the feature, runs computational sensors]
 
 → /evaluator Test the dark mode implementation against the contract.
-  Use browser tools to toggle theme, verify all components, check persistence.
+  Use browser_snapshot to toggle theme, confirm roles/text persist, check URL.
+  Screenshot only if the criterion is visual.
 
 → [evaluator reports PASS/FAIL with evidence]
 ```

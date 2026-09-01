@@ -1,15 +1,16 @@
 {
   "domain": "design-ui",
   "name": "Design & UI Quality",
-  "version": "1.0",
+  "version": "1.1",
   "when_applicable": "Projects with user-facing interfaces (web, mobile, desktop applications)",
+  "verification": "Follow ui_verification: browser_snapshot YAML for roles/names/text/URL/state; bounding box or CDP getComputedStyle for size/contrast/overflow; screenshot only if paint/overlap cannot be falsified that way. No Playwright unless the user asks.",
   "categories": ["accessibility", "design-tokens", "visual-hierarchy", "responsiveness", "interaction", "component-api", "consistency"],
   "criteria": [
     {
       "id": "a11y-keyboard-nav",
       "category": "accessibility",
       "criterion": "All interactive elements are keyboard-accessible — focusable, activatable, and navigable without a mouse",
-      "how_to_test": "Tab through the interface. Every button, link, input, and interactive element must be reachable. Check for tabIndex, onKeyDown handlers on custom elements.",
+      "how_to_test": "Tab or click through controls. After each move, browser_snapshot: every button/link/input has a role and is reachable. Flag custom widgets without tabIndex/keyboard handler. Do not screenshot.",
       "severity": "high",
       "evidence_type": "browser_test"
     },
@@ -25,7 +26,7 @@
       "id": "a11y-color-contrast",
       "category": "accessibility",
       "criterion": "Text meets WCAG AA contrast ratios — 4.5:1 for normal text, 3:1 for large text",
-      "how_to_test": "Check text colors against background colors. Use contrast ratio calculation. Flag any text below 4.5:1 ratio.",
+      "how_to_test": "CDP getComputedStyle color vs background; compute WCAG ratio. Flag below 4.5:1 (normal) or 3:1 (large). Screenshot only if text sits on image/gradient (snapshot/CDP cannot falsify).",
       "severity": "high",
       "evidence_type": "browser_test"
     },
@@ -41,7 +42,7 @@
       "id": "a11y-focus-visible",
       "category": "accessibility",
       "criterion": "Focus indicators are visible and clear — custom focus styles exist and are not suppressed with outline:none without replacement",
-      "how_to_test": "Tab through elements. Each focused element should show a visible ring or highlight. Flag outline:none or outline:0 without alternative.",
+      "how_to_test": "Tab to each control. CDP getComputedStyle for outline/box-shadow (flag outline:none without replacement). Snapshot confirms which control is focused. Screenshot only if the ring is paint-only.",
       "severity": "high",
       "evidence_type": "browser_test"
     },
@@ -81,7 +82,7 @@
       "id": "visual-hierarchy-clear",
       "category": "visual-hierarchy",
       "criterion": "Each screen has a clear focal point — one primary action, clear heading structure, obvious reading flow",
-      "how_to_test": "Look at each page/screen. Identify the primary action. If there are 3+ competing primary buttons or no clear heading, flag it.",
+      "how_to_test": "browser_snapshot: one clear heading and one primary button name. Flag 3+ competing primary buttons or missing heading. Do not screenshot.",
       "severity": "medium",
       "evidence_type": "browser_test"
     },
@@ -89,7 +90,7 @@
       "id": "visual-progressive-disclosure",
       "category": "visual-hierarchy",
       "criterion": "Complex interfaces use progressive disclosure — only essential info shown upfront, details available on demand",
-      "how_to_test": "Check forms and dashboards. Flag screens with 10+ input fields visible at once or overwhelming data density without hierarchy.",
+      "how_to_test": "browser_snapshot of the initial view. Flag 10+ visible inputs or no grouping (headings/landmarks). Do not screenshot.",
       "severity": "low",
       "evidence_type": "browser_test"
     },
@@ -97,7 +98,7 @@
       "id": "responsive-mobile-first",
       "category": "responsiveness",
       "criterion": "Layout adapts to mobile (320px+), tablet (768px+), and desktop (1024px+) without horizontal scrolling or broken elements",
-      "how_to_test": "Test at 320px, 768px, and 1024px widths. Flag horizontal overflow, overlapping elements, or truncated content.",
+      "how_to_test": "Resize to 320, 768, and 1024. At each width: browser_snapshot for truncated/missing roles; bounding box or scrollWidth>clientWidth for overflow/overlap. Screenshot only if overlap is paint-only.",
       "severity": "high",
       "evidence_type": "browser_test"
     },
@@ -105,7 +106,7 @@
       "id": "responsive-touch-targets",
       "category": "responsiveness",
       "criterion": "Touch targets are minimum 44x44px on mobile — buttons, links, and interactive areas are large enough to tap",
-      "how_to_test": "Measure interactive element sizes at mobile viewport. Flag targets smaller than 44x44px.",
+      "how_to_test": "At mobile viewport, browser_get_bounding_box (or getBoundingClientRect) on interactive elements. Flag width or height below 44px. Do not screenshot.",
       "severity": "medium",
       "evidence_type": "browser_test"
     },
@@ -113,7 +114,7 @@
       "id": "interaction-feedback",
       "category": "interaction",
       "criterion": "Every user action provides immediate feedback — loading states, success confirmations, error messages",
-      "how_to_test": "Trigger actions (form submit, button click, API call). Check for loading spinners, success messages, or error states. Flag silent actions.",
+      "how_to_test": "Trigger the action. Re-snapshot: loading/status/alert/text appeared. Flag silent actions. Do not screenshot.",
       "severity": "high",
       "evidence_type": "browser_test"
     },
@@ -121,7 +122,7 @@
       "id": "interaction-error-messages",
       "category": "interaction",
       "criterion": "Error messages are helpful and actionable — they explain what went wrong and how to fix it, not just 'Error occurred'",
-      "how_to_test": "Trigger error states (invalid input, network failure). Check messages for specificity and actionability. Flag generic 'Something went wrong'.",
+      "how_to_test": "Trigger invalid input or failure. Re-snapshot: specific error text (not generic 'Something went wrong'). Do not screenshot.",
       "severity": "medium",
       "evidence_type": "browser_test"
     },
@@ -129,7 +130,7 @@
       "id": "interaction-states",
       "category": "interaction",
       "criterion": "Interactive elements have clear states — default, hover, active, disabled, loading. Users can tell what's clickable.",
-      "how_to_test": "Hover over interactive elements. Check for hover styles, disabled appearance, loading indicators. Flag flat/stateless interactive elements.",
+      "how_to_test": "Snapshot for disabled/aria-busy/aria-disabled. Hover/active: CDP getComputedStyle. Screenshot only if hover paint cannot be read from CSS.",
       "severity": "medium",
       "evidence_type": "browser_test"
     },
@@ -153,7 +154,7 @@
       "id": "consistency-visual-rhythm",
       "category": "consistency",
       "criterion": "Visual rhythm is consistent — same spacing between similar elements, aligned grids, no arbitrary one-off spacings",
-      "how_to_test": "Compare spacing between repeated elements (card gaps, list items, form fields). Flag inconsistent gaps within the same context.",
+      "how_to_test": "CDP getComputedStyle margin/gap/padding on repeated elements (cards, list items, fields). Flag inconsistent gaps in the same context. Do not screenshot.",
       "severity": "low",
       "evidence_type": "browser_test"
     },

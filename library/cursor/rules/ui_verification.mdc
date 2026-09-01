@@ -1,0 +1,17 @@
+---
+description: Snapshot-first UI verification — browser_snapshot YAML a11y tree; no Playwright unless asked
+alwaysApply: true
+---
+
+# UI Verification
+
+Snapshot is cheaper and more assertive than vision for behavior (click, form, route, state).
+
+## Ladder
+- **Default UI check**: `browser_snapshot` (YAML). Re-snapshot after each action. Confirm roles, names, text, URL, and control state. Prefer compact / interactive / selector.
+- **Spatial questions**: `browser_get_bounding_box` or CDP `Runtime.evaluate` / `getComputedStyle` — not pixels.
+- **Screenshot** only if the bug is visual (overlap, z-index paint, real contrast, typography, canvas/WebGL) **and** snapshot/CDP cannot falsify it.
+- Do not write or run Playwright (or any new E2E) unless the user explicitly asks. Do not add Playwright MCP. Never `take_screenshot_afterwards` on behavioral actions.
+- Pixel-diff (Chromatic / Percy / toHaveScreenshot) is not behavioral evidence.
+- Existing repo tests (`make test` / Vitest unit) still run after code edits; that is not Playwright UI verification.
+- **SVG exception**: svg-edit render preview still applies.

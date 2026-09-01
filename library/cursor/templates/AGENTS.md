@@ -21,4 +21,5 @@ make lint
 
 - Human docs: `README.md`
 - Deeper agent workflow (if present): project skills / `.cursor/skills/`
+- UI checks: rule `ui_verification` (snapshot-first YAML; Playwright only if the user asks)
 - Session task state (if present): `.harness/state.json` — not a substitute for this file

@@ -19,3 +19,6 @@ Deep methodology: `.cursor/references/design/`.
 3. **Simplicity**: remove anything that doesn't serve a purpose
 4. **Responsive**: mobile → tablet → desktop; touch targets ≥44px
 5. **Feedback**: every action gets immediate, honest response
+
+## Verify
+Runtime checks follow `ui_verification`: `browser_snapshot` for roles/state; bounding box or CDP `getComputedStyle` for size, contrast, overflow. Screenshot only if paint/overlap cannot be falsified that way.

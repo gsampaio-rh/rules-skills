@@ -10,7 +10,7 @@ Load when Mode 2 needs a domain playbook. Prefer the section that matches the co
 - Open browser console — any error is a finding
 - Check network requests for failures
 - Test at different viewport sizes if responsiveness is a criterion
-- Take screenshots as evidence
+- Evidence: `browser_snapshot` YAML (roles, names, text, URL, control state). Spatial: bounding box or CDP `getComputedStyle` — not pixels. Screenshot only when the criterion is visual and snapshot/CDP cannot falsify it.
 
 ## CLI / Backend / APIs
 

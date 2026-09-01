@@ -73,18 +73,18 @@ Check without running the app:
    - Consistent size/variant/state patterns
    - Composability vs monolithic props
 
-### Step 3: Visual/Runtime Analysis (Browser-Level)
+### Step 3: Runtime Analysis (Browser-Level)
 
-If browser tools are available:
+If browser tools are available, follow rule `ui_verification` (no Playwright unless the user asks):
 
-1. **Contrast check**: Evaluate text/background contrast ratios
-2. **Keyboard navigation**: Tab through all interactive elements
-3. **Responsive test**: Check at 320px, 768px, 1024px viewports
-4. **Focus indicators**: Verify visible focus on tab
-5. **Interaction states**: Hover, active, disabled appearances
-6. **Loading states**: Trigger async actions, check for feedback
+1. **Keyboard / names**: Tab through controls; `browser_snapshot` after each move — roles, names, focus
+2. **Contrast**: CDP `getComputedStyle` color vs background; screenshot only if text is on image/gradient
+3. **Responsive**: 320 / 768 / 1024 — snapshot plus bounding box / `scrollWidth` for overflow or overlap
+4. **Focus indicators**: CDP outline/box-shadow; snapshot confirms which control is focused
+5. **States**: snapshot for disabled/busy; CDP for hover/active styles
+6. **Feedback**: trigger actions; re-snapshot for status/alert/error text
 
-If browser tools are NOT available, note which criteria require runtime testing and mark them BLOCKED (not failed).
+If browser tools are NOT available, note which criteria require runtime testing and mark them BLOCKED (not failed). Do not add Playwright or a new E2E stack.
 
 ### Step 4: Grade Each Criterion
 
@@ -92,7 +92,7 @@ For each criterion in the rubric:
 
 1. **Test it** using the appropriate method (static or runtime)
 2. **Grade** as PASS, FAIL, BLOCKED, or NOT_APPLICABLE
-3. **Evidence**: file paths, component names, screenshots (if browser available)
+3. **Evidence**: file paths, component names, snapshot YAML (roles, names, URL, state), bounding box or computed styles. Screenshot only if the criterion is visual and snapshot/CDP cannot falsify it.
 4. **Fix suggestion**: specific code changes, not vague "improve accessibility"
 
 ### Step 5: Produce Report
@@ -170,7 +170,7 @@ Load these for deeper context:
 
 When invoked as part of the harness (contract contains `"rubrics": ["design-ui"]`):
 - Scope is limited to UI components changed by the feature
-- Runtime testing is expected (evaluator has browser access)
+- Runtime evidence is expected (evaluator has browser access): snapshot YAML, not screenshots, unless the criterion is visual
 - Accessibility failures at high severity BLOCK verification in strict mode
 
 ## Critical Accessibility Failures
