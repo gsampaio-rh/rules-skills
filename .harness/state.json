@@ -1,42 +1,21 @@
 {
   "project": "rules-skills",
   "schema_version": 2,
-  "vision": "Make the adversarial harness opt-in so everyday work is free by default; full planner\u2192contract\u2192gates only when the user arms it or an active harness task exists.",
+  "vision": "Harden breadcrumb pipeline: anchor active-task signals against FIFO eviction and skip session_start noise in the context-package window.",
   "tasks": [
     {
-      "id": "feat-optin-harness-gate",
-      "name": "Stop cold-start auto-arming of routing-pending",
-      "type": "feature",
-      "status": "committed",
-      "scope": "includes: harness-gate no longer arms .routing-pending on every long prompt; arm only on explicit opt-in (phrases and/or /planner/skill intent); skip harness remains harmless clear; excludes: removing harness-gate entirely, changing contract deny logic"
+      "id": "fix-breadcrumb-anchor",
+      "name": "Anchor evaluate/negotiate/build entries during FIFO truncation (harness-context.sh inline Python, lines 47-53)",
+      "type": "bug",
+      "status": "verified",
+      "scope": "library/cursor/hooks/harness-context.sh (inline Python truncation block)"
     },
     {
-      "id": "feat-idle-contract-gate",
-      "name": "Gate writes only when harness is active",
-      "type": "feature",
-      "status": "committed",
-      "scope": "includes: idle = no state or only committed/cancelled/empty pending \u2192 allow impl writes without contract; active = pending/building/evaluating \u2192 keep contract/verify deny; leftover dogfood committed state counts as idle; excludes: removing contract-gate, weakening evaluator-guard"
-    },
-    {
-      "id": "feat-optin-rule-skill",
-      "name": "Flip always-apply rule and skill to opt-in primary",
-      "type": "feature",
-      "status": "committed",
-      "scope": "includes: adversarial_harness.mdc and adversarial-harness skill default to free work; full harness when user opts in or active tasks; drop 'No state \u2192 /planner' and skip-as-required framing; excludes: deleting the skill/product or Mode 2 resume when active"
-    },
-    {
-      "id": "docs-optin-align",
-      "name": "Align AGENTS.md and harness docs with opt-in default",
-      "type": "docs",
-      "status": "committed",
-      "scope": "includes: AGENTS.md harness bullets, HARNESS_ESSENCE, consumer-facing pointers flip default\u2192opt-in and active-vs-idle; excludes: rewriting unrelated onboarding/template content"
-    },
-    {
-      "id": "chore-optin-tests",
-      "name": "Flip hook tests and validate-hooks expectations",
-      "type": "chore",
-      "status": "committed",
-      "scope": "includes: validate-hooks.sh + harness-gate/contract-gate unit tests assert free default, opt-in arm, idle allow, active deny; excludes: new eval-API suites or unrelated hook coverage expansion"
+      "id": "fix-breadcrumb-window",
+      "name": "Skip session_start system noise when building the 3-entry context-package window (_load_breadcrumbs)",
+      "type": "bug",
+      "status": "verified",
+      "scope": "library/cursor/hooks/context-package.py (_load_breadcrumbs), tests/eval/"
     }
   ]
 }

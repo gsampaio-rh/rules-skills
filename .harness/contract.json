@@ -1,22 +1,25 @@
 {
-  "task_id": "chore-optin-tests",
-  "feature": "Flip hook tests and validate-hooks expectations to opt-in default",
-  "problem": "Unit/e2e tests and validate-hooks still expect auto cold-start arming on long prompts.",
-  "proposed_solution": "Update test_harness_gate*.py, test_cold_start_skip.py, test_harness_context_hook.py, protocol-fresh-repo-bootstrap.yaml, validate-hooks.sh, hooks-profile wording so free default + explicit opt-in are asserted.",
+  "task_id": "fix-breadcrumb-window",
+  "feature": "Skip session_start system noise when building the 3-entry context-package window",
+  "problem": "context-package.py's _load_breadcrumbs returns parsed[-BREADCRUMB_WINDOW:] unconditionally. BREADCRUMB_WINDOW=3. If the last 3 entries are all role=system/type=session_start, the injected context shows only noise and the agent loses visibility of the most recent harness activity.",
+  "proposed_solution": "In _load_breadcrumbs, after parsing lines, build the window by preferring non-noise entries: filter out entries where role=='system' AND type=='session_start', take the last BREADCRUMB_WINDOW from the remainder. If fewer than BREADCRUMB_WINDOW non-noise entries exist, fill remaining slots from the system entries (last-first) so the window is never shorter than min(BREADCRUMB_WINDOW, total_entries).",
+  "definitions": {
+    "noise_entry": "A parsed breadcrumb dict where BOTH role == 'system' AND type == 'session_start'. An entry matching only one of the two fields is NOT noise and must not be filtered."
+  },
   "acceptance_criteria": [
-    "python3 -m pytest tests/eval/test_harness_gate.py tests/eval/test_harness_gate_skill_suggest.py tests/eval/test_cold_start_skip.py tests/eval/test_harness_context_hook.py -q --tb=line",
-    "rg -n 'free default|HARNESS OPT-IN|does NOT arm' library/cursor/hooks/validate-hooks.sh",
-    "rg -n 'use harness' tests/eval/scenarios/protocol-fresh-repo-bootstrap.yaml",
-    "rg -n 'harness-gate opt-in' scripts/hooks-profile.sh",
-    "make sync-local >/dev/null && make eval-fast"
+    "AC1 [STRENGTHENED]: When breadcrumbs has ≥3 non-noise entries (noise = role=='system' AND type=='session_start', both required), the returned window contains exactly BREADCRUMB_WINDOW entries and zero noise entries. Test must assert both len==3 and that no entry satisfies (role=='system' AND type=='session_start').",
+    "AC2 [STRENGTHENED]: When breadcrumbs has k non-noise entries where 0 < k < BREADCRUMB_WINDOW, the returned window has min(BREADCRUMB_WINDOW, total_entries) entries: the k non-noise entries appear first (in their original chronological order from the file), followed by (BREADCRUMB_WINDOW - k) padding entries drawn from the most-recently-written noise entries, also in their original chronological order (oldest padding before newest padding). Prepending padding before non-noise entries is NOT acceptable. Test must assert exact length, exact position of the non-noise entry/entries, and exact position of each padding entry by ts field.",
+    "AC3 [STRENGTHENED]: When breadcrumbs has zero non-noise entries, the returned list equals parsed[-BREADCRUMB_WINDOW:] exactly — the last BREADCRUMB_WINDOW system entries in their original chronological sequence from the file (oldest first). Test must assert the exact list by ts field, not just count.",
+    "AC4: BREADCRUMB_WINDOW constant is unchanged (still 3); the filtering is applied only at selection time, not by changing the constant.",
+    "AC5: make eval-fast exits 0 with 0 errors after the change."
   ],
   "edge_cases": [
-    "routing-pending without state still denies (sacred opt-in arm path)",
-    "Long prompt without opt-in phrases stays silent and does not create marker",
-    "Scenario bootstrap requires explicit use harness in initial_prompt"
+    "EC1: Empty breadcrumbs.jsonl — _load_breadcrumbs returns [] as before, no crash.",
+    "EC2: Exactly BREADCRUMB_WINDOW=3 total entries, all noise — window equals those 3 entries in original chronological order (fallback path, not empty).",
+    "EC3 [ADDED]: Exactly 1 non-noise entry and 10 noise entries — returned window is [non_noise_entry, noise_entries[-2], noise_entries[-1]] (length 3; non-noise entry first in its original position, followed by the 2 most-recently-written noise entries in their original chronological order). Test must assert exact ts values at indices 0, 1, 2."
   ],
-  "verification_method": "pytest focused suite + make eval-fast after sync-local",
-  "rubrics": [],
+  "verification_method": "pytest unit tests in tests/eval/ that import _load_breadcrumbs from library/cursor/hooks/context-package.py (canonical source path; not a relative import, not the deployed .cursor/ copy). Tests use synthetic parsed lists (plain Python dicts) and assert on returned window contents by ts field, exact ordering, and exact length. Additionally run make eval-fast to exercise the deployed .cursor/hooks/context-package.py as an integration gate.",
+  "rubrics": ["code-quality"],
   "rubric_mode": "warn",
   "negotiation_rounds": 1,
   "phase": "evaluating",

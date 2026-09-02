@@ -87,6 +87,10 @@ def _contract_slice(contract: dict | None) -> dict | None:
     }
 
 
+def _is_noise(entry: dict) -> bool:
+    return entry.get("role") == "system" and entry.get("type") == "session_start"
+
+
 def _load_breadcrumbs(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -97,7 +101,14 @@ def _load_breadcrumbs(path: Path) -> list[dict]:
             parsed.append(json.loads(ln))
         except json.JSONDecodeError:
             continue
-    return parsed[-BREADCRUMB_WINDOW:]
+
+    non_noise = [e for e in parsed if not _is_noise(e)]
+    if len(non_noise) >= BREADCRUMB_WINDOW:
+        return non_noise[-BREADCRUMB_WINDOW:]
+
+    noise = [e for e in parsed if _is_noise(e)]
+    pad_needed = BREADCRUMB_WINDOW - len(non_noise)
+    return non_noise + noise[-pad_needed:]
 
 
 def build_package(paths: dict) -> dict:

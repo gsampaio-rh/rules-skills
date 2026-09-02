@@ -47,9 +47,32 @@ try:
     if os.path.isfile(breadcrumbs_path):
         lines = [l for l in open(breadcrumbs_path) if l.strip()]
         if len(lines) > 30:
+            evicted, retained = lines[:-30], lines[-30:]
+            anchor_line = None
+            try:
+                st = json.load(open(state_path))
+                active = [t for t in st.get('tasks', []) if t.get('status') in ('pending', 'building', 'evaluating')]
+                if active:
+                    task_id = active[0].get('id')
+                    signal_types = {'evaluate', 'negotiate', 'build'}
+                    for l in reversed(lines):
+                        try:
+                            e = json.loads(l)
+                            if e.get('type') in signal_types and e.get('feat') == task_id:
+                                if l in evicted:
+                                    anchor_line = l if l.endswith('\n') else l + '\n'
+                                break
+                        except Exception:
+                            pass
+            except Exception:
+                pass
             with open(archive_path, 'a') as af:
-                af.writelines(l if l.endswith('\n') else l + '\n' for l in lines[:-30])
-            open(breadcrumbs_path, 'w').writelines(lines[-30:])
+                af.writelines(l if l.endswith('\n') else l + '\n' for l in evicted)
+                if anchor_line:
+                    displaced = retained[0]
+                    af.write(displaced if displaced.endswith('\n') else displaced + '\n')
+                    retained = [anchor_line] + retained[1:]
+            open(breadcrumbs_path, 'w').writelines(retained)
 except Exception:
     pass
 try:
