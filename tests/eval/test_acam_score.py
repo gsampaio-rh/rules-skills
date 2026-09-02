@@ -23,6 +23,15 @@ REPO_ROOT = Path(__file__).parent.parent.parent
 SCORER = REPO_ROOT / "scripts" / "acam-score.py"
 GOLDEN_FIXTURE = REPO_ROOT / "tests" / "eval" / "fixtures" / "acam_expected_rules_skills.json"
 
+# Checks whose result depends on ephemeral harness runtime state (e.g. presence of
+# .harness/contract.json) and therefore cannot be pinned in a static golden fixture.
+# Any check listed here is skipped during per-check result comparison; level/score
+# assertions are unaffected because these are all advanced checks that require ALL
+# advanced sibling checks to also pass before they change the dimension level.
+VOLATILE_CHECKS: frozenset[str] = frozenset({
+    "workflows.advanced.machine_readable_criteria",
+})
+
 
 def _run(args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -84,6 +93,8 @@ def test_rules_skills_matches_golden_fixture():
         actual_by_id = {c["id"]: c["result"] for c in actual["checks"]}
         for check_id, exp_result in expected_by_id.items():
             assert check_id in actual_by_id, f"Check {check_id} missing from scorer output"
+            if check_id in VOLATILE_CHECKS:
+                continue
             assert actual_by_id[check_id] == exp_result, (
                 f"Check {check_id}: expected {exp_result}, got {actual_by_id[check_id]}"
             )

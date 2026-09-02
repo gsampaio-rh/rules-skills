@@ -1,6 +1,10 @@
 #!/bin/bash
 # beforeSubmitPrompt: opt-in arm of .routing-pending. Deny is contract-gate.
 # Default is free (silent {}). Arm only on explicit harness opt-in phrases.
+#
+# Marker TTL: .harness/.routing-pending lives for the duration of one agent session.
+# It is created here when the user opts in and removed by session-cleanup.sh (sessionEnd).
+# Manual cleanup: rm -f .harness/.routing-pending
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/hooks-lib.sh"

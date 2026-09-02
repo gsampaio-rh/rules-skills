@@ -1,6 +1,6 @@
 ---
 description: Testing patterns and strategies for Python projects
-globs: "**/test*.py, **/tests/**/*.py"
+globs: ["**/test*.py", "**/tests/**/*.py"]
 alwaysApply: false
 ---
 

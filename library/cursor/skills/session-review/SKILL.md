@@ -1,7 +1,7 @@
 ---
 name: session-review
 description: "Review the current agent session for harness health: guideline drift, missing breadcrumbs, SVG friction, numeric hallucinations, contract-gate false positives, and missing handoffs. Use when: review session, session review, analyze transcripts, como foi essa sessão, retrospectiva."
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # Session Review

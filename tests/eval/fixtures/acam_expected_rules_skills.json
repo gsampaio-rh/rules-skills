@@ -5,23 +5,33 @@
     "checks": [
       {
         "id": "configuration.basic.has_ai_config",
-        "result": true
+        "criterion": "Does the repo have any AI configuration file? (.cursorrules, CLAUDE.md, .windsurfrules, or any .mdc rule file)",
+        "result": true,
+        "evidence": ".cursor/rules/adversarial_harness.mdc"
       },
       {
         "id": "configuration.intermediate.distinct_scopes",
-        "result": true
+        "criterion": "Are there \u22652 distinct rule scope types (alwaysApply:true AND alwaysApply:false)?",
+        "result": true,
+        "evidence": "Both scope types found; e.g. ['library/cursor/rules/adversarial_harness.mdc', 'library/cursor/rules/agent_behavior.mdc']"
       },
       {
         "id": "configuration.intermediate.documented_rationale",
-        "result": true
+        "criterion": "Is there a documented rationale for WHEN each rule fires? (AGENTS.md rules section or RULES_STANDARD.md)",
+        "result": true,
+        "evidence": "AGENTS.md"
       },
       {
         "id": "configuration.advanced.per_rule_effectiveness",
-        "result": false
+        "criterion": "Is there per-rule effectiveness data (ablation or eval score per rule)?",
+        "result": false,
+        "evidence": "not found"
       },
       {
         "id": "configuration.advanced.cross_tool_portability",
-        "result": true
+        "criterion": "Is cross-tool portability documented? (AGENTS.md or equivalent)",
+        "result": true,
+        "evidence": "AGENTS.md"
       }
     ]
   },
@@ -31,23 +41,33 @@
     "checks": [
       {
         "id": "workflows.basic.task_lifecycle",
-        "result": true
+        "criterion": "Does the repo have any structured task lifecycle? (state.json, issue template, PR checklist, or equivalent)",
+        "result": true,
+        "evidence": ".harness/state.json"
       },
       {
         "id": "workflows.intermediate.structural_gate",
-        "result": true
+        "criterion": "Is there a hook or structural gate that blocks implementation writes until a contract or spec exists?",
+        "result": true,
+        "evidence": "library/cursor/hooks/contract-gate.sh"
       },
       {
         "id": "workflows.intermediate.audit_log",
-        "result": true
+        "criterion": "Is there an append-only audit log? (breadcrumbs.jsonl or equivalent)",
+        "result": true,
+        "evidence": ".harness/breadcrumbs.jsonl"
       },
       {
         "id": "workflows.advanced.machine_readable_criteria",
-        "result": true
+        "criterion": "Does machine-readable acceptance-criteria-gated implementation exist \u2014 criteria negotiated before any write?",
+        "result": false,
+        "evidence": "not found"
       },
       {
         "id": "workflows.advanced.eval_regression_suite",
-        "result": false
+        "criterion": "Is there an automated eval regression suite (CI-integrated, not manual runs, with seeded baseline)?",
+        "result": false,
+        "evidence": "CI: not found; baseline: tests/eval/fixtures/eval_baseline.json (seeded)"
       }
     ]
   },
@@ -57,27 +77,39 @@
     "checks": [
       {
         "id": "multi_agent.basic.named_agents",
-        "result": true
+        "criterion": "Is there more than one named agent or persona? (\u22652 agent definition files)",
+        "result": true,
+        "evidence": "4 agents: ['library/cursor/agents/evaluator.md', 'library/cursor/agents/planner.md', '.cursor/agents/evaluator.md']"
       },
       {
         "id": "multi_agent.intermediate.role_separation",
-        "result": true
+        "criterion": "Are agent roles defined with separate system prompts encoding distinct role identity and output format?",
+        "result": true,
+        "evidence": "Distinct roles found: ['builder', 'evaluator', 'planner']"
       },
       {
         "id": "multi_agent.intermediate.write_restriction",
-        "result": true
+        "criterion": "Is there any mechanism limiting what each agent can modify?",
+        "result": true,
+        "evidence": "library/cursor/hooks/evaluator-guard.sh"
       },
       {
         "id": "multi_agent.advanced.trust_boundary",
-        "result": true
+        "criterion": "Is there trust boundary enforcement \u2014 evaluating agent structurally blocked (deny hook) from modifying source files?",
+        "result": true,
+        "evidence": "library/cursor/hooks/evaluator-guard.sh (deny permission confirmed)"
       },
       {
         "id": "multi_agent.advanced.programmatic_orchestration",
-        "result": false
+        "criterion": "Is orchestration programmatic (SDK-based multi-agent launch, not manual /evaluator invocation)?",
+        "result": false,
+        "evidence": "library/cursor/hooks/chain-evaluator.sh exists but is phase-advance hook, not SDK-based orchestration"
       },
       {
         "id": "multi_agent.advanced.context_packages",
-        "result": true
+        "criterion": "Are context packages (structured state bundles) passed between agents rather than full history inheritance?",
+        "result": true,
+        "evidence": "library/cursor/hooks/context-package.py"
       }
     ]
   },
@@ -87,27 +119,39 @@
     "checks": [
       {
         "id": "interaction.basic.user_guidance",
-        "result": true
+        "criterion": "Is there any user-facing guidance on how to prompt the AI? (README, AGENTS.md, example prompts)",
+        "result": true,
+        "evidence": "AGENTS.md"
       },
       {
         "id": "interaction.intermediate.prompt_coaching",
-        "result": true
+        "criterion": "Is there a prompt coaching rule or skill that detects underspecified inputs?",
+        "result": true,
+        "evidence": "library/cursor/skills/prompt-coaching/SKILL.md"
       },
       {
         "id": "interaction.intermediate.context_loading",
-        "result": true
+        "criterion": "Is there any mechanism that loads current task context before the first agent turn?",
+        "result": true,
+        "evidence": "library/cursor/hooks/harness-context.sh"
       },
       {
         "id": "interaction.advanced.structured_context_delivery",
-        "result": true
+        "criterion": "Is structured context delivery implemented \u2014 sessionStart hook injecting current task, open contracts, and recent trace?",
+        "result": true,
+        "evidence": "library/cursor/hooks/harness-context.sh (sessionStart + contract/breadcrumb injection)"
       },
       {
         "id": "interaction.advanced.measured_patterns",
-        "result": false
+        "criterion": "Are interaction patterns measured across sessions? (prompt clarity, turns to completion)",
+        "result": false,
+        "evidence": "scripts/session-metrics.py exists but output keys are task/breadcrumb counts; turns_to_completion and prompt_clarity not implemented"
       },
       {
         "id": "interaction.advanced.prompt_versioning",
-        "result": false
+        "criterion": "Is there prompt versioning with a changelog and per-change hypothesis?",
+        "result": false,
+        "evidence": "not found"
       }
     ]
   }

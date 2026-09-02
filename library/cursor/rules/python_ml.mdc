@@ -1,6 +1,6 @@
 ---
 description: Python best practices, pandas patterns, ML conventions, and Jupyter notebook standards
-globs: "**/*.ipynb, notebooks/**/*.py, experiments/**/*.py, analysis/**/*.py"
+globs: ["**/*.ipynb", "notebooks/**/*.py", "experiments/**/*.py", "analysis/**/*.py"]
 alwaysApply: false
 ---
 

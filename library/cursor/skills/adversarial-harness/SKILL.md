@@ -5,7 +5,7 @@ description: >-
   negotiation, adversarial verification, and breadcrumbs. Use when: use harness,
   with harness, /planner, harness workflow, adversarial testing, contract-first,
   multi-agent, complex implementation under harness.
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # Adversarial Harness Workflow

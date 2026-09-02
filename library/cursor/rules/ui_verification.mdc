@@ -1,6 +1,7 @@
 ---
 description: Snapshot-first UI verification — browser_snapshot YAML a11y tree; no Playwright unless asked
-alwaysApply: true
+globs: ["**/*.tsx", "**/*.vue", "**/*.svelte", "**/*.html", "**/*.css", "**/*.scss"]
+alwaysApply: false
 ---
 
 # UI Verification

@@ -7,6 +7,12 @@
         "timeout": 5
       }
     ],
+    "sessionEnd": [
+      {
+        "command": ".cursor/hooks/session-cleanup.sh",
+        "timeout": 5
+      }
+    ],
     "beforeSubmitPrompt": [
       {
         "command": ".cursor/hooks/harness-gate.sh",
@@ -17,12 +23,14 @@
       {
         "command": ".cursor/hooks/contract-gate.sh",
         "matcher": "Write|StrReplace",
-        "timeout": 5
+        "timeout": 5,
+        "failClosed": true
       },
       {
         "command": ".cursor/hooks/evaluator-guard.sh",
         "matcher": "Write|StrReplace",
-        "timeout": 5
+        "timeout": 5,
+        "failClosed": true
       }
     ],
     "subagentStop": [

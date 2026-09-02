@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Optional dogfood hooks — merge via scripts/hooks-profile.sh optional",
+  "description": "Optional dogfood hooks — merge via scripts/hooks-profile.sh optional. NOTE: sessionStart hooks (harness-dashboard, agents-md-nudge) do NOT fire in cloud agents — cloud agents start in a read-only environment where hooks do not load, so sessionStart fires too late or not at all (ref: cursor.com/docs/hooks, cursor.com/help/ai-features/cloud-agents).",
   "hooks": {
     "sessionStart": [
       {
@@ -21,7 +21,6 @@
     "beforeReadFile": [
       {
         "command": ".cursor/hooks/secret-read-guard.sh",
-        "matcher": "Read|TabRead",
         "timeout": 5,
         "failClosed": true
       }

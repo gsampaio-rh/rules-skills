@@ -1,5 +1,8 @@
 ---
-description: Security best practices for code, data, and infrastructure
+description: >-
+  Use when: adding authentication, handling user input, storing credentials,
+  API security, input validation, XSS prevention, secrets management,
+  permissions, dependency audit, CORS, rate limiting, encryption.
 alwaysApply: false
 ---
 

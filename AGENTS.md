@@ -52,9 +52,13 @@ Default profile: [`library/cursor/hooks.json`](library/cursor/hooks.json) — ha
 
 Optional dogfood: [`library/cursor/hooks.optional.json`](library/cursor/hooks.optional.json) — `secret-read-guard`, `security-shell`, `dedup-server`, `agents-md-nudge` (sessionStart if no AGENTS.md).
 
+> **Notes:** (1) `preToolUse` matchers use `Write|StrReplace` — `StrReplace` is not in Cursor's documented tool-type list; if contract-gate misses StrReplace operations, drop it and keep only `Write`. (2) Temporary harness markers (`.routing-pending`, `.evaluator-active`) are cleaned up by `session-cleanup.sh` on `sessionEnd`; manual cleanup: `rm -f .harness/.routing-pending .cursor/hooks/.evaluator-active`.
+
 ## Skills (active catalog)
 
-`adversarial-harness`, `agents-bootstrap`, `fact-check`, `session-review`, `svg-edit`, `code-review`, `commit`, `llm-skeptic`, `prompt-coaching` — see `library/cursor/skills/`. Archived extras: `library/cursor/skills/_archive/`.
+`adversarial-harness`, `agents-bootstrap`, `fact-check`, `session-review`, `svg-edit`, `code-review`, `commit`, `llm-skeptic`, `prompt-coaching` — see `library/cursor/skills/`.
+
+Archived extras live in `library/cursor/skills/_archive/` (source history only). `make sync-local` strips `_archive/` from `.cursor/skills/` after copying so archived skills never appear in the deployed agent catalog. If you install skills to `~/.cursor/skills/` manually, exclude `_archive/` yourself.
 
 ## Cross-tool
 

@@ -1,6 +1,6 @@
 ---
 description: Research quality standards for experiment design, statistical rigor, causal inference, and honest reporting
-globs: "experiments/**/*.{py,ipynb,md}, analysis/**/*.{py,ipynb,md}"
+globs: ["experiments/**/*.{py,ipynb,md}", "analysis/**/*.{py,ipynb,md}"]
 alwaysApply: false
 ---
 

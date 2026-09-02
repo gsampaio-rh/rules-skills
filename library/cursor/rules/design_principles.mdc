@@ -1,5 +1,8 @@
 ---
-description: Design philosophy and principles for building beautiful, accessible interfaces — Dieter Rams, BJ Fogg, Steve Jobs, Jony Ive, Le Corbusier. UI, UX, visual design, interaction design, accessibility.
+description: >-
+  Use when: building UI components, creating forms, accessibility review,
+  visual design, layout, typography, responsive design, interaction design,
+  color system, design tokens, spacing, animation.
 alwaysApply: false
 ---
 

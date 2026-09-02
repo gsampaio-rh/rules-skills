@@ -1,24 +1,22 @@
 ---
-description: Adversarial verification harness — opt-in planner/builder/evaluator cycle
-alwaysApply: true
+description: >-
+  Adversarial verification harness. Use when: harness is active
+  (.harness/state.json has pending/building/evaluating tasks), or user says
+  "use harness", "with harness", "/planner", "adversarial-harness".
+alwaysApply: false
 ---
 
 # Adversarial Verification Harness
 
-**Default: work freely.** Full harness is **opt-in**.
+**Default: work freely.** Full harness is **opt-in** — activate only on explicit request or active `.harness/state.json`.
 
-| Mode | When | Approach |
+| Mode | Condition | Action |
 |---|---|---|
-| Free (default) | Everyday work; no active harness task | Just do it. No planner/contract required. |
-| Opt-in full harness | User says `use harness` / `with harness`, or launches `/planner` / skill `adversarial-harness` | Planner → contract → build → `/evaluator` |
-| Resume | Active task (`pending`/`building`/`evaluating`) | Continue negotiate → build → verify |
+| Free (default) | No active harness task | Work freely. No contract required. |
+| Opt-in | User says `use harness` / `with harness` / `/planner` | Launch skill `adversarial-harness` |
+| Resume | `state.json` has `pending`/`building`/`evaluating` task | Continue negotiate → build → `/evaluator` |
+| Cancel | User says `skip harness` | Clear marker, return to free mode |
 
-- Idle harness (no state, or only committed/cancelled/verified) → free writes.
-- Active harness → need `.harness/contract.json` before impl (hooks deny ungated writes).
-- Do not self-certify → `/evaluator` PASS before `verified: true`.
-- Multi-file harness work → TodoWrite + breadcrumb in `.harness/breadcrumbs.jsonl`.
-- Say `skip harness` to cancel an opt-in arm / leave active mode.
+Active harness → need `.harness/contract.json` before impl; do not self-certify.
 
-Roles: `/planner` (vision, max 5 tasks, no code) · Builder (contract + impl) · `/evaluator` (negotiate + verify; `.harness/` only).
-
-Procedure: skill `adversarial-harness`. Design: `docs/HARNESS_ESSENCE.md`.
+Full procedure: skill `adversarial-harness`. Design: `docs/HARNESS_ESSENCE.md`.

@@ -1,6 +1,7 @@
 ---
 name: svg-edit
 description: "Edit or create SVG files with a validate→preview→edit procedure that prevents XML entity-escape and well-formedness bugs. Use when: svg, edit svg, fix svg, svg encoding, xml entity, amp entity."
+paths: "**/*.svg"
 disable-model-invocation: false
 ---
 

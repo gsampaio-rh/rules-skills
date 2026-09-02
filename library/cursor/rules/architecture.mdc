@@ -1,6 +1,6 @@
 ---
 description: Architecture patterns, SOLID principles, and design trade-offs for software systems
-globs: "src/**/*.{py,ts,tsx}, app/**/*.{py,ts,tsx}, backend/**/*.{py,ts,tsx}, frontend/**/*.{py,ts,tsx}, services/**/*.{py,ts,tsx}"
+globs: ["src/**/*.{py,ts,tsx}", "app/**/*.{py,ts,tsx}", "backend/**/*.{py,ts,tsx}", "frontend/**/*.{py,ts,tsx}", "services/**/*.{py,ts,tsx}"]
 alwaysApply: false
 ---
 
