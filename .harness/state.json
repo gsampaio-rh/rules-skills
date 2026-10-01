@@ -1,21 +1,28 @@
 {
   "project": "rules-skills",
   "schema_version": 2,
-  "vision": "Harden breadcrumb pipeline: anchor active-task signals against FIFO eviction and skip session_start noise in the context-package window.",
+  "vision": "One question when a request has no outcome or boundary, and idle harness sessions do not inject the context package.",
   "tasks": [
     {
-      "id": "fix-breadcrumb-anchor",
-      "name": "Anchor evaluate/negotiate/build entries during FIFO truncation (harness-context.sh inline Python, lines 47-53)",
-      "type": "bug",
-      "status": "verified",
-      "scope": "library/cursor/hooks/harness-context.sh (inline Python truncation block)"
+      "id": "spike-practice-brief",
+      "name": "Sourced brief of how agents should be guided",
+      "type": "spike",
+      "status": "committed",
+      "scope": "Includes a sourced brief on rules, skills, hooks, when to clarify before acting, and the token cost of long agent loops, limited to Cursor official guidance plus a few well-known agent-harness repos, articles, and talks. Excludes library edits and an unbounded survey of every agent framework."
     },
     {
-      "id": "fix-breadcrumb-window",
-      "name": "Skip session_start system noise when building the 3-entry context-package window (_load_breadcrumbs)",
-      "type": "bug",
-      "status": "verified",
-      "scope": "library/cursor/hooks/context-package.py (_load_breadcrumbs), tests/eval/"
+      "id": "spike-library-gaps",
+      "name": "Gap assessment of this library against that evidence",
+      "type": "spike",
+      "status": "committed",
+      "scope": "Includes judging rules, skills, hooks, agents, and the harness process on over-specificity, asking too little before acting, and token waste from long back-and-forth, with a clear keep, change, or undecided reading. Excludes rewriting those artifacts and treating gaps as approval to implement."
+    },
+    {
+      "id": "docs-change-plan",
+      "name": "Prioritized change plan with a do-not-change set",
+      "type": "docs",
+      "status": "committed",
+      "scope": "Includes what to change, what to leave, and what not to do, sequenced for a later harness cycle, plus a reconciliation of earlier better questions versus chatty clarification. Excludes rule, skill, and hook edits, deleting skills, syncing the deployed catalog, and commits."
     }
   ]
 }

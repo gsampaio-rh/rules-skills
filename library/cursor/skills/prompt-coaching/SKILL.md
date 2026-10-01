@@ -6,24 +6,24 @@ disable-model-invocation: false
 
 # Prompt Coaching
 
-You help users formulate effective prompts when their initial request is too vague, open-ended, or underspecified for the agent to act on confidently. You don't block — you act AND coach.
+You help when a request is vague, open-ended, or underspecified. The always-on autonomous-execution rule owns the one question. This skill does not ask a second question and does not append a coaching tip.
 
 ## Before Starting
 
 1. Read the user's prompt and assess specificity on three axes: goal clarity, scope boundaries, success criteria
 2. Determine if this is a genuinely vague request or just a terse follow-up in context
-3. Use the coaching format below (one tip after acting — do not only say "be more specific")
+3. If that always-on rule already asked this turn, stop. Do not ask again and do not add a tip
 
 ## How This Skill Works
 
-### Mode 1: Act and Coach
-The request is actionable but underspecified. Complete the task, then add a coaching tip showing how a more specific prompt would get better results.
+### Mode 1: Act
+The message names an outcome and a target. Do the work. Do not add a coaching tip afterward.
 
-### Mode 2: Clarify Before Acting
-The request is too ambiguous to act on without risking wasted work. Ask one focused clarifying question, propose a concrete interpretation, or suggest Plan mode.
+### Mode 2: Already asked
+The request has no outcome or no boundary, and the always-on rule already asked once. Do not ask again. Wait.
 
 ### Mode 3: Structure a Research Prompt
-The user has an open-ended research question. Help decompose it into actionable sub-questions with clear deliverables.
+The user has an open-ended research question. Decompose it into sub-questions with a deliverable. That structure is the deliverable, not a second round of questions.
 
 ## When to Activate
 
@@ -48,10 +48,10 @@ The user has an open-ended research question. Help decompose it into actionable 
 
 | Level | Example | Action |
 |---|---|---|
-| 1 — Undirected | "Look into caching" | Decompose: what aspect? what deliverable? |
-| 2 — Goal but no scope | "Add caching to improve performance" | Ask: which endpoints? what latency target? |
-| 3 — Goal + scope | "Add Redis caching for /api/search, target <100ms p95" | Act directly |
-| 4 — Fully specified | "Add Redis caching for /api/search using existing RedisClient, TTL 5min, target <100ms p95, add integration test" | Act directly, no coaching needed |
+| 1 — Undirected | "Look into caching" | Mode 3 writes the deliverable structure. It is not a second question |
+| 2 — Goal but no scope | "Add caching to improve performance" | The always-on rule asks once for the missing boundary. This skill does not ask again |
+| 3 — Goal + scope | "Add Redis caching for /api/search, target <100ms p95" | Act directly. No tip |
+| 4 — Fully specified | "Add Redis caching for /api/search using existing RedisClient, TTL 5min, target <100ms p95, add integration test" | Act directly. No tip |
 
 ### Research Prompt Decomposition
 
@@ -67,47 +67,42 @@ Constraints: [time, tools, scope boundaries]
 
 ## Coaching Format
 
-After completing the task, add ONE coaching tip:
+Do not append a coaching tip after the work.
 
-> **Tip:** [specific improvement for this prompt]. Example: "[rewritten version of their prompt that would produce better results]."
-
-Rules:
-- One sentence, specific to THIS prompt (not generic advice)
-- Show the improved prompt as a concrete example
-- At most once per conversation — don't nag
-- Never coach on follow-up messages in an active workflow ("ok", "next", "go")
+- Do not restate the question the always-on rule already asked
+- Follow-ups in an active workflow ("ok", "next", "go", "pode seguir") are targets already named. Act
 
 ## Critical Stance (from former critical_thinking rule)
 
-When the request is vague, architectural, or needs pushback — not only when coaching tips apply:
+When the request is vague, architectural, or needs pushback:
 
 - Identify the real goal (request is often a symptom); spot assumptions; check feasibility and side effects
-- Don't guess — ask one focused question, or propose "I'll do X, Y, Z — does that match?"
+- The one question belongs to the always-on rule. This skill does not add another
 - Challenge wrong tool / over-engineering (prefer simpler path) / under-engineering when a hack needs structure
 - Surface contradictions with existing code or decisions using concrete examples — never silently deviate
-- Trivial asks: don't interrogate. One round of clarification max
+- Trivial asks: don't interrogate
 
 ## Proactive Triggers
 
-Surface these without being asked:
-- **Open-ended research request** → propose decomposition with deliverable format
-- **"Fix it" without context** → ask "what's the expected vs actual behavior?"
-- **3+ objectives in one message** → suggest sequencing and which to tackle first
-- **Subjective aesthetic request** → ask for one concrete criterion to anchor on
+Surface these without being asked, inside the one question the always-on rule owns. Do not add a second question:
+- **Open-ended research request** → Mode 3 decomposition with a deliverable
+- **"Fix it" without context** → the always-on question names one proposed expected-vs-actual reading
+- **3+ objectives in one message** → the same question names a sequence
+- **Subjective aesthetic request** → the same question names one concrete criterion
 - **Architectural / wrong-tool smell** → push back with evidence before implementing
 
 ## Output Artifacts
 
 | When you ask for... | You get... |
 |---|---|
-| Vague request | Task completed + one coaching tip with rewritten example |
+| Vague request | One question from the always-on rule, then a wait. No tip |
 | Open-ended research | Decomposed sub-questions with proposed deliverables |
 | Multi-objective prompt | Sequenced plan with recommended order |
 | "What should I do?" | Decision framework with trade-offs, not a single answer |
 
 ## Stop Conditions
 
-- User's prompt is already at Level 3+ on the specificity ladder — no coaching needed
+- User's prompt is already at Level 3+ on the specificity ladder — act, no tip
 - This is a follow-up in an active workflow (context makes the prompt clear)
-- User has been coached this conversation — don't repeat
+- The always-on rule already asked this turn — do not ask again
 - The task is trivially obvious (single-file, clear intent)

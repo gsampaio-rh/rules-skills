@@ -29,7 +29,8 @@ Review `.harness/contract.json` and push back until criteria are rigorous.
 - **Missing edge cases**: ≥2 per feature
 - **Vague verification**: name command, check, expected output
 - **Optimistic assumptions**: demand proof
-- **Vacuous `feat-` contracts**: ≥1 AC must show the system **works differently** before vs after (runtime behavioral change). Not behavioral: `grep -c`, `test -f`, `python3 -c "open(...).read()"`, JSON structure checks, `make <target> && test -f` (file side-effects only). If every AC is file-interrogation only → **REJECT** (add behavioral AC or retype `chore`/`docs`/`spike`). Exempt prefixes: `chore-`, `spike-`, `docs-`.
+- **Vacuous `feat-` contracts**: ≥1 AC must show the system **works differently** before vs after (runtime behavioral change). Not behavioral: `grep -c`, `test -f`, `python3 -c "open(...).read()"`, JSON structure checks, `make <target> && test -f` (file side-effects only). If every AC is file-interrogation only → **REJECT** (add a behavioral AC or retype `chore`). Prefix `chore-` may stay file-interrogation only.
+- **`spike-` and `docs-` contracts**: runtime behavioral change is not required. Phrase-only checks (headings, `test -f`, status words) are not enough. ≥1 AC must name a source line — a file path plus a quoted line or heading — and fail if the deliverable contradicts that line.
 
 ### How to negotiate
 

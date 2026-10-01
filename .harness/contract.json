@@ -1,25 +1,30 @@
 {
-  "task_id": "fix-breadcrumb-window",
-  "feature": "Skip session_start system noise when building the 3-entry context-package window",
-  "problem": "context-package.py's _load_breadcrumbs returns parsed[-BREADCRUMB_WINDOW:] unconditionally. BREADCRUMB_WINDOW=3. If the last 3 entries are all role=system/type=session_start, the injected context shows only noise and the agent loses visibility of the most recent harness activity.",
-  "proposed_solution": "In _load_breadcrumbs, after parsing lines, build the window by preferring non-noise entries: filter out entries where role=='system' AND type=='session_start', take the last BREADCRUMB_WINDOW from the remainder. If fewer than BREADCRUMB_WINDOW non-noise entries exist, fill remaining slots from the system entries (last-first) so the window is never shorter than min(BREADCRUMB_WINDOW, total_entries).",
+  "task_id": "docs-change-plan",
+  "feature": "Prioritized change plan with a do-not-change set",
+  "problem": "The gap assessment names keep, change, and undecided readings but does not say what a later cycle should edit, in what order, or what must stay.",
+  "proposed_solution": "Write one sequenced plan that turns each change reading into a later-cycle edit, lists an explicit do-not-change set, and reconciles one early question with a shorter loop.",
   "definitions": {
-    "noise_entry": "A parsed breadcrumb dict where BOTH role == 'system' AND type == 'session_start'. An entry matching only one of the two fields is NOT noise and must not be filtered."
+    "prior_docs": [
+      "docs/agent-guidance-practice-brief.md",
+      "docs/agent-guidance-gap-assessment.md"
+    ],
+    "change_path": "A repo path that appears as a change reading in docs/agent-guidance-gap-assessment.md."
   },
   "acceptance_criteria": [
-    "AC1 [STRENGTHENED]: When breadcrumbs has ≥3 non-noise entries (noise = role=='system' AND type=='session_start', both required), the returned window contains exactly BREADCRUMB_WINDOW entries and zero noise entries. Test must assert both len==3 and that no entry satisfies (role=='system' AND type=='session_start').",
-    "AC2 [STRENGTHENED]: When breadcrumbs has k non-noise entries where 0 < k < BREADCRUMB_WINDOW, the returned window has min(BREADCRUMB_WINDOW, total_entries) entries: the k non-noise entries appear first (in their original chronological order from the file), followed by (BREADCRUMB_WINDOW - k) padding entries drawn from the most-recently-written noise entries, also in their original chronological order (oldest padding before newest padding). Prepending padding before non-noise entries is NOT acceptable. Test must assert exact length, exact position of the non-noise entry/entries, and exact position of each padding entry by ts field.",
-    "AC3 [STRENGTHENED]: When breadcrumbs has zero non-noise entries, the returned list equals parsed[-BREADCRUMB_WINDOW:] exactly — the last BREADCRUMB_WINDOW system entries in their original chronological sequence from the file (oldest first). Test must assert the exact list by ts field, not just count.",
-    "AC4: BREADCRUMB_WINDOW constant is unchanged (still 3); the filtering is applied only at selection time, not by changing the constant.",
-    "AC5: make eval-fast exits 0 with 0 errors after the change."
+    "docs/agent-guidance-change-plan.md exists and contains exactly these level-2 headings in this order: Boundary, Do not change, Change, Sequence, Reconciliation. Boundary contains ### In scope and ### Out of scope. Out of scope explicitly excludes library edits to rules, skills, hooks, or harness artifacts, and excludes commits. git status --porcelain outside .harness/ shows this file and may show the two prior_docs paths, and no other path.",
+    "Do not change has at least 5 markdown list items. Each item contains a repo path in backticks that exists on disk, and the exact phrase do not change. At least one item is library/cursor/hooks.json. At least one item is library/cursor/rules/planning_discipline.mdc. At least one item is library/cursor/agents/planner.md.",
+    "Change has at least 4 and at most 6 markdown list items. Each item contains a repo path in backticks that is marked change in docs/agent-guidance-gap-assessment.md, and one sentence of at least 40 characters describing the later edit. The paths library/cursor/rules/autonomous_execution.mdc, library/cursor/skills/prompt-coaching/SKILL.md, library/cursor/hooks/harness-context.sh, and library/cursor/skills/adversarial-harness/SKILL.md each appear.",
+    "Sequence is an ordered list of at least 4 steps. Each step names a Change path in backticks. The section states that a later cycle implements the steps and that this document does not implement them. Step text says spike and docs tasks skip a separate evaluator subagent.",
+    "Reconciliation contains the exact phrase one question and states that an ambiguous goal gets that question before any edit, while an already-specified command does not. It states that the question is not followed by a coaching tip or a second round. It names both library/cursor/rules/autonomous_execution.mdc and library/cursor/skills/prompt-coaching/SKILL.md in backticks."
   ],
   "edge_cases": [
-    "EC1: Empty breadcrumbs.jsonl — _load_breadcrumbs returns [] as before, no crash.",
-    "EC2: Exactly BREADCRUMB_WINDOW=3 total entries, all noise — window equals those 3 entries in original chronological order (fallback path, not empty).",
-    "EC3 [ADDED]: Exactly 1 non-noise entry and 10 noise entries — returned window is [non_noise_entry, noise_entries[-2], noise_entries[-1]] (length 3; non-noise entry first in its original position, followed by the 2 most-recently-written noise entries in their original chronological order). Test must assert exact ts values at indices 0, 1, 2."
+    "A do-not-change or change path that does not exist on disk fails the path criterion.",
+    "A Change path that the gap assessment marks only as keep, with no change reading, fails AC3. library/cursor/skills/adversarial-harness/SKILL.md is allowed because the gap assessment marks it both keep and change.",
+    "Sequence steps that tell the reader to edit files in this same session fail AC4.",
+    "Reconciliation that asks for a multi-question interview, or that tells the agent never to ask, fails AC5."
   ],
-  "verification_method": "pytest unit tests in tests/eval/ that import _load_breadcrumbs from library/cursor/hooks/context-package.py (canonical source path; not a relative import, not the deployed .cursor/ copy). Tests use synthetic parsed lists (plain Python dicts) and assert on returned window contents by ts field, exact ordering, and exact length. Additionally run make eval-fast to exercise the deployed .cursor/hooks/context-package.py as an integration gate.",
-  "rubrics": ["code-quality"],
+  "verification_method": "1) test -f docs/agent-guidance-change-plan.md. 2) rg '^## ' and assert the five headings in order. 3) rg Boundary subheadings and the library-edit exclusion plus commits exclusion. 4) git status --porcelain filtered outside .harness/: allow only the new plan and the two prior docs. 5) Parse Do not change items for backtick paths, test -e, phrase do not change, and the three required paths. 6) Parse Change items: count 4-6, test each path is a change reading in the gap assessment (line contains the path and the whole word change), and each item has a >=40-char sentence. 7) Parse Sequence as an ordered list of >=4 steps, each mentioning a Change path; rg for later cycle and does not implement; rg for spike and docs and evaluator. 8) Reconciliation: rg 'one question'; confirm ambiguous-before-edit vs specified-command; confirm no coaching tip or second round; confirm both required paths.",
+  "rubrics": ["llm-skeptic", "cost-efficiency"],
   "rubric_mode": "warn",
   "negotiation_rounds": 1,
   "phase": "evaluating",

@@ -12,6 +12,20 @@ Act decisively. Don't ask permission for routine operations.
 - Run installs, tests, lint, build, format, and exploration without asking
 - Fix what you break; chain step B when A implies it
 
+## One question
+
+Act without asking when the message names an outcome and a target: a file, a command, or the next step already named in this thread. Examples: run the tests, edit the cited function, "pode seguir" after a confirmed plan.
+
+Ask once and wait when there is no outcome ("fix it", "make it better") or no boundary ("refactor everything", "improve performance"). The question includes one proposed interpretation.
+
+This rule owns that question. Do not add a second question or a coaching tip after it.
+
+## Off the indicated step
+
+If the user chooses a step other than the one this rule or an active skill just named, state that indicated step in one sentence and do what they asked. Do not ask a second question.
+
+The approval list below is not an off-path choice. Those actions still wait for an explicit yes.
+
 ## NEVER Execute Without Approval
 
 **Git commits: NEVER run `git commit` without asking first.** Stage, draft the message, show the plan — then wait.

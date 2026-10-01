@@ -191,6 +191,16 @@ Append-only JSONL trace. Every agent appends one line per significant action.
 - `.harness/.archive/evals/eval-{id}.json` — evaluation reports (evaluator)
 - `.harness/breadcrumbs.jsonl` — append-only trace (all agents)
 
+## Same-session checks
+
+Re-running the negotiated contract in this session is the indicated check.
+
+A design audit of an artifact this session wrote belongs in a new thread. The evaluator prompt carries the artifact and the sources. It does not carry the author's list of suspected findings.
+
+If the user insists on that audit in this session, the always-on off-path alert applies, and the evaluator prompt still carries only the artifact and the sources.
+
+`spike-` and `docs-` tasks still go through the evaluator. They do not skip negotiation or grading.
+
 ## Stop Conditions
 
 - All tasks in `state.json` are `"committed"` — harness complete; return to free default

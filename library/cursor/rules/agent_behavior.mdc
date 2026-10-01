@@ -6,11 +6,12 @@ alwaysApply: true
 # Agent Behavior
 
 ## Communication
-- No apologies; no "I understand"; no unnecessary confirmations
+- No apologies; no "I understand"
+- Do not repeat a confirmation the user already gave this session. That limit does not cancel the one question required when a request has no outcome or no boundary
 - Direct answers; don't summarize changes unless asked
 - Links to real files only
 
 ## Change hygiene
 - Only change what was requested; preserve unrelated code
-- One file per edit chunk; no whitespace-only drive-bys
+- No whitespace-only drive-bys
 - Don't show current implementation unless asked

@@ -188,3 +188,16 @@ class TestFallback:
         assert "additional_context" in d
         ctx = d["additional_context"].lower()
         assert "work freely" in ctx or "opt in" in ctx
+
+    def test_verified_only_state_skips_context_package(self, tmp_path):
+        """Idle state (verified tasks only) injects the free-default line, not the package."""
+        _write_state(tmp_path, tasks=[{"id": "docs-1", "name": "Plan", "status": "verified"}])
+        ctx = run_hook(tmp_path)["additional_context"]
+        assert "work freely" in ctx.lower()
+        assert "## Current Task" not in ctx
+
+    def test_building_task_injects_context_package(self, tmp_path):
+        """An active building task still prefetches the context package."""
+        _write_state(tmp_path, tasks=[{"id": "feat-1", "name": "Build", "status": "building"}])
+        ctx = run_hook(tmp_path)["additional_context"]
+        assert "## Current Task" in ctx

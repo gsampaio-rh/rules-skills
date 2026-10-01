@@ -114,6 +114,27 @@ if [ -f "$HOOK_LOG_FILE" ] && [ "$(wc -l < "$HOOK_LOG_FILE" 2>/dev/null | tr -d 
   tail -100 "$HOOK_LOG_FILE" > "$HOOK_LOG_FILE.tmp" && mv "$HOOK_LOG_FILE.tmp" "$HOOK_LOG_FILE" 2>/dev/null
 fi
 
+# Idle harness state is just-in-time: with no pending/building/evaluating task,
+# inject the one-line free-default message. An active task still prefetches the
+# context package because the model will use the contract and criteria.
+# The practice brief left pre-fetch vs just-in-time unresolved; this chooses
+# just-in-time for the idle case only.
+if [ -f "$STATE" ]; then
+  ACTIVE_TASK=$(${PYTHON_BIN:-python3} -c "
+import json
+try:
+    tasks = json.load(open('$STATE')).get('tasks', [])
+except Exception:
+    tasks = []
+active = {'pending', 'building', 'evaluating'}
+print('yes' if any(t.get('status') in active for t in tasks) else 'no')
+" 2>/dev/null || echo no)
+  if [ "$ACTIVE_TASK" != "yes" ]; then
+    echo '{"additional_context":"No harness active. Work freely by default. Opt in with use harness / /planner when you want full planner→contract→gates."}'
+    exit 0
+  fi
+fi
+
 if [ ! -f "$STATE" ] && [ ! -f "$CONTRACT" ]; then
   echo '{"additional_context":"No harness active. Work freely by default. Opt in with use harness / /planner when you want full planner→contract→gates."}'
   exit 0
